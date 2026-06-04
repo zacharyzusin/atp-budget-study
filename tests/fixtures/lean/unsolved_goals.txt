@@ -1,0 +1,3 @@
+test.lean:3:0: error: unsolved goals
+n : Nat
+⊢ n + 0 = n

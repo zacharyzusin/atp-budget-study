@@ -7,9 +7,10 @@ project:
   hf_cache: scratch/hf-cache        # set HF_HOME here to avoid re-downloads
 
 lean:
-  # PIN THESE in Task 0.2 and record exact hashes in DECISIONS.md. Drift will cost days.
-  toolchain: "leanprover/lean4:vX.Y.Z"   # TODO fill exact version
-  mathlib_commit: "TODO_COMMIT_SHA"
+  # PINNED in Task 0.2 (verified against Goedel-Prover-V2's submodule). See DECISIONS.md.
+  toolchain: "leanprover/lean4:v4.9.0-rc1"
+  mathlib_repo: "https://github.com/xinhjBrant/mathlib4.git"   # FORK Goedel pins (not upstream)
+  mathlib_commit: "2f65ba7f1a9144b20c8e7358513548e317d26de1"   # 2024-08-07
   cache_dir: scratch/lean-cache
   verify_timeout_s: 120                   # per whole-proof / per tactic-step ceiling
   reject_loopholes: ["sorry", "admit", "native_decide"]  # fail proofs that use these

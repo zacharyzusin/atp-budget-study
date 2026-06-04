@@ -31,3 +31,6 @@ dist/
 !results/.gitkeep
 !logs/.gitkeep
 !checkpoints/.gitkeep
+
+# pre-existing duplicate scaffold bundle (kept on disk, not tracked)
+atp-budget-study-starter/

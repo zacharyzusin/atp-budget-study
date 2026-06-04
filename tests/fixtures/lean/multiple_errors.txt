@@ -1,0 +1,7 @@
+test.lean:7:2: error: unknown identifier 'foo'
+test.lean:4:2: error: type mismatch
+  rfl
+has type
+  ?a = ?a
+but is expected to have type
+  1 = 2

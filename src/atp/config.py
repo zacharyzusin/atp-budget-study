@@ -45,6 +45,7 @@ class ProjectCfg(_Strict):
 class LeanCfg(_Strict):
     toolchain: str
     mathlib_commit: str
+    mathlib_repo: str = "https://github.com/leanprover-community/mathlib4.git"
     cache_dir: str = "scratch/lean-cache"
     verify_timeout_s: int = 120
     reject_loopholes: list[str] = Field(default_factory=lambda: ["sorry", "admit", "native_decide"])

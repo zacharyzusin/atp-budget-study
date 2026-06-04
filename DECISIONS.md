@@ -72,3 +72,16 @@ Rationale: keeps the marker-gated fast/slow test split honest.
 `config.project.hf_cache = scratch/hf-cache`; `apply_env` resolves it against `project.root` and sets
 `HF_HOME` so model/data downloads land in shared scratch, never `$HOME` (storage-hygiene rule).
 CLI entrypoints call it before any HF use.
+
+### 2026-06-04 — Lean/mathlib pins LOCKED — RESOLVES Task 0.2 TODO (verified, not guessed)
+**Lean toolchain:** `leanprover/lean4:v4.9.0-rc1`.
+**mathlib4:** commit `2f65ba7f1a9144b20c8e7358513548e317d26de1` (2024-08-07) from the FORK
+`https://github.com/xinhjBrant/mathlib4.git` (NOT upstream leanprover-community/mathlib4).
+Rationale: this is the exact submodule (`mathlib4 @ 2f65ba7…`, url `xinhjBrant/mathlib4`) that
+Goedel-Prover-V2 pins for compiling/verifying proofs; matching it makes our verifier agree with the
+proof format the prover model was trained to emit. Verified by reading the repo's `.gitmodules` + root
+tree submodule pointer and fetching `lean-toolchain` at that commit (the official-mathlib API 404'd on
+this SHA, confirming it is fork-specific). Recorded into `configs/base.yaml` (`lean.toolchain`,
+`lean.mathlib_commit`) + a new `lean.mathlib_repo`. The actual `lake build` of this mathlib into
+`scratch/lean-cache` is DEFERRED (disk hold) — pin is locked now; build happens once disk is freed.
+Flagged to the team before writing the Lean layer, per the Task 0.2 instruction.

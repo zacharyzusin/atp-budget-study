@@ -1,0 +1,1 @@
+Mathlib/Test.lean:12:14: error: unknown identifier 'Nat.foo_bar'

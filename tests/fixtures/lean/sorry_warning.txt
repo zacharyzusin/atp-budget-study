@@ -1,0 +1,1 @@
+test.lean:2:0: warning: declaration uses 'sorry'
