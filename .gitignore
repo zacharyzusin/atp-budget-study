@@ -1,0 +1,33 @@
+# storage hygiene: nothing large or machine-specific in git.
+# NOTE: git only treats '#' as a comment at the START of a line — keep patterns comment-free.
+
+# conda envs, HF cache, lean cache, model weights, big intermediates
+scratch/
+# slurm-%x_%j.out/.err
+logs/
+# metrics json, curves, per-problem logs, _vllm_endpoint.txt
+results/
+# model/agent checkpoints (may live in scratch/ if large)
+checkpoints/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# env / editor
+.env
+.venv/
+.DS_Store
+.claude/settings.local.json
+
+# keep the dir skeleton so paths exist on a fresh clone
+!results/.gitkeep
+!logs/.gitkeep
+!checkpoints/.gitkeep

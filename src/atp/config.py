@@ -1,0 +1,218 @@
+"""Config loader + schema for atp experiments.
+
+`configs/base.yaml` is the canonical schema; every other config sets `defaults: base` and
+overrides a subset of fields. This module:
+
+  * deep-merges a config on top of its `defaults` base,
+  * validates the merged result against typed pydantic models (typos / wrong types are
+    rejected via `extra="forbid"`),
+  * round-trips losslessly (load -> dump -> load is stable),
+  * exposes `config_hash` (for run_manifest.json) and `apply_env` (sets HF_HOME into scratch).
+
+Kept dependency-light on purpose (pydantic + pyyaml only) so it imports on a login node.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+from typing import Any, Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field
+
+# Repo root = three parents up from this file: src/atp/config.py -> repo root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CONFIGS_DIR = REPO_ROOT / "configs"
+BASE_CONFIG = CONFIGS_DIR / "base.yaml"
+
+
+# --------------------------------------------------------------------------------------
+# Typed schema (mirrors configs/base.yaml). extra="forbid" turns config typos into errors.
+# --------------------------------------------------------------------------------------
+class _Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProjectCfg(_Strict):
+    root: str
+    results_dir: str = "results"
+    hf_cache: str = "scratch/hf-cache"
+
+
+class LeanCfg(_Strict):
+    toolchain: str
+    mathlib_commit: str
+    cache_dir: str = "scratch/lean-cache"
+    verify_timeout_s: int = 120
+    reject_loopholes: list[str] = Field(default_factory=lambda: ["sorry", "admit", "native_decide"])
+
+
+class ModelCfg(_Strict):
+    name: str
+    hf_repo: str
+    revision: str
+    endpoint_file: str = "results/_vllm_endpoint.txt"
+    max_model_len: int = 16384
+    temperature: float = 1.0
+    top_p: float = 0.95
+    prompt_template: Literal["whole_proof", "tactic"] = "whole_proof"
+
+
+class BudgetCfg(_Strict):
+    unit: Literal["tokens"] = "tokens"
+    values: list[int]
+    stop_on_first_success: bool = True
+
+
+class RefinementCfg(_Strict):
+    enabled: bool = True
+    max_iters: int = 4
+    alloc_split: float = Field(0.5, ge=0.0, le=1.0)
+
+
+class MemoryCfg(_Strict):
+    enabled: bool = False
+
+
+class ReviewerCfg(_Strict):
+    enabled: bool = False
+
+
+class RetrievalCfg(_Strict):
+    enabled: bool = False
+    backend: Literal["none", "bm25", "reprover"] = "bm25"
+    k: int = 8
+
+
+class SkeletonsCfg(_Strict):
+    enabled: bool = False
+    schedule: str = "default"
+
+
+class ComponentsCfg(_Strict):
+    memory: MemoryCfg = Field(default_factory=MemoryCfg)
+    reviewer: ReviewerCfg = Field(default_factory=ReviewerCfg)
+    retrieval: RetrievalCfg = Field(default_factory=RetrievalCfg)
+    tactic_skeletons: SkeletonsCfg = Field(default_factory=SkeletonsCfg)
+
+
+class AgentCfg(_Strict):
+    mode: Literal["whole_proof", "bfs"] = "whole_proof"
+    refinement: RefinementCfg = Field(default_factory=RefinementCfg)
+    components: ComponentsCfg = Field(default_factory=ComponentsCfg)
+
+
+class SearchCfg(_Strict):
+    beam: int = 8
+    length_norm: bool = True
+    max_depth: int = 50
+
+
+class DataCfg(_Strict):
+    benchmark: Literal["minif2f", "proofnet_sharp"] = "minif2f"
+    split: Literal["train", "valid", "test", "novel"] = "test"
+    exclude_unprovable: bool = True
+    use_novel_split: bool = False
+    limit: int | None = None  # smoke configs cap the problem count
+
+
+class EvalCfg(_Strict):
+    seeds: list[int]
+    metrics: list[str] = Field(
+        default_factory=lambda: ["pass_at_b", "tokens_to_first_proof", "effective_accuracy"]
+    )
+    reviewer_false_accept: bool = True
+
+
+class LoggingCfg(_Strict):
+    log_dir: str = "logs"
+    per_problem_json: bool = True
+    write_manifest: bool = True
+
+
+class ExperimentConfig(_Strict):
+    """Fully-merged, validated experiment config."""
+
+    project: ProjectCfg
+    lean: LeanCfg
+    model: ModelCfg
+    budget: BudgetCfg
+    agent: AgentCfg = Field(default_factory=AgentCfg)
+    search: SearchCfg = Field(default_factory=SearchCfg)
+    data: DataCfg = Field(default_factory=DataCfg)
+    eval: EvalCfg
+    logging: LoggingCfg = Field(default_factory=LoggingCfg)
+    # Phase 1 sweep configs carry an extra `sweep` block; keep it as opaque data so the
+    # base schema validates without enumerating every axis shape.
+    sweep: dict[str, Any] | None = None
+
+
+# --------------------------------------------------------------------------------------
+# Loading / merging
+# --------------------------------------------------------------------------------------
+def _read_yaml(path: str | os.PathLike[str]) -> dict[str, Any]:
+    with open(path) as fh:
+        data = yaml.safe_load(fh) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"config {path} did not parse to a mapping")
+    return data
+
+
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge `override` onto a copy of `base` (override wins on leaves)."""
+    out = dict(base)
+    for key, val in override.items():
+        if key in out and isinstance(out[key], dict) and isinstance(val, dict):
+            out[key] = _deep_merge(out[key], val)
+        else:
+            out[key] = val
+    return out
+
+
+def _resolve_defaults(raw: dict[str, Any], configs_dir: Path) -> dict[str, Any]:
+    """Pop `defaults: <name>` and deep-merge raw onto that base config."""
+    defaults = raw.pop("defaults", None)
+    if defaults is None:
+        return raw
+    if defaults in (None, "base"):
+        base_path = configs_dir / "base.yaml"
+    else:
+        base_path = configs_dir / f"{defaults}.yaml"
+    base_raw = _read_yaml(base_path)
+    base_raw.pop("defaults", None)  # base.yaml has no defaults, but be safe
+    return _deep_merge(base_raw, raw)
+
+
+def load_config(path: str | os.PathLike[str]) -> ExperimentConfig:
+    """Load a YAML config, merge it onto its `defaults` base, and validate it."""
+    path = Path(path)
+    configs_dir = path.parent if path.parent.name == "configs" else CONFIGS_DIR
+    raw = _read_yaml(path)
+    merged = _resolve_defaults(raw, configs_dir)
+    return ExperimentConfig.model_validate(merged)
+
+
+def dump_config(config: ExperimentConfig) -> dict[str, Any]:
+    """Plain-dict view of a config (round-trip safe with `ExperimentConfig.model_validate`)."""
+    return config.model_dump(mode="json")
+
+
+def config_hash(config: ExperimentConfig) -> str:
+    """Stable short hash of the fully-resolved config, for run_manifest.json."""
+    blob = json.dumps(dump_config(config), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode()).hexdigest()[:12]
+
+
+def apply_env(config: ExperimentConfig) -> dict[str, str]:
+    """Set process env from the config (HF_HOME -> scratch cache) and return what changed.
+
+    Paths in the config are relative to the project root; resolve them so jobs launched
+    from anywhere point HF at the shared scratch cache (storage-hygiene rule).
+    """
+    root = Path(config.project.root)
+    hf_home = str((root / config.project.hf_cache).resolve())
+    os.environ["HF_HOME"] = hf_home
+    return {"HF_HOME": hf_home}

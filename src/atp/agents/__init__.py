@@ -1,0 +1,1 @@
+"""atp.agents — placeholder package; populated in later Phase 0/1 tasks."""

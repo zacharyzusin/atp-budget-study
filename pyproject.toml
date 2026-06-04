@@ -1,0 +1,67 @@
+[project]
+name = "atp-budget-study"
+version = "0.1.0"
+description = "Budget-bounded agentic theorem proving: fixed-budget ablation + learned controller"
+requires-python = ">=3.11"
+dependencies = [
+    # --- LIGHT CORE: pinned + installed in Task 0.1 (login-node safe, ~580MB env). ---
+    # Versions frozen 2026-06-04 on Insomnia (python 3.11.15); see DECISIONS.md.
+    "pydantic==2.13.4",     # config system + typed validation (chosen over omegaconf)
+    "pyyaml==6.0.3",        # config file parsing
+    "openai==2.41.0",       # client for the vLLM OpenAI-compatible endpoint
+    "huggingface-hub==1.17.0",
+    "numpy==2.4.6",
+    "pandas==3.0.3",
+    "matplotlib==3.10.9",   # pass@B curves
+    "rank-bm25==0.2.2",     # retrieval baseline
+    "tenacity==9.1.4",      # retries around flaky Lean/server calls
+]
+
+[project.optional-dependencies]
+# HEAVY GPU/LEAN STACK: deferred (multi-GB) until disk headroom is confirmed (Task 0.2/0.3).
+# Pin exact versions when first installed and record them in DECISIONS.md.
+gpu = [
+    "torch",                # pin in Task 0.3 (match cuda/12.3 wheels)
+    "vllm",                 # inference server for the 8B provers
+    "transformers",
+    "datasets",
+]
+lean = [
+    "lean-dojo",            # Lean 4 interaction + premise data (pin in Task 0.2)
+]
+train = [
+    "trl",                  # Phase 2 GRPO/DPO (or replace with a minimal loop)
+    "peft",                 # LoRA/QLoRA for Phase 2
+]
+dev = ["pytest==9.0.3", "pytest-timeout==2.4.0", "ruff==0.15.16", "pre-commit"]
+
+[project.scripts]
+atp = "atp.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+markers = [
+    "slow: tests that take more than a couple seconds",
+    "gpu: tests that require a GPU",
+    "lean: tests that require a working Lean/LeanDojo install",
+]
+# Fast suite (login-node safe) = run without slow/gpu/lean:
+#   pytest -m "not slow and not gpu and not lean"
+# Full suite (on a GPU node):
+#   pytest
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["atp*"]

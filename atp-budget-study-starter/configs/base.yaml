@@ -1,0 +1,63 @@
+# configs/base.yaml — base experiment schema. Other configs override fields of this.
+# This file IS the schema documentation: the config loader (Task 0.1) should validate against it.
+
+project:
+  root: /insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study
+  results_dir: results
+  hf_cache: scratch/hf-cache        # set HF_HOME here to avoid re-downloads
+
+lean:
+  # PIN THESE in Task 0.2 and record exact hashes in DECISIONS.md. Drift will cost days.
+  toolchain: "leanprover/lean4:vX.Y.Z"   # TODO fill exact version
+  mathlib_commit: "TODO_COMMIT_SHA"
+  cache_dir: scratch/lean-cache
+  verify_timeout_s: 120                   # per whole-proof / per tactic-step ceiling
+  reject_loopholes: ["sorry", "admit", "native_decide"]  # fail proofs that use these
+
+model:
+  name: goedel-prover-v2-8b
+  hf_repo: "Goedel-LM/Goedel-Prover-V2-8B"
+  revision: "TODO_PIN_REVISION"
+  endpoint_file: results/_vllm_endpoint.txt   # vLLM server writes host:port here
+  max_model_len: 16384
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: whole_proof               # whole_proof | tactic   (see src/atp/models/templates)
+
+budget:
+  unit: tokens                               # generation tokens summed across all calls
+  values: [2000, 8000, 32000, 128000]        # pass@B is reported as a curve over these
+  stop_on_first_success: true
+
+agent:
+  mode: whole_proof                          # whole_proof | bfs
+  refinement:
+    enabled: true
+    max_iters: 4
+    alloc_split: 0.5        # fraction of B spent on refinement vs. fresh samples (0..1)
+  components:               # Phase 1 ablation toggles — each independently testable
+    memory:        { enabled: false }                       # carry solved lemmas / past errors as context
+    reviewer:      { enabled: false }                       # second-pass check before accepting
+    retrieval:     { enabled: false, backend: bm25, k: 8 }  # bm25 | reprover | none
+    tactic_skeletons: { enabled: false, schedule: default } # fixed common-tactic-skeleton prompts
+
+search:                    # used when agent.mode == bfs
+  beam: 8
+  length_norm: true
+  max_depth: 50
+
+data:
+  benchmark: minif2f          # minif2f | proofnet_sharp
+  split: test                 # train | valid | test | novel
+  exclude_unprovable: true    # drop the known-unprovable miniF2F items
+  use_novel_split: false      # lead headline claims with this true
+
+eval:
+  seeds: [0, 1, 2]            # >=3 for headline numbers
+  metrics: [pass_at_b, tokens_to_first_proof, effective_accuracy]
+  reviewer_false_accept: true # measure & report when reviewer is enabled
+
+logging:
+  log_dir: logs
+  per_problem_json: true      # results/<run>/problems/<id>.json
+  write_manifest: true        # run_manifest.json with git SHA, config hash, versions, GPU type, times
