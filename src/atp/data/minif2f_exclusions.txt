@@ -1,0 +1,13 @@
+# miniF2F known-unprovable / ill-posed exclusion list.
+#
+# One problem `name` per line (matching the `theorem <name>` in formal/<split>.lean).
+# Lines after `#` are comments. These items are dropped when config.data.exclude_unprovable=True
+# (PROJECT_PLAN.md §0.5): theorems that are false as stated, mis-formalized, or otherwise
+# impossible to prove, which would otherwise depress pass@B for reasons unrelated to prover ability.
+#
+# NOTE (2026-06-04): this list is intentionally empty pending the AUDITED miniF2F correction set.
+# The loader (exclusions.apply_exclusions) validates every name here against the loaded problems and
+# surfaces unmatched names, so populating it later is safe and typo-proof. Until populated,
+# exclude_unprovable is a no-op and the manifest records zero exclusions (honest provenance).
+#
+# Add audited names below this line:

@@ -149,3 +149,29 @@ Newest entries at the bottom. Never delete history.
 - Next: while the mathlib build runs → **Task 0.5 data layer**, reusing the sibling's miniF2F (Lean4)
   statements. When the build finishes → install pantograph for the Goedel env + run the contract tests
   green on it (flip the deferred lean tests).
+
+### 2026-06-04 — Task 0.5 (data layer + audited splits): code + fast tests green; mathlib build still running
+- Did: Built `src/atp/data/` — `problems.py` (`Problem`: statement head + imports/opens + provenance +
+  flags unprovable/contaminated/novel; `to_theorem()` bridges to the verifier), `minif2f.py` (pure-text
+  parser: splits `theorem … := sorry` blocks, strips the proof tail, parses the import/open header
+  (flattening `open scoped`), attaches informal JSON, stamps git repo+commit+file+line provenance;
+  default source = sibling's miniF2F-lean4 @ d2e847c, overridable via `data.minif2f_dir`),
+  `proofnet.py` (JSONL loader; raises until `data.proofnet_dir` is staged), `exclusions.py` +
+  `minif2f_exclusions.txt` (data-file-driven known-unprovable list; **validates names against loaded
+  problems and reports unmatched** so typos/version-mismatch surface — shipped empty pending the
+  AUDITED correction set), `contamination.py` (tag NOVEL, flag the rest CONTAMINATED — public benchmarks
+  are training-suspect; novel split is the mitigation), `manifest.py` (`DatasetManifest` for
+  run_manifest.json: counts/source/exclusions/model_revision). `__init__.load_dataset(config)`
+  orchestrates: load split → flag/drop exclusions → contamination/novel → limit → manifest. Added
+  `data.{minif2f_dir,proofnet_dir,exclusions_file}` to `DataCfg`.
+- Tests: `make test` → **92 passed, 3 deselected** (+12). ruff clean. `import atp.data` stays light.
+  The guarded real-data test confirms the **staged miniF2F = 244 valid / 244 test** with commit
+  provenance. Honest caveat baked in: the rahul3613 port (Lean v4.6) may not be the *audited* miniF2F —
+  source is config-driven + provenance-stamped so swapping to an audited version is a config change.
+- Numbers: no GPU-hours. **Mathlib build (job 10223218) still RUNNING** (~14 min, oleans climbing;
+  resumed from the killed login attempt's partial progress) — comfortably inside the 12 h `short` cap.
+- Issues: ProofNet# not staged on this cluster (loader fixture-tested, ready when data lands).
+- Next: when the build finishes → `pip install pantograph` (version matching v4.9.0-rc1) into the env,
+  run the contract tests against the Goedel pin (flip the deferred lean tests green). Then **Task 0.6**
+  (eval harness + baseline reproduction) — the first task that needs the GPU (vLLM serve) + the built
+  Lean env, and where the Goedel-pin guardrail starts mattering for real numbers.

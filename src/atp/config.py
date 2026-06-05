@@ -118,6 +118,10 @@ class DataCfg(_Strict):
     exclude_unprovable: bool = True
     use_novel_split: bool = False
     limit: int | None = None  # smoke configs cap the problem count
+    # Data source dirs (None → loader defaults: miniF2F to the sibling copy; ProofNet# unset).
+    minif2f_dir: str | None = None
+    proofnet_dir: str | None = None
+    exclusions_file: str | None = None  # override the built-in miniF2F exclusion list
 
 
 class EvalCfg(_Strict):
