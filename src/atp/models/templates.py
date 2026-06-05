@@ -60,6 +60,8 @@ class PromptTemplate(Protocol):
 
     def render(self, theorem: Theorem, **kwargs: object) -> str: ...
 
+    def render_refinement(self, theorem: Theorem, prev_proof: str, feedback: str) -> str: ...
+
     def extract_proof(self, theorem: Theorem, completion: str) -> str: ...
 
 
@@ -81,6 +83,19 @@ class WholeProofTemplate:
         # Open the declaration with `:= by` so the model continues into tactic mode.
         scaffold = f"{header}\n\n{statement} := by\n" if header else f"{statement} := by\n"
         return f"{self.INSTRUCTION}\n\n```lean4\n{scaffold}```\n"
+
+    REFINE_INSTRUCTION: str = (
+        "Your previous Lean 4 proof failed to compile. Fix it. Here is the Lean error feedback; "
+        "produce a corrected, complete proof in a single ```lean4 code block (no `sorry`)."
+    )
+
+    def render_refinement(self, theorem: Theorem, prev_proof: str, feedback: str) -> str:
+        return (
+            f"{self.REFINE_INSTRUCTION}\n\n"
+            f"Previous attempt:\n```lean4\n{prev_proof.strip()}\n```\n\n"
+            f"Lean feedback:\n{feedback.strip()}\n\n"
+            f"Corrected proof:\n```lean4\n"
+        )
 
     def extract_proof(self, theorem: Theorem, completion: str) -> str:
         """Pull the fenced Lean out of the completion; fall back to the raw text if unfenced."""
@@ -114,6 +129,10 @@ class TacticTemplate:
         parts.append(f"Current goal state:\n{state}" if state else "Current goal state: (initial)")
         parts.append("Next tactic:")
         return "\n".join(parts)
+
+    def render_refinement(self, theorem: Theorem, prev_proof: str, feedback: str) -> str:
+        # Tactic mode re-asks for the next tactic, carrying the failed tactic + error as context.
+        return self.render(theorem, state=feedback, prev_tactics=(prev_proof,))
 
     def extract_proof(self, theorem: Theorem, completion: str) -> str:
         """A single tactic: strip fences/whitespace and take the first non-empty line."""

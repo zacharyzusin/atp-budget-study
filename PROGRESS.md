@@ -91,3 +91,28 @@ Newest entries at the bottom. Never delete history.
   error → repeat until solved or `BudgetExhausted`; persist state each iter for requeue. All mockable
   with `ScriptedBackend` + `ScriptedTransport`. (Real Lean build + 2 skipped lean tests still pending
   the compute-node install.)
+
+### 2026-06-04 — Task 0.4 (minimal whole-proof agent loop): code + fast tests green
+- Did: Wrote `src/atp/agents/state.py` (`AgentState`+`Attempt`: full resumable checkpoint — attempt
+  trail, `BudgetMeter` snapshot, stop reason; atomic JSON save via tmp+rename; `load` returns None if
+  absent) and `src/atp/agents/whole_proof.py` (`WholeProofAgent`: propose→verify→refine rounds; each
+  `_step` does generate+verify+checkpoint and returns solved/no_progress/failed; `BudgetExhausted`
+  from the metered client is the clean budget-out path; `max_rounds` safety cap; `from_config` wires
+  `agent.refinement.{enabled,max_iters}` + `sample_max_tokens = max_model_len//2`). Resume restores
+  the meter from the checkpoint so spend carries over; a finished checkpoint short-circuits (no redo).
+  Added `WholeProofTemplate.render_refinement` (prev proof + Lean feedback → corrected proof) and a
+  tactic-mode counterpart. Wired `agents/__init__.py` exports.
+- Tests: `make test` → **79 passed, 3 deselected in ~2.6s** (+7; was 72). `ruff` clean. `import
+  atp.agents` verified NOT to pull openai/torch/lean_dojo (login-node safe). New `tests/test_agents.py`
+  drives the full loop with `ScriptedTransport`+`ScriptedBackend`; the scripted server respects the
+  meter's clamped `max_tokens` so budget accounting matches production. Covers the three required
+  tests: solves-trivial (mocked; real end-to-end is the `lean+gpu+slow` skip), state-resume (solved →
+  no new generation; unsolved → carried budget), respects-budget (spend == B exactly, clean stop).
+- Numbers: no GPU-hours. Light env ~580 MB.
+- Issues: none in code. Real end-to-end solve (`test_agent_solves_trivial`, lean+gpu+slow) still
+  deferred behind the vLLM server + `scratch/lean-cache` build (compute-node install).
+- Next: **Task 0.5 — data layer** (`src/atp/data/`): loaders for audited miniF2F + ProofNet#,
+  known-unprovable exclusion list, contamination/novel-split utility, per-problem provenance. Mockable
+  (small fixture manifests) without the heavy install. Then Task 0.6 (eval harness + baseline) — which
+  is the first task that genuinely needs the GPU + Lean build, i.e. the natural point to do that
+  install inside an `srun` session.

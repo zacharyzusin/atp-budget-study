@@ -1,0 +1,168 @@
+"""Tests for the minimal whole-proof agent loop (Task 0.4).
+
+Fast tests drive the full propose→verify→refine loop with a scripted transport (the "model") and a
+scripted Lean backend (the "verifier"), so there's no GPU/Lean dependency. The scripted transport
+respects the clamped `max_tokens` the budget meter hands it, exactly like a real vLLM server, so
+budget accounting in these tests matches production. The real end-to-end solve is the lean+gpu+slow
+test at the bottom (deferred with the Lean build).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from atp.agents import STOP_BUDGET, STOP_SOLVED, AgentState, WholeProofAgent
+from atp.budget import BudgetMeter
+from atp.lean import RawVerification, ScriptedBackend, Theorem, Verifier
+from atp.models import ScriptedTransport, VLLMClient, completion_response
+from atp.models.templates import WholeProofTemplate
+
+THM = Theorem(name="t", statement="theorem t : True")
+
+GOOD = "```lean4\ntheorem t : True := by\n  trivial\n```"
+BAD = "```lean4\ntheorem t : True := by\n  bad_tactic\n```"
+
+
+def _backend() -> ScriptedBackend:
+    """A scripted Lean: a proof is accepted iff it contains `trivial`."""
+
+    def respond(_thm, proof):
+        if "trivial" in proof:
+            return RawVerification(success=True, output="")
+        return RawVerification(success=False, output="test.lean:2:2: error: unknown tactic")
+
+    return ScriptedBackend(respond)
+
+
+def _transport(*, solve_on_refine: bool = False, always_solve: bool = False) -> ScriptedTransport:
+    """Scripted model. Returns a completion whose token cost respects the clamped max_tokens.
+
+    - always_solve: every call returns a `trivial` proof.
+    - solve_on_refine: proposals return a bad proof; refinements (prompt has 'Lean feedback') solve.
+    """
+
+    def respond(payload):
+        is_refine = "Lean feedback" in payload["prompt"]
+        solved = always_solve or (solve_on_refine and is_refine)
+        text = GOOD if solved else BAD
+        # A real server generates up to max_tokens; model that so spend == clamp.
+        return completion_response(text, completion_tokens=payload["max_tokens"])
+
+    return ScriptedTransport(respond)
+
+
+def _agent(transport, meter, **kw) -> WholeProofAgent:
+    client = VLLMClient(model="m", transport=transport, meter=meter)
+    defaults = dict(max_refine=4, sample_max_tokens=10, max_rounds=64)
+    defaults.update(kw)
+    return WholeProofAgent(
+        client=client, verifier=Verifier(_backend()), template=WholeProofTemplate(), **defaults
+    )
+
+
+def test_agent_solves_on_first_attempt():
+    transport = _transport(always_solve=True)
+    agent = _agent(transport, BudgetMeter(limit=1000))
+    state = agent.prove(THM)
+    assert state.solved
+    assert state.stop_reason == STOP_SOLVED
+    assert "trivial" in state.proof
+    assert state.n_attempts == 1
+    assert state.attempts[0].kind == "propose"
+
+
+def test_agent_refines_then_solves():
+    transport = _transport(solve_on_refine=True)
+    agent = _agent(transport, BudgetMeter(limit=1000))
+    state = agent.prove(THM)
+    assert state.solved
+    assert state.n_attempts == 2
+    assert state.attempts[0].kind == "propose" and state.attempts[0].ok is False
+    assert state.attempts[1].kind == "refine" and state.attempts[1].ok is True
+    # the refinement prompt carried the previous proof + Lean feedback
+    assert "Lean feedback" in transport.calls[1]["prompt"]
+    assert "bad_tactic" in transport.calls[1]["prompt"]
+
+
+def test_agent_respects_budget():
+    """Token spend never exceeds B; running out is a clean budget stop, not a crash."""
+    limit = 25
+    transport = _transport()  # never solves -> loops until budget runs out
+    meter = BudgetMeter(limit=limit)
+    agent = _agent(transport, meter, sample_max_tokens=10)
+    state = agent.prove(THM)
+    assert state.stop_reason == STOP_BUDGET
+    assert meter.spent == limit  # exactly exhausted, never over
+    assert state.budget["spent"] <= limit
+    assert meter.exhausted
+
+
+def test_agent_persists_state_each_iteration(tmp_path):
+    path = tmp_path / "t.json"
+    transport = _transport(solve_on_refine=True)
+    agent = _agent(transport, BudgetMeter(limit=1000))
+    agent.prove(THM, state_path=path)
+    assert path.exists()
+    reloaded = AgentState.load(path)
+    assert reloaded.solved
+    assert reloaded.n_attempts == 2
+
+
+def test_agent_state_resume_skips_solved_work(tmp_path):
+    """A resumed *solved* problem returns immediately with no new generation."""
+    path = tmp_path / "t.json"
+    agent1 = _agent(_transport(always_solve=True), BudgetMeter(limit=1000))
+    agent1.prove(THM, state_path=path)
+
+    # New process: fresh transport (call counter at zero) reading the same checkpoint.
+    transport2 = _transport(always_solve=True)
+    agent2 = _agent(transport2, BudgetMeter(limit=1000))
+    state = agent2.prove(THM, state_path=path)
+    assert state.solved
+    assert transport2.calls == []  # work was not redone
+
+
+def test_agent_resume_continues_unsolved_with_carried_budget(tmp_path):
+    """Resuming an unfinished checkpoint restores the spend and continues from there."""
+    path = tmp_path / "t.json"
+    # Hand-craft a mid-loop checkpoint: one failed attempt, 30 tokens already spent of 100.
+    prior = BudgetMeter(limit=100)
+    prior.spend(30, label="propose")
+    AgentState(
+        theorem_name="t",
+        done=False,
+        attempts=[],
+        budget=prior.snapshot(),
+    ).save(path)
+
+    # A fresh process picks it up; the model now solves on the first proposal.
+    transport = _transport(always_solve=True)
+    agent = _agent(transport, BudgetMeter(limit=100), sample_max_tokens=10)
+    state = agent.prove(THM, state_path=path)
+
+    assert state.solved
+    # Budget continued from 30 (not reset): 30 already spent + 10 for the solving attempt.
+    assert agent.client.meter.spent == 40
+    assert state.budget["spent"] == 40
+
+
+def test_from_config_wires_refinement_policy():
+    from atp.config import BASE_CONFIG, load_config
+
+    cfg = load_config(BASE_CONFIG)
+    client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
+    agent = WholeProofAgent.from_config(cfg, client, Verifier(_backend()))
+    assert agent.max_refine == cfg.agent.refinement.max_iters
+    assert agent.refine_enabled == cfg.agent.refinement.enabled
+    assert agent.sample_max_tokens == cfg.model.max_model_len // 2
+
+
+# --------------------------------------------------------------------------------------
+# Real end-to-end solve (deferred): needs a running vLLM server + built Lean cache.
+# --------------------------------------------------------------------------------------
+@pytest.mark.lean
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_agent_solves_trivial():
+    pytest.importorskip("lean_dojo", reason="real Lean backend deferred (compute-node hold)")
+    pytest.skip("end-to-end solve lands with the vLLM server + lean-cache build (deferred).")

@@ -120,3 +120,24 @@ above. `generate()` is budget-aware: clamps `max_tokens` via the meter, then cha
 fenced block from the completion (models draft in earlier blocks); tactic mode returns the first
 non-empty line. NOTE: instruction wording follows the published model cards — if a card revision drifts,
 update here and log it (the served `revision` is pinned, so prompt changes are deliberate + audited).
+
+### 2026-06-04 — Task 0.4 design: budget is the stopping criterion; state checkpointed every attempt
+**Loop shape (`src/atp/agents/whole_proof.py`).** `WholeProofAgent` runs *rounds*: a fresh proposal
+then up to `max_refine` error-fed refinements, repeating rounds until solved or budget-out. The
+**budget meter is the real stopping criterion** — `client.generate` raises `BudgetExhausted` when the
+ledger is empty, which the agent catches as a clean stop (`stop_reason=budget_exhausted`), never a
+crash. `max_rounds` is only a safety cap so a generous budget can't spin forever. Rationale: keeps the
+loop honest to the project's central knob (fixed token budget) rather than an iteration count.
+
+**State + resume (`src/atp/agents/state.py`).** `AgentState` checkpoints after *every* attempt
+(atomic tmp+rename, so a preempt mid-write can't corrupt it) and carries the `BudgetMeter` snapshot.
+On resume: a *finished* checkpoint short-circuits (no work redone); an *unfinished* one restores the
+meter so spend continues from where the killed job stopped (rule 0.3). The attempt trail is retained
+for later analysis / Phase-2 trajectory collection. Per-problem file fits the planned
+`results/<run>/problems/<id>.json` layout.
+
+**Dependency injection.** The agent takes an injected `VLLMClient` (carrying the meter) + `Verifier`,
+so the whole loop is exercised end-to-end in the fast suite with `ScriptedTransport`+`ScriptedBackend`
+— no GPU/Lean. The scripted server honors the meter's clamped `max_tokens`, so mocked budget
+accounting equals production. The real end-to-end solve is a single `lean+gpu+slow` test, deferred
+with the compute-node install.
