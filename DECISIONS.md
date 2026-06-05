@@ -141,3 +141,54 @@ so the whole loop is exercised end-to-end in the fast suite with `ScriptedTransp
 — no GPU/Lean. The scripted server honors the meter's clamped `max_tokens`, so mocked budget
 accounting equals production. The real end-to-end solve is a single `lean+gpu+slow` test, deferred
 with the compute-node install.
+
+### 2026-06-04 — Verification backend = Pantograph (replaces LeanDojo skeleton) — SUPERSEDES the LeanDojo plan
+The real Lean backend is **PyPantograph** (`pantograph` 0.3.15), not lean-dojo. Rationale: the sibling
+project `…/theorem-proving-research` already has Pantograph working on this exact cluster as a
+**persistent Lean 4 REPL** (one Lean process with Mathlib preloaded; ~0.1–0.5 s/tactic vs lean-dojo's
+heavyweight per-call cold start and finicky tracing). Lighter, proven here, and supports both whole-proof
+file compilation and tactic-mode stepping (needed for the BFS axis). `LeanDojoBackend` in
+`src/atp/lean/backends.py` is replaced by `PantographBackend` (same `LeanBackend` protocol, so the
+`Verifier` and agent loop are unchanged). `lean-dojo` is dropped from the `[lean]` optional deps in
+favor of `pantograph`. The `LeanBackend` protocol indirection from Task 0.2 is exactly what makes this
+swap a localized change.
+
+### 2026-06-04 — Verification ENV split: Goedel pin for all reported numbers; v4.29.0 quarantined to plumbing — SUPERSEDES the 2026-06-04 "pins LOCKED … build deferred (disk hold)" entry
+Adopting the **hybrid** strategy (parallelize, don't serialize) with a **hard guardrail**:
+
+- **Goedel pin** (`leanprover/lean4:v4.9.0-rc1` + `xinhjBrant/mathlib4@2f65ba7…`, the locked pin) is the
+  verification target for **every number that lands in `results/` or the paper** — starting with the
+  Phase 0 baseline reproduction and everything downstream.
+- **v4.29.0 + upstream mathlib + Pantograph** (reused from the sibling project's prebuilt 7.3 GB
+  `lean_env/.lake`) is **QUARANTINED to plumbing validation, smoke tests, and CI only**. No reported
+  number is ever measured against it.
+
+**Why the guardrail is non-negotiable (measurement validity, not style):** Goedel-Prover-V2-8B was
+trained to emit proofs against a ~v4.9-era mathlib API. Between v4.9.0-rc1 and v4.29.0 there are many
+mathlib releases of lemma renames/deprecations/signature changes, so verifying the prover's outputs
+against v4.29.0 turns a systematic fraction of failures into pure **API drift** (math correct, lemma
+moved) rather than proving ability — directly corrupting pass@B, the headline metric, and undermining
+the project's rigorous-evaluation claim. **Switchover gate:** v4.29.0 answers "does the pipeline run";
+the Goedel pin answers "is the number right." The Phase 0 baseline reproduction is the harness's
+correctness test (it must land in a believable range for a known 8B prover); on a mismatched mathlib an
+anomalously low number is indistinguishable from a harness bug, so the baseline repro and everything
+after it run on the Goedel pin. Hold this line under time pressure.
+
+**Acquisition — CACHE_MISS confirmed (from-source build required):** `scripts/setup_lean_env.sh`
+installed the v4.9.0-rc1 toolchain (commit be6c4894e0a6) and `lake update`d the fork (manifest written,
+8 deps incl. mathlib resolved). `lake exe cache get` returned **0% success** — "some files were not
+found in the cache … your local checkout of mathlib4 has diverged from upstream." So the `xinhjBrant`
+fork is **custom-patched** (its oleans are not hosted in mathlib's cache), and Mathlib must be **built
+from source** (~thousands of modules; multi-hour, many-core). This runs as a **Slurm burst job**
+(`slurm/build_lean.sh`), NOT on a login node; `lake build` is incrementally resumable so a preempt/
+requeue continues from existing oleans (rule 0.3). The setup script now stops at cache-get on a miss
+and points to the slurm job (it must never compile on the login node).
+
+### 2026-06-04 — Phase 1 risk noted: BFS-Prover may need a different mathlib pin than Goedel (decide before Phase 1)
+If BFS-Prover-V1-7B expects a different mathlib than Goedel's pin, the generation-mode axis (whole-proof
+vs tactic search) confounds **search algorithm** with **model identity + environment**. Two clean
+resolutions, pick before Phase 1: (a) run each prover in its **native environment** and report it as a
+bundled "environment travels with the model" comparison; or (b, cleaner) implement **best-first search
+driving the Goedel model in tactic mode**, isolating search-vs-whole-proof with model + mathlib held
+constant — viable only if Goedel emits usable single-tactic steps (quick probe needed). Not blocking
+Phase 0; logged now so it isn't a surprise.

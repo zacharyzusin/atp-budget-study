@@ -10,8 +10,8 @@ import pytest
 
 from atp.config import BASE_CONFIG, load_config
 from atp.lean import (
-    LeanDojoBackend,
     LeanEnvNotReady,
+    PantographBackend,
     RawVerification,
     ScriptedBackend,
     Theorem,
@@ -91,24 +91,62 @@ def test_from_config_uses_config_policy():
 
 
 def test_real_backend_not_ready_raises_clearly():
+    """Before the env is built, the real backend fails loudly and clearly (not silently)."""
     cfg = load_config(BASE_CONFIG)
-    backend = LeanDojoBackend(cfg)
+    backend = PantographBackend(cfg)
     with pytest.raises(LeanEnvNotReady):
         backend.verify(THM, GOOD_PROOF)
 
 
+def test_build_source_adds_imports_when_missing():
+    """Source assembly prepends imports/opens for a bare proof, and leaves a full file untouched."""
+    cfg = load_config(BASE_CONFIG)
+    backend = PantographBackend(cfg)
+    thm = Theorem(name="t", statement="theorem t : True", imports=("Mathlib",), opens=("Nat",))
+    bare = "theorem t : True := by trivial"
+    src = backend._build_source(thm, bare)
+    assert src.startswith("import Mathlib")
+    assert "open Nat" in src
+    assert bare in src
+    full = "import Mathlib\n\ntheorem t : True := by trivial"
+    assert backend._build_source(thm, full) == full  # already complete -> unchanged
+
+
 # --------------------------------------------------------------------------------------
-# Real-Lean integration (deferred): needs lean-dojo + a built scratch/lean-cache.
+# Real-Lean integration CONTRACT (version-agnostic): trivial true/false proofs that must behave
+# identically on EITHER stack — the v4.29.0 plumbing env or the Goedel-pinned env. This is the
+# contract that lets us swap backends/envs with confidence (DECISIONS.md 2026-06-04).
+# Point it at any built lake project via ATP_LEAN_ENV_DIR; skips cleanly when no env is built.
 # --------------------------------------------------------------------------------------
-@pytest.mark.lean
-@pytest.mark.slow
-def test_verifier_accepts_known_good():
-    pytest.importorskip("lean_dojo", reason="real Lean backend deferred (disk hold)")
-    pytest.skip("RealLeanBackend.verify lands with the scratch/lean-cache build (deferred).")
+def _built_backend():
+    import os
+
+    cfg = load_config(BASE_CONFIG)
+    env_dir = os.environ.get("ATP_LEAN_ENV_DIR")
+    backend = PantographBackend(cfg, project_path=env_dir) if env_dir else PantographBackend(cfg)
+    if not backend._env_built():
+        pytest.skip(f"no built Lean env at {backend.project_path} (build in progress / not staged)")
+    return backend
 
 
 @pytest.mark.lean
 @pytest.mark.slow
-def test_verifier_rejects_known_bad():
-    pytest.importorskip("lean_dojo", reason="real Lean backend deferred (disk hold)")
-    pytest.skip("RealLeanBackend.verify lands with the scratch/lean-cache build (deferred).")
+def test_contract_accepts_trivial_true():
+    pytest.importorskip("pantograph", reason="pantograph not installed in this env")
+    v = Verifier(_built_backend())
+    thm = Theorem(name="ok", statement="theorem ok : True")
+    res = v.verify(thm, "theorem ok : True := by\n  trivial")
+    assert res.ok, res.feedback
+
+
+@pytest.mark.lean
+@pytest.mark.slow
+def test_contract_rejects_false():
+    pytest.importorskip("pantograph", reason="pantograph not installed in this env")
+    v = Verifier(_built_backend())
+    res = v.verify(
+        Theorem(name="bad", statement="theorem bad : (1 : Nat) = 2"),
+        "theorem bad : (1 : Nat) = 2 := by\n  rfl",
+    )
+    assert not res.ok
+    assert res.reason == "compile_error"

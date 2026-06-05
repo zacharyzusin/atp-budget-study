@@ -27,7 +27,11 @@ gpu = [
     "datasets",
 ]
 lean = [
-    "lean-dojo",            # Lean 4 interaction + premise data (pin in Task 0.2)
+    # Persistent Lean 4 REPL (replaces lean-dojo; see DECISIONS.md 2026-06-04). The pantograph-repl
+    # is built against a specific Lean version, so the pin MUST match the target toolchain:
+    #   * 0.3.15 -> Lean v4.29.0  (the quarantined plumbing/CI stack)
+    #   * Goedel-pin (v4.9.0-rc1) -> a matching older pantograph; pin TBD when first run there.
+    "pantograph==0.3.15",
 ]
 train = [
     "trl",                  # Phase 2 GRPO/DPO (or replace with a minimal loop)

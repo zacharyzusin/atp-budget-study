@@ -116,3 +116,36 @@ Newest entries at the bottom. Never delete history.
   (small fixture manifests) without the heavy install. Then Task 0.6 (eval harness + baseline) — which
   is the first task that genuinely needs the GPU + Lean build, i.e. the natural point to do that
   install inside an `srun` session.
+
+### 2026-06-04 — Lean stack decided (hybrid + Pantograph); Goedel-pin mathlib build kicked off
+- Did: Inspected the sibling project `…/theorem-proving-research` (user pointer). It has a working
+  Lean stack on this cluster: `elan` at `~/.elan` (toolchains incl. v4.29.0), a **fully-built upstream
+  mathlib** (`lean_env/.lake`, 7.3 GB, Lean v4.29.0), **PyPantograph 0.3.15** (persistent REPL), and
+  **miniF2F (Lean4 port)** + PutnamBench data. Their toolchains (v4.6/4.22/4.29) DON'T match our pinned
+  v4.9.0-rc1, so their build can't be reused for reported numbers. **Decision (per user): HYBRID with a
+  hard guardrail** — v4.29.0/Pantograph quarantined to plumbing/CI/smoke; **every reported number
+  (from the Phase 0 baseline repro onward) runs on the Goedel pin** (v4.9.0-rc1 + xinhjBrant fork).
+  Rationale = measurement validity (mathlib API drift would corrupt pass@B). Recorded as superseding
+  entries in DECISIONS.md (+ saved as a cross-session memory).
+- Code: **Replaced the LeanDojo skeleton with a real `PantographBackend`** (`src/atp/lean/backends.py`):
+  lazy `pantograph` import, persistent `Server` (Mathlib preloaded), `check_compile` → success iff no
+  ERROR-severity message; messages reformatted to `name.lean:line:col: sev: text` so the Task-0.2
+  `errors.py`/loophole/earliest-step logic is reused unchanged. Filesystem LEAN_PATH (avoids `lake env`
+  hang), `project_path` override + reads the env's own `lean-toolchain` so it can target EITHER stack.
+  Updated `lean/__init__`, `pyproject` `[lean]` (lean-dojo→pantograph, version must match toolchain),
+  and the verifier tests. Added the **version-agnostic contract tests** (`test_contract_accepts_trivial_true`
+  / `test_contract_rejects_false`, `lean`+`slow`) — trivial True / `1=2` proofs that must behave the
+  same on both stacks; the gate that lets us swap envs with confidence. Point them at any built env via
+  `ATP_LEAN_ENV_DIR`; they skip cleanly when none is built.
+- Acquisition: `scripts/setup_lean_env.sh` installed toolchain v4.9.0-rc1 + `lake update`d the fork.
+  **`lake exe cache get` MISSED** (0% — fork oleans not hosted) → from-source build required. Killed the
+  build it started on the LOGIN node; moved it to **`slurm/build_lean.sh`** (CPU-only `short`, 32 cores,
+  128G, `--requeue`, incremental-resumable). First submit failed on a bad `-j` flag (this lake has none);
+  fixed and **resubmitted as job 10223218** (full Mathlib from source; multi-hour).
+- Tests: `make test` → **80 passed, 3 deselected**; ruff clean; imports don't pull pantograph/openai/
+  torch/lean_dojo. (3 deselected = 2 lean contract tests + 1 lean+gpu agent end-to-end.)
+- Issues: pantograph version must match the target Lean (0.3.15↔v4.29.0; Goedel-pin pantograph TBD when
+  first run there). Logged the BFS-Prover-may-need-different-mathlib confound for Phase 1.
+- Next: while the mathlib build runs → **Task 0.5 data layer**, reusing the sibling's miniF2F (Lean4)
+  statements. When the build finishes → install pantograph for the Goedel env + run the contract tests
+  green on it (flip the deferred lean tests).
