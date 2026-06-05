@@ -66,3 +66,28 @@ Newest entries at the bottom. Never delete history.
 - Next: when disk freed → install `[lean]` + `lake build` the pinned mathlib, fill `LeanDojoBackend.
   verify`, flip the 2 skipped lean tests green. Otherwise proceed to Task 0.3 (vLLM client + budget
   meter) which is also mockable without the heavy install.
+
+### 2026-06-04 — Task 0.3 (model client + budget meter): code + fast tests green; disk re-checked
+- Did: **Re-checked disk** — `df -h /insomnia001` shows 1.7 PB / 61% used / **~672 TB free**; the prior
+  "100% / 20 GB" note was a stale view (logged a superseding `DECISIONS.md` entry). Heavy install is
+  not space-blocked, just belongs on a compute node — so proceeded with the mockable Task 0.3. Wrote
+  `src/atp/budget/meter.py` (`BudgetMeter`: exact token ledger from server `completion_tokens`;
+  `request()` clamps to remaining + raises `BudgetExhausted` cleanly; `spend()`; `snapshot/restore`
+  for requeue; `from_config`), `src/atp/models/client.py` (`VLLMClient` + `Transport` Protocol;
+  `OpenAITransport` real path uses the `openai` SDK against vLLM `/v1/completions`, imported LAZILY;
+  `ScriptedTransport`+`completion_response` for tests; `Completion` with `truncated`), and
+  `src/atp/models/templates.py` (`WholeProofTemplate` for Goedel, `TacticTemplate` for BFS-Prover,
+  `extract_lean_block` taking the last fenced block, `get_template`/`template_from_config`). Wired
+  `budget/__init__.py` + `models/__init__.py` exports.
+- Tests: `make test` (env python) → **72 passed, 2 deselected in ~1.9s** (was 47; +25). `ruff check`
+  clean. Verified `import atp.models`/`atp.budget` does NOT pull `openai` or `torch` (login-node safe).
+  `python -m atp.cli prove --config configs/smoke.yaml` runs the no-op pipeline OK. (`make smoke`
+  itself needs `conda activate` first — `make` used system python in this shell; not a code issue.)
+- Numbers: no GPU-hours. Light env still ~580 MB. Required Task 0.3 tests present:
+  `test_budget_meter_accounting`, `test_budget_exhausted_is_graceful` (+ clamp/snapshot/from_config).
+- Issues: none in code. Open: confirm any per-project quota with the team before the heavy
+  `[gpu]`/`[lean]` install + `lake build` (do it inside an interactive `srun`, not on a login node).
+- Next: **Task 0.4 — minimal agent loop** (`src/atp/agents/`): proposer → verifier (0.2) → refine on
+  error → repeat until solved or `BudgetExhausted`; persist state each iter for requeue. All mockable
+  with `ScriptedBackend` + `ScriptedTransport`. (Real Lean build + 2 skipped lean tests still pending
+  the compute-node install.)

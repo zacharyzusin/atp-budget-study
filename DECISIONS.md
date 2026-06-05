@@ -85,3 +85,38 @@ this SHA, confirming it is fork-specific). Recorded into `configs/base.yaml` (`l
 `lean.mathlib_commit`) + a new `lean.mathlib_repo`. The actual `lake build` of this mathlib into
 `scratch/lean-cache` is DEFERRED (disk hold) — pin is locked now; build happens once disk is freed.
 Flagged to the team before writing the Lean layer, per the Task 0.2 instruction.
+
+### 2026-06-04 — Disk: filesystem has headroom (672 TB free); "100%/20 GB" was a stale view — SUPERSEDES the disk-hold note
+Re-checked `df -h /insomnia001`: **1.7 PB filesystem, 61% used, ~672 TB available.** The earlier
+"100% / ~20 GB free on a 5 TB mount" figure does not reflect the live filesystem (likely a transient
+or a per-view/quota number captured during Task 0.1). So **raw space is not a blocker** for the heavy
+install. The heavy `[gpu]`/`[lean]` install + multi-hour `lake build` are still deferred for a
+different reason: they belong on a GPU/compute node (per CLAUDE.md) and shouldn't be kicked off
+unattended from a login node. Action: confirm a per-project quota (if any) with the team, then run the
+heavy install + `lake build` inside an interactive `srun` session. Token/verify code paths remain
+fully mock-tested meanwhile.
+
+### 2026-06-04 — Task 0.3 design: budget meter as the enforcement seam; vLLM via a `Transport` abstraction
+**Budget meter (`src/atp/budget/meter.py`).** `BudgetMeter` is the single source of truth for the
+per-problem token budget `B`. Accounting uses the server-reported `usage.completion_tokens` — never a
+local estimate — so the budget equals what the GPU actually generated. API split: `request(n)` clamps
+the next call to `min(n, remaining)` and raises `BudgetExhausted` when nothing remains (clean,
+catchable stop — the agent saves partial state, doesn't crash); `spend(actual, label)` charges the
+ledger after the call. `snapshot()`/`restore()` round-trip the spend+ledger for requeue (rule 0.3).
+Rationale: clamp-then-spend keeps generations inside budget while accounting stays exact even if a
+server returns a hair more than requested.
+
+**Model client (`src/atp/models/client.py`).** `VLLMClient` talks to the persistent vLLM server over
+a `Transport` Protocol: `OpenAITransport` (real — uses the `openai` SDK against vLLM's OpenAI-compatible
+`/v1/completions`, `openai` **imported lazily** so `import atp.models` stays light) vs
+`ScriptedTransport` (tests/smoke — exact token control, records payloads). Chose the `openai` SDK over
+raw HTTP because it's already a pinned light-core dep and matches the "persistent vLLM + HTTP" decision
+above. `generate()` is budget-aware: clamps `max_tokens` via the meter, then charges the returned
+`completion_tokens`.
+
+**Prompt templates (`src/atp/models/templates.py`).** `WholeProofTemplate` (Goedel-Prover-V2-8B) and
+`TacticTemplate` (BFS-Prover) behind a `PromptTemplate` Protocol, selected by
+`config.model.prompt_template`. Whole-proof renders a `lean4` fenced scaffold and extracts the **last**
+fenced block from the completion (models draft in earlier blocks); tactic mode returns the first
+non-empty line. NOTE: instruction wording follows the published model cards — if a card revision drifts,
+update here and log it (the served `revision` is pinned, so prompt changes are deliberate + audited).
