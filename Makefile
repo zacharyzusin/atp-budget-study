@@ -3,7 +3,10 @@
 PROJECT_ROOT := /insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study
 ENV_PATH     := $(PROJECT_ROOT)/scratch/conda-envs/atp
 
-.PHONY: test test-all smoke lint format env help
+CONFIG ?= configs/phase0_baseline.yaml
+NAME   ?= baseline
+
+.PHONY: test test-all smoke lint format env eval baseline help
 
 help:
 	@echo "test      - fast suite (login-node safe; excludes slow/gpu/lean)"
@@ -12,6 +15,8 @@ help:
 	@echo "lint      - ruff check"
 	@echo "format    - ruff format + import sort"
 	@echo "env       - print the conda activate line for this cluster"
+	@echo "eval      - run the eval sweep locally (needs a live vLLM endpoint + Goedel-pin env)"
+	@echo "baseline  - sbatch the one-command baseline (vLLM + sweep) on an l40s GPU node"
 
 test:
 	pytest -m "not slow and not gpu and not lean"
@@ -30,3 +35,9 @@ format:
 
 env:
 	@echo "module load anaconda/2023.09 && conda activate $(ENV_PATH)"
+
+eval:
+	python -m atp.cli sweep --config $(CONFIG) --name $(NAME) --resume
+
+baseline:
+	sbatch slurm/sweep.sh $(CONFIG) $(NAME)

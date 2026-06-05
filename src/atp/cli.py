@@ -28,13 +28,20 @@ def _cmd_prove(args: argparse.Namespace) -> int:
 
 
 def _cmd_sweep(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from atp.eval.run import run_eval
+
     cfg = load_config(args.config)
-    apply_env(cfg)
-    print(
-        f"[atp sweep] config={args.config} hash={config_hash(cfg)} "
-        f"array_id={args.array_id} resume={args.resume}"
-    )
-    print("[atp sweep] no-op pipeline OK (Phase 0 scaffold)")
+    run_name = args.name or f"run_{config_hash(cfg)}"
+    run_dir = Path(cfg.project.root) / cfg.project.results_dir / run_name
+    print(f"[atp sweep] config={args.config} hash={config_hash(cfg)} run_dir={run_dir}")
+    # Real path: needs the vLLM endpoint file + the built Goedel-pin Lean env; fails clearly if not.
+    result = run_eval(cfg, run_dir, resume=args.resume)
+    print(f"[atp sweep] cells: ran={result.n_ran} skipped={result.n_skipped}")
+    for p in result.metrics["pass_at_b"]:
+        print(f"  pass@{p['budget']:>7}: {p['mean']:.3f} ± {p['std']:.3f}  (n={p['n_problems']})")
+    print(f"[atp sweep] wrote {run_dir}/metrics.json, run_manifest.json, pass_at_b.png")
     return 0
 
 
@@ -49,8 +56,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_prove.add_argument("--resume", action="store_true")
     p_prove.set_defaults(func=_cmd_prove)
 
-    p_sweep = sub.add_parser("sweep", help="restartable array sweep (no-op in Phase 0)")
+    p_sweep = sub.add_parser("sweep", help="run a restartable eval sweep → pass@B + manifest")
     p_sweep.add_argument("--config", required=True)
+    p_sweep.add_argument("--name", default=None, help="run dir under results/ (default run_<hash>)")
     p_sweep.add_argument("--array-id", type=int, default=0)
     p_sweep.add_argument("--resume", action="store_true")
     p_sweep.set_defaults(func=_cmd_sweep)

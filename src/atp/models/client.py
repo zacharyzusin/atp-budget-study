@@ -128,6 +128,7 @@ class VLLMClient:
     temperature: float = 1.0
     top_p: float = 0.95
     stop: tuple[str, ...] = ()
+    seed: int | None = None  # vLLM sampling seed for reproducibility (set per eval seed)
 
     @classmethod
     def from_config(
@@ -171,6 +172,8 @@ class VLLMClient:
         stops = self.stop if stop is None else stop
         if stops:
             payload["stop"] = list(stops)
+        if self.seed is not None:
+            payload["seed"] = self.seed
 
         completion = self._parse(self.transport.complete(payload))
 

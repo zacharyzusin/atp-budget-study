@@ -175,3 +175,29 @@ Newest entries at the bottom. Never delete history.
   run the contract tests against the Goedel pin (flip the deferred lean tests green). Then **Task 0.6**
   (eval harness + baseline reproduction) — the first task that needs the GPU (vLLM serve) + the built
   Lean env, and where the Goedel-pin guardrail starts mattering for real numbers.
+
+### 2026-06-04 — Task 0.6 (eval harness + metrics) CODE COMPLETE (mockable parts); awaiting GPU+env for real numbers
+- Did: Built `src/atp/eval/` — `records.py` (`ProblemResult` per (problem,seed): records
+  `tokens_to_solve` so the whole pass@B curve comes from ONE run at max budget; atomic JSON =
+  resume signal), `metrics.py` (`pass_at_b` mean±std over seeds, `tokens_to_first_proof`,
+  `effective_accuracy` with reviewer false-accept discount, `summarize`), `manifest.py`
+  (`build_run_manifest`: git sha, config hash+dump, model/lean/dataset provenance, host/GPU, timing;
+  `REQUIRED_KEYS`), `harness.py` (`run_sweep`: restartable — skips completed cells; proving injected
+  as `solve_fn` so it's fully mocked), `plot.py` (pass@B curve, lazy matplotlib), `run.py`
+  (`run_eval`: assembles the REAL stack — dataset→vLLM client→Pantograph verifier→WholeProofAgent→
+  sweep→metrics→manifest→plot; transport+backend injectable). Added `seed` to `VLLMClient` (vLLM
+  sampling seed → reproducible per-seed runs). Wired `atp sweep` CLI (one-command) + `make eval` /
+  `make baseline`, and `slurm/vllm_server.sh` + `slurm/sweep.sh` (l40s; sweep brings up vLLM, waits,
+  runs the restartable sweep; guards on the Goedel-pin env marker).
+- Tests: `make test` → **101 passed, 3 deselected** (+9). ruff clean. `import atp.eval` stays light
+  (no matplotlib/openai/pantograph/torch). Includes `test_pass_at_b_metric`, `test_manifest_completeness`,
+  a restartable-sweep test, AND `test_run_eval_end_to_end_mocked` — the full production assembly driven
+  by `ScriptedTransport`+`ScriptedBackend` over a fixture miniF2F (no GPU/Lean), asserting pass@B==1,
+  manifest, and a rendered plot.
+- Numbers: no GPU-hours. Mathlib build (job 10223218) ~87% (4050/4652 modules, ~27 min) — finishing soon.
+- Issues: real baseline reproduction is **gated** on: build finishing → `pip install pantograph` for the
+  Goedel env → pin `config.model.revision` → serve vLLM. Per the guardrail those numbers run on the
+  Goedel pin only.
+- Next: (when build done) install pantograph + flip the lean contract tests green on the Goedel pin;
+  pin the Goedel-Prover-V2-8B revision; `sbatch slurm/sweep.sh configs/phase0_baseline.yaml baseline`
+  for the real pass@B curve → log numbers + GPU-hours here. That closes Phase 0.
