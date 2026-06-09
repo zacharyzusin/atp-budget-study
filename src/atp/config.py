@@ -60,6 +60,16 @@ class ModelCfg(_Strict):
     temperature: float = 1.0
     top_p: float = 0.95
     prompt_template: Literal["whole_proof", "tactic"] = "whole_proof"
+    # Goedel-Prover-V2-8B is a Qwen3-based *reasoning* prover trained with a chat template; it must
+    # be driven via /v1/chat/completions (server applies the template) — raw /v1/completions makes
+    # it ramble in prose instead of emitting a ```lean4 block. See DECISIONS.md 2026-06-06.
+    chat_completions: bool = True
+    # HTTP read timeout per vLLM request. One request generates up to max_model_len//2 tokens
+    # (~20k @ len 40960); under n_workers concurrency per-stream throughput drops to ~6-15 tok/s, so
+    # a single request can run 30-45 min. The old 600s default timed out and (pre-fix) killed the
+    # whole sweep — baseline 10272937 died at 165 cells. Size this WELL above the worst case.
+    request_timeout_s: int = 3600
+    request_max_retries: int = 4  # SDK-level retries for transient connection/5xx blips
 
 
 class BudgetCfg(_Strict):
@@ -130,6 +140,8 @@ class EvalCfg(_Strict):
         default_factory=lambda: ["pass_at_b", "tokens_to_first_proof", "effective_accuracy"]
     )
     reviewer_false_accept: bool = True
+    n_workers: int = 1  # concurrent (problem,seed) cells; >1 lets vLLM batch (each worker its own
+    #                     Lean REPL). 1 = sequential (default; safe for tests/smoke).
 
 
 class LoggingCfg(_Strict):

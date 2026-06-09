@@ -60,27 +60,40 @@ def run_sweep(
     seeds: list[int] | None = None,
     budget: int | None = None,
     resume: bool = True,
+    n_workers: int | None = None,
 ) -> RunResult:
     seeds = list(seeds if seeds is not None else config.eval.seeds)
     budgets = list(config.budget.values)
     budget = budget if budget is not None else max(budgets)
     cfg_hash = config_hash(config)
+    n_workers = config.eval.n_workers if n_workers is None else n_workers
 
     run_dir = Path(run_dir)
     problems_dir = run_dir / "problems"
     problems_dir.mkdir(parents=True, exist_ok=True)
 
     started = _now()
-    results: list[ProblemResult] = []
-    n_ran = n_skipped = 0
 
+    # Resume first (cheap, serial): load finished cells, queue the rest. Preserve cell order so the
+    # metrics/results are deterministic regardless of n_workers.
+    done: list[ProblemResult] = []
+    pending: list[tuple[int, Problem, Path]] = []
     for seed in seeds:
         for problem in dataset.problems:
             cell = _cell_path(problems_dir, problem.name, seed)
             if resume and cell.exists():
-                results.append(ProblemResult.load(cell))
-                n_skipped += 1
-                continue
+                done.append(ProblemResult.load(cell))
+            else:
+                pending.append((seed, problem, cell))
+    n_skipped = len(done)
+
+    def _run_cell(args: tuple[int, Problem, Path]) -> ProblemResult | None:
+        # CONTAINMENT (rule 3): one cell's failure must never abort the sweep. A transient vLLM
+        # timeout once propagated through ThreadPoolExecutor.map and killed baseline 10272937 at
+        # 165 cells with no metrics written. On any exception we log it and return None (the cell
+        # file is NOT written), so the cell is just retried on the next resume instead of crashing.
+        seed, problem, cell = args
+        try:
             state = solve_fn(problem, seed, budget)
             res = ProblemResult.from_agent_state(
                 state,
@@ -90,9 +103,32 @@ def run_sweep(
                 split=problem.split,
                 config_hash=cfg_hash,
             )
-            res.save(cell)
-            results.append(res)
-            n_ran += 1
+            res.save(cell)  # each cell writes a distinct file -> safe from worker threads
+            return res
+        except Exception as exc:  # noqa: BLE001 - deliberate per-cell containment
+            import traceback
+
+            print(
+                f"[sweep] CELL FAILED (will retry on resume) {problem.name} seed={seed}: "
+                f"{type(exc).__name__}: {exc}",
+                flush=True,
+            )
+            traceback.print_exc()
+            return None
+
+    if n_workers and n_workers > 1 and len(pending) > 1:
+        # solve_fn is I/O-bound on the vLLM HTTP call (GPU batches concurrent requests), and each
+        # worker thread uses its OWN Lean REPL (see build_solve_fn), so cells run safely in parallel
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            ran = [r for r in pool.map(_run_cell, pending) if r is not None]
+    else:
+        ran = [r for a in pending if (r := _run_cell(a)) is not None]
+
+    results = done + ran
+    n_ran = len(ran)
+    n_failed = len(pending) - n_ran
 
     finished = _now()
     metrics = summarize(results, budgets)
@@ -103,7 +139,7 @@ def run_sweep(
         budgets=budgets,
         started_at=started,
         finished_at=finished,
-        extra={"n_ran": n_ran, "n_skipped": n_skipped},
+        extra={"n_ran": n_ran, "n_skipped": n_skipped, "n_failed": n_failed},
     )
     (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
     (run_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True))

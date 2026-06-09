@@ -1,0 +1,29 @@
+# configs/smoke2.yaml — focused LIVE repro of the verifier "no parseable error" bug.
+# The Phase-0 smoke rejected every real proof from verify #3 onward (problem index 1,
+# amc12a_2015_p10). A clean CPU-only replay of the same proofs PASSES, so the failure only
+# manifests with vLLM co-resident (live timing). 2 problems is enough to cross verify #3.
+# Attempts now persist a truncated raw_output (whole_proof.py) so the exact REPL exception is
+# visible in results/smoke2/agent_states/. Not for reporting numbers.
+
+defaults: base
+
+data:
+  benchmark: minif2f
+  split: valid
+  exclude_unprovable: true
+  limit: 2                 # amc12a_2019_p21 (problem 0) + amc12a_2015_p10 (problem 1 = bug onset)
+
+budget:
+  values: [32000]
+
+eval:
+  seeds: [0]
+
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 2, alloc_split: 0.5 }
+  components:
+    memory:        { enabled: false }
+    reviewer:      { enabled: false }
+    retrieval:     { enabled: false }
+    tactic_skeletons: { enabled: false }

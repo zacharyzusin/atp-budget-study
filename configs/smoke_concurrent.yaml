@@ -1,0 +1,29 @@
+# configs/smoke_concurrent.yaml — LIVE validation of cell-level concurrency before the baseline.
+# Same 5 problems/seed/budget as smoke.yaml (so it must reproduce pass@32000 = 3/5), but runs the
+# cells concurrently (n_workers=4): one shared vLLM batches the requests, each worker its own Lean
+# REPL. Confirms (a) concurrent Mathlib imports + per-thread REPL correctness, (b) vLLM batching,
+# (c) results are identical to the sequential smoke. "Smoke before scale" for the concurrency change.
+
+defaults: base
+
+data:
+  benchmark: minif2f
+  split: valid
+  exclude_unprovable: true
+  limit: 5
+
+budget:
+  values: [32000]
+
+eval:
+  seeds: [0]
+  n_workers: 4        # 4 concurrent cells (5 cells -> one queues; exercises the pool + queueing)
+
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 2, alloc_split: 0.5 }
+  components:
+    memory:        { enabled: false }
+    reviewer:      { enabled: false }
+    retrieval:     { enabled: false }
+    tactic_skeletons: { enabled: false }

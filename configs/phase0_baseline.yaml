@@ -14,6 +14,9 @@ budget:
 
 eval:
   seeds: [0, 1, 2]
+  n_workers: 8        # concurrent (problem,seed) cells: shared vLLM batches the requests + each
+  #                     worker its own Lean REPL. ~300 GPU-h sequential -> ~20-30 GPU-h. Needs the
+  #                     bumped --cpus-per-task/--mem in slurm/sweep.sh (8 Lean procs + vLLM).
 
 agent:
   mode: whole_proof

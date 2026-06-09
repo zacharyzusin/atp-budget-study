@@ -151,6 +151,96 @@ def test_run_sweep_is_restartable(tmp_path):
     assert res2.n_ran == 0 and res2.n_skipped == 2  # all cells resumed, nothing recomputed
 
 
+def test_run_sweep_concurrent_runs_all_cells_and_matches_sequential(tmp_path):
+    """n_workers>1 must run every (problem,seed) cell exactly once, concurrently, with the same
+    results + cell files as the sequential path. Uses a barrier-ish check that solve_fns actually
+    overlap (concurrency is real, not accidentally serialized)."""
+    import threading
+    import time
+
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset([f"p{i}" for i in range(6)])
+    active = {"now": 0, "max": 0}
+    lock = threading.Lock()
+
+    def solve_fn(problem, seed, budget):
+        with lock:
+            active["now"] += 1
+            active["max"] = max(active["max"], active["now"])
+        time.sleep(0.05)  # hold the slot so concurrent calls overlap
+        with lock:
+            active["now"] -= 1
+        return _state(problem.name, solved=problem.name == "p3", spent=100)
+
+    run_dir = tmp_path / "run"
+    res = run_sweep(cfg, ds, solve_fn, run_dir=run_dir, seeds=[0, 1], n_workers=4)
+    assert res.n_ran == 12 and res.n_skipped == 0  # 6 problems × 2 seeds
+    assert len(list((run_dir / "problems").glob("*.json"))) == 12
+    assert active["max"] >= 2  # genuinely ran in parallel
+    # exactly the p3 cells solved (2 seeds), independent of worker scheduling
+    assert sum(1 for r in res.results if r.solved) == 2
+
+
+def test_run_sweep_concurrent_is_restartable(tmp_path):
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset(["a", "b", "c"])
+    run_dir = tmp_path / "run"
+    run_sweep(cfg, ds, lambda p, s, b: _state(p.name, solved=True, spent=10),
+              run_dir=run_dir, seeds=[0], n_workers=3)
+
+    def exploding_solve(problem, seed, budget):
+        raise AssertionError("must not recompute a finished cell on concurrent resume")
+
+    res2 = run_sweep(cfg, ds, exploding_solve, run_dir=run_dir, seeds=[0], n_workers=3, resume=True)
+    assert res2.n_ran == 0 and res2.n_skipped == 3
+
+
+def test_one_cell_failure_does_not_abort_sweep(tmp_path):
+    """Regression for baseline 10272937: a single solve_fn exception (there, a vLLM APITimeout)
+    propagated through ThreadPoolExecutor.map and killed the whole sweep with no metrics written.
+    A failing cell must be contained — the others still complete and metrics.json is written."""
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset(["a", "b", "c", "d"])
+    run_dir = tmp_path / "run"
+
+    def flaky_solve(problem, seed, budget):
+        if problem.name == "b":
+            raise TimeoutError("simulated vLLM request timeout")
+        return _state(problem.name, solved=True, spent=10)
+
+    res = run_sweep(cfg, ds, flaky_solve, run_dir=run_dir, seeds=[0], n_workers=4)
+    # 3 cells succeeded, 1 contained; metrics + manifest still written.
+    assert res.n_ran == 3 and res.n_skipped == 0
+    assert res.manifest["n_failed"] == 1
+    assert (run_dir / "metrics.json").exists()
+    # The failed cell wrote NO file, so resume retries only it.
+    cell_files = {p.stem for p in (run_dir / "problems").glob("*.json")}
+    assert "b__seed0" not in cell_files
+    assert len(cell_files) == 3
+
+
+def test_failed_cell_is_retried_on_resume(tmp_path):
+    """A contained failure leaves no cell file, so the next run picks it up and can succeed."""
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset(["a", "b"])
+    run_dir = tmp_path / "run"
+    calls = {"b": 0}
+
+    def solve(problem, seed, budget):
+        if problem.name == "b":
+            calls["b"] += 1
+            if calls["b"] == 1:
+                raise TimeoutError("first attempt times out")
+        return _state(problem.name, solved=True, spent=10)
+
+    r1 = run_sweep(cfg, ds, solve, run_dir=run_dir, seeds=[0], n_workers=2)
+    assert r1.n_ran == 1 and r1.manifest["n_failed"] == 1
+    r2 = run_sweep(cfg, ds, solve, run_dir=run_dir, seeds=[0], n_workers=2, resume=True)
+    assert r2.n_skipped == 1  # "a" already done
+    assert r2.n_ran == 1 and r2.manifest["n_failed"] == 0  # "b" retried & succeeded
+    assert sum(1 for x in r2.results if x.solved) == 2
+
+
 def test_summarize_shape():
     results = [_result("a", 0, solved=True, tts=100), _result("b", 0, solved=False)]
     s = summarize(results, [50, 200])
