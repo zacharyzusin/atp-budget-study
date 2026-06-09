@@ -11,7 +11,7 @@ data:
   limit: 5                # only first 5 problems
 
 budget:
-  values: [4000]          # single small budget
+  values: [32000]         # reasoning prover needs CoT room; 4000 truncates before the ```lean4 block
 
 eval:
   seeds: [0]              # single seed for smoke

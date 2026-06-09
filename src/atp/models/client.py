@@ -14,6 +14,7 @@ budget is exact and matches what the GPU actually generated.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -21,6 +22,16 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from atp.budget.meter import BudgetMeter
     from atp.config import ExperimentConfig
+
+# vLLM's 400 when prompt+max_tokens exceeds the context window. The message reliably reports both
+# the window and the prompt's own token count, e.g.:
+#   "This model's maximum context length is 40960 tokens. However, you requested 41190 tokens
+#    (20710 in the messages, 20480 in the completion)."
+# We parse those numbers to shrink the completion to fit, then retry (_complete_fitting_context).
+_CTX_LEN_RE = re.compile(
+    r"maximum context length is (\d+) tokens.*?\((\d+) in the (?:messages|prompt)",
+    re.DOTALL,
+)
 
 
 class ModelServerError(RuntimeError):
@@ -71,9 +82,29 @@ def completion_response(
     prompt_tokens: int = 0,
     finish_reason: str = "stop",
 ) -> dict[str, Any]:
-    """Build an OpenAI-/vLLM-shaped completion response (test + smoke helper)."""
+    """Build an OpenAI-/vLLM-shaped `/v1/completions` response (test + smoke helper)."""
     return {
         "choices": [{"text": text, "finish_reason": finish_reason}],
+        "usage": {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        },
+    }
+
+
+def chat_completion_response(
+    text: str,
+    completion_tokens: int,
+    *,
+    prompt_tokens: int = 0,
+    finish_reason: str = "stop",
+) -> dict[str, Any]:
+    """Build a `/v1/chat/completions` response (chat shape: choices[].message.content)."""
+    return {
+        "choices": [
+            {"message": {"role": "assistant", "content": text}, "finish_reason": finish_reason}
+        ],
         "usage": {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
@@ -89,12 +120,24 @@ class OpenAITransport:
     core is needed; the SDK itself is in the light core (see pyproject).
     """
 
-    def __init__(self, base_url: str, *, api_key: str = "EMPTY", timeout_s: float = 600.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        api_key: str = "EMPTY",
+        timeout_s: float = 3600.0,
+        max_retries: int = 4,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
         from openai import OpenAI  # lazy: keep module import cheap/optional
 
-        self._client = OpenAI(base_url=self.base_url, api_key=api_key, timeout=timeout_s)
+        # max_retries lets the SDK absorb transient connection/5xx blips (incl. APITimeoutError)
+        # rather than surfacing a one-off failure to the agent. timeout must exceed the longest
+        # single generation (max_model_len//2 tokens at the concurrent per-stream rate).
+        self._client = OpenAI(
+            base_url=self.base_url, api_key=api_key, timeout=timeout_s, max_retries=max_retries
+        )
 
     @classmethod
     def from_endpoint_file(cls, path: str, **kwargs: Any) -> OpenAITransport:
@@ -108,7 +151,12 @@ class OpenAITransport:
         return cls(base, **kwargs)
 
     def complete(self, payload: dict[str, Any]) -> dict[str, Any]:
-        resp = self._client.completions.create(**payload)
+        # Route to chat vs text completions by payload shape (chat carries `messages`). The chat
+        # endpoint makes vLLM apply the model's own chat template (needed for Qwen3 reasoners).
+        if "messages" in payload:
+            resp = self._client.chat.completions.create(**payload)
+        else:
+            resp = self._client.completions.create(**payload)
         # Normalize the SDK object to the plain dict shape the client parses.
         return resp.model_dump()
 
@@ -129,6 +177,9 @@ class VLLMClient:
     top_p: float = 0.95
     stop: tuple[str, ...] = ()
     seed: int | None = None  # vLLM sampling seed for reproducibility (set per eval seed)
+    chat: bool = False  # True -> /v1/chat/completions (server applies the model's chat template)
+    context_margin_tokens: int = 32  # safety gap below the window when clamping a too-long request
+    context_min_completion: int = 256  # below this much room, the request can't do useful work
 
     @classmethod
     def from_config(
@@ -144,6 +195,7 @@ class VLLMClient:
             meter=meter,
             temperature=m.temperature,
             top_p=m.top_p,
+            chat=m.chat_completions,
         )
 
     def generate(
@@ -164,30 +216,64 @@ class VLLMClient:
 
         payload: dict[str, Any] = {
             "model": self.model,
-            "prompt": prompt,
             "max_tokens": allowed,
             "temperature": self.temperature,
             "top_p": self.top_p,
         }
+        if self.chat:
+            payload["messages"] = [{"role": "user", "content": prompt}]
+        else:
+            payload["prompt"] = prompt
         stops = self.stop if stop is None else stop
         if stops:
             payload["stop"] = list(stops)
         if self.seed is not None:
             payload["seed"] = self.seed
 
-        completion = self._parse(self.transport.complete(payload))
+        completion = self._parse(self._complete_fitting_context(payload))
 
         if self.meter is not None:
             self.meter.spend(completion.completion_tokens, label=label)
         return completion
+
+    def _complete_fitting_context(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send the request; if vLLM rejects it for exceeding the context window, shrink the
+        completion to what's left and retry ONCE.
+
+        A long refinement prompt (theorem + prior proof + Lean error) plus the requested
+        `max_tokens` (up to max_model_len//2) can exceed the model's context window, which vLLM
+        rejects with a 400 *before* generating — so the retry is essentially free. We parse the
+        window and prompt-token count from the error, set `max_tokens = window - prompt - margin`
+        (also capped by the original request so the budget is still respected), and retry. If the
+        prompt alone leaves less than `context_min_completion`, there's no useful room — re-raise
+        and let the caller (sweep containment) record the cell as failed. Regression: baseline
+        10304768 cell imo_2019_p1 seed=0 hit this 400 (PROGRESS.md 2026-06-07).
+        """
+        try:
+            return self.transport.complete(payload)
+        except Exception as exc:  # noqa: BLE001 - narrowed immediately by parsing the message
+            m = _CTX_LEN_RE.search(str(exc))
+            if m is None:
+                raise  # not a context-length 400 — propagate (timeouts, etc. handled elsewhere)
+            window, prompt_tokens = int(m.group(1)), int(m.group(2))
+            room = window - prompt_tokens - self.context_margin_tokens
+            room = min(room, int(payload.get("max_tokens", room)))
+            if room < self.context_min_completion:
+                raise
+            return self.transport.complete({**payload, "max_tokens": room})
 
     @staticmethod
     def _parse(resp: dict[str, Any]) -> Completion:
         try:
             choice = resp["choices"][0]
             usage = resp["usage"]
+            # /v1/completions puts the text in choice["text"]; /v1/chat/completions in
+            # choice["message"]["content"]. Support both so the client is endpoint-agnostic.
+            text = choice.get("text")
+            if text is None:
+                text = (choice.get("message") or {}).get("content", "")
             return Completion(
-                text=choice.get("text", ""),
+                text=text or "",
                 prompt_tokens=int(usage["prompt_tokens"]),
                 completion_tokens=int(usage["completion_tokens"]),
                 finish_reason=choice.get("finish_reason") or "stop",

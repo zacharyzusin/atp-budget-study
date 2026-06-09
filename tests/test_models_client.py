@@ -16,6 +16,7 @@ from atp.models import (
     ModelServerError,
     ScriptedTransport,
     VLLMClient,
+    chat_completion_response,
     completion_response,
 )
 
@@ -105,3 +106,107 @@ def test_from_config_pulls_sampling_params():
     assert client.model == cfg.model.name
     assert client.temperature == cfg.model.temperature
     assert client.top_p == cfg.model.top_p
+    assert client.chat == cfg.model.chat_completions  # base.yaml -> chat (Qwen3 reasoning prover)
+
+
+# -- chat-completions mode (the Goedel-V2 path) ----------------------------------------
+def test_chat_mode_sends_messages_not_prompt_and_parses_content():
+    """chat=True must hit the chat endpoint shape: send `messages`, read `message.content`."""
+    transport = ScriptedTransport(
+        lambda _p: chat_completion_response("```lean4\nby simp\n```", 7)
+    )
+    meter = BudgetMeter(limit=100)
+    client = VLLMClient(model="m", transport=transport, meter=meter, chat=True)
+    res = client.generate("solve this", label="propose", max_tokens=50)
+    sent = transport.calls[-1]
+    assert sent["messages"] == [{"role": "user", "content": "solve this"}]
+    assert "prompt" not in sent
+    assert res.text == "```lean4\nby simp\n```"
+    assert res.completion_tokens == 7 and meter.spent == 7
+
+
+def test_completions_mode_unchanged_sends_prompt():
+    transport = _const_transport("by trivial", 3)
+    client = VLLMClient(model="m", transport=transport, chat=False)
+    res = client.generate("p")
+    assert transport.calls[-1]["prompt"] == "p"
+    assert "messages" not in transport.calls[-1]
+    assert res.text == "by trivial"
+
+
+def test_chat_mode_still_clamps_budget():
+    meter = BudgetMeter(limit=100)
+    meter.spend(95)
+    transport = ScriptedTransport(lambda _p: chat_completion_response("x", 5))
+    client = VLLMClient(model="m", transport=transport, meter=meter, chat=True)
+    client.generate("p", max_tokens=50)
+    assert transport.calls[-1]["max_tokens"] == 5  # clamped to remaining
+
+
+# -- context-window clamp (regression: baseline 10304768 imo_2019_p1 BadRequest 400) -----------
+
+def _ctx_error(prompt_tokens, completion, window=40960):
+    """vLLM's real 400 message shape for prompt+completion exceeding the context window."""
+    return (
+        f"Error code: 400 - {{'message': \"This model's maximum context length is {window} "
+        f"tokens. However, you requested {prompt_tokens + completion} tokens ({prompt_tokens} "
+        f"in the messages, {completion} in the completion).\", 'type': 'BadRequestError'}}"
+    )
+
+
+def _ctx_overflow_transport(prompt_tokens=20710, window=40960):
+    """First call raises vLLM's context-length 400 (sized from the requested max_tokens); second
+    call (clamped) succeeds, echoing its max_tokens so the test can assert the clamp value."""
+    state = {"n": 0}
+
+    def responder(payload):
+        state["n"] += 1
+        if state["n"] == 1:
+            raise RuntimeError(_ctx_error(prompt_tokens, payload["max_tokens"], window))
+        return chat_completion_response(
+            "ok proof", payload["max_tokens"], prompt_tokens=prompt_tokens
+        )
+
+    return ScriptedTransport(responder)
+
+
+def test_context_overflow_is_clamped_and_retried():
+    transport = _ctx_overflow_transport()
+    client = VLLMClient(model="m", transport=transport, meter=None, chat=True,
+                        context_margin_tokens=32)
+    res = client.generate("p", max_tokens=20480)
+    assert len(transport.calls) == 2  # one rejected, one clamped retry
+    # room = 40960 - 20710 - 32 = 20218, and <= the original 20480 request
+    assert transport.calls[1]["max_tokens"] == 40960 - 20710 - 32
+    assert res.text == "ok proof"
+
+
+def test_context_clamp_respects_budget_cap():
+    """The clamped max_tokens never exceeds the original (budget-limited) request."""
+    meter = BudgetMeter(limit=500)  # remaining 500 -> first request clamped to 500
+    transport = _ctx_overflow_transport(prompt_tokens=100)
+    client = VLLMClient(model="m", transport=transport, meter=meter, chat=True)
+    client.generate("p", max_tokens=20480)
+    # window-room would be huge (40960-100-32), but the budget capped the request to 500
+    assert transport.calls[1]["max_tokens"] == 500
+
+
+def test_no_room_left_reraises_for_containment():
+    """If the prompt alone leaves less than context_min_completion, re-raise so the sweep records
+    the cell as failed rather than issuing a pointless tiny generation."""
+    transport = _ctx_overflow_transport(prompt_tokens=40900)  # window 40960 -> room ~28 < 256
+    client = VLLMClient(model="m", transport=transport, meter=None, chat=True)
+    with pytest.raises(RuntimeError):
+        client.generate("p", max_tokens=20480)
+    assert len(transport.calls) == 1  # no retry attempted
+
+
+def test_non_context_error_propagates_unchanged():
+    """A non-context error (e.g. a timeout) must not be swallowed by the context-clamp path."""
+    def responder(_p):
+        raise RuntimeError("Request timed out.")
+    transport = ScriptedTransport(responder)
+    client = VLLMClient(model="m", transport=transport, meter=None, chat=True)
+    with pytest.raises(RuntimeError, match="timed out"):
+        client.generate("p", max_tokens=100)
+    assert len(transport.calls) == 1

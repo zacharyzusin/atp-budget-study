@@ -32,6 +32,21 @@ def test_whole_proof_render_has_instruction_statement_and_fence():
     assert "```lean4" in prompt
 
 
+def test_whole_proof_uses_official_goedel_prompt():
+    """Goedel-V2 prompt: the formal block ends in `:= by sorry` and asks for a proof plan."""
+    prompt = WholeProofTemplate().render(THM)
+    assert prompt.startswith("Complete the following Lean 4 code:")
+    assert ":= by sorry" in prompt
+    assert "proof plan" in prompt
+
+
+def test_whole_proof_refinement_carries_statement_error_and_no_dangling_fence():
+    r = WholeProofTemplate().render_refinement(THM, "theorem ... := by rfl", "error: rfl failed")
+    assert "rfl failed" in r
+    assert THM.statement in r
+    assert r.count("```") % 2 == 0  # all fences closed (chat turn, not a completion prefix)
+
+
 def test_whole_proof_extracts_fenced_block():
     completion = "Sure!\n```lean4\ntheorem t : True := by\n  trivial\n```\n"
     proof = WholeProofTemplate().extract_proof(THM, completion)

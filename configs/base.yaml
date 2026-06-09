@@ -18,12 +18,13 @@ lean:
 model:
   name: goedel-prover-v2-8b
   hf_repo: "Goedel-LM/Goedel-Prover-V2-8B"
-  revision: "TODO_PIN_REVISION"
+  revision: "dfd02e6271a58375dfbf3ece0175277cf6b6a89a"   # Goedel-LM/Goedel-Prover-V2-8B @ main, pinned 2026-06-05
   endpoint_file: results/_vllm_endpoint.txt   # vLLM server writes host:port here
-  max_model_len: 16384
+  max_model_len: 40960                        # model's native context; reasoning prover needs CoT room
   temperature: 1.0
   top_p: 0.95
   prompt_template: whole_proof               # whole_proof | tactic   (see src/atp/models/templates)
+  chat_completions: true                      # Qwen3 reasoning prover -> /v1/chat/completions
 
 budget:
   unit: tokens                               # generation tokens summed across all calls

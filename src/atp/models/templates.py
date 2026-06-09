@@ -71,30 +71,42 @@ class WholeProofTemplate:
 
     name: str = "whole_proof"
 
-    INSTRUCTION: str = (
-        "Complete the following Lean 4 code. Provide the entire file, including the imports and "
-        "the theorem statement, with a complete proof (no `sorry`). Put your answer in a single "
-        "```lean4 code block."
+    # Official Goedel-Prover-V2 prompt (model card / Goedel-LM repo): the formal code (imports + the
+    # statement ending in `:= by sorry`) in a ```lean4 block, then an explicit proof-plan request so
+    # the reasoning model thinks before emitting the final proof. Sent as the user turn through the
+    # chat template (config.model.chat_completions). Deviating from this wording silently degrades
+    # the prover (inference must match training) — log any change in DECISIONS.md.
+    INSTRUCTION: str = "Complete the following Lean 4 code:"
+    PLAN_SUFFIX: str = (
+        "Before producing the Lean 4 code to formally prove the given theorem, provide a detailed "
+        "proof plan outlining the main proof steps and strategies.\nThe plan should highlight key "
+        "ideas, intermediate lemmas, and proof structures that will guide the construction of the "
+        "final formal proof."
     )
 
-    def render(self, theorem: Theorem, **kwargs: object) -> str:
+    def _formal_block(self, theorem: Theorem) -> str:
+        """imports + opens + the statement ending in `:= by sorry` (what the model completes)."""
         header = _theorem_header(theorem)
         statement = theorem.statement.rstrip()
-        # Open the declaration with `:= by` so the model continues into tactic mode.
-        scaffold = f"{header}\n\n{statement} := by\n" if header else f"{statement} := by\n"
-        return f"{self.INSTRUCTION}\n\n```lean4\n{scaffold}```\n"
+        return f"{header}\n\n{statement} := by sorry" if header else f"{statement} := by sorry"
+
+    def render(self, theorem: Theorem, **kwargs: object) -> str:
+        return (
+            f"{self.INSTRUCTION}\n\n```lean4\n{self._formal_block(theorem)}\n```\n\n{self.PLAN_SUFFIX}"
+        )
 
     REFINE_INSTRUCTION: str = (
-        "Your previous Lean 4 proof failed to compile. Fix it. Here is the Lean error feedback; "
-        "produce a corrected, complete proof in a single ```lean4 code block (no `sorry`)."
+        "The following Lean 4 proof attempt failed to compile. Using the Lean error feedback, "
+        "write a corrected and complete proof of the original theorem (no `sorry`)."
     )
 
     def render_refinement(self, theorem: Theorem, prev_proof: str, feedback: str) -> str:
         return (
             f"{self.REFINE_INSTRUCTION}\n\n"
-            f"Previous attempt:\n```lean4\n{prev_proof.strip()}\n```\n\n"
-            f"Lean feedback:\n{feedback.strip()}\n\n"
-            f"Corrected proof:\n```lean4\n"
+            f"Theorem:\n```lean4\n{self._formal_block(theorem)}\n```\n\n"
+            f"Failed attempt:\n```lean4\n{prev_proof.strip()}\n```\n\n"
+            f"Lean error feedback:\n{feedback.strip()}\n\n"
+            f"{self.PLAN_SUFFIX}"
         )
 
     def extract_proof(self, theorem: Theorem, completion: str) -> str:

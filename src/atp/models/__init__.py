@@ -11,6 +11,7 @@ from atp.models.client import (
     ScriptedTransport,
     Transport,
     VLLMClient,
+    chat_completion_response,
     completion_response,
 )
 from atp.models.templates import (
@@ -29,6 +30,7 @@ __all__ = [
     "ScriptedTransport",
     "Transport",
     "VLLMClient",
+    "chat_completion_response",
     "completion_response",
     "PromptTemplate",
     "TacticTemplate",
