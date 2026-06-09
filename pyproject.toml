@@ -21,17 +21,29 @@ dependencies = [
 # HEAVY GPU/LEAN STACK: deferred (multi-GB) until disk headroom is confirmed (Task 0.2/0.3).
 # Pin exact versions when first installed and record them in DECISIONS.md.
 gpu = [
-    "torch",                # pin in Task 0.3 (match cuda/12.3 wheels)
-    "vllm",                 # inference server for the 8B provers
-    "transformers",
+    # Pinned 2026-06-06 (Task 0.3). HARD CONSTRAINT: l40s nodes run NVIDIA driver 550.54.14 = CUDA
+    # 12.4, so torch MUST be a cu124 build (cu126/cu128/cu130 → "driver too old", cuda.is_available
+    # False). vllm 0.8.5.post1 is the newest line that (a) ships torch 2.6.0+cu124 AND (b) supports
+    # Qwen3 (Goedel-Prover-V2-8B is Qwen3ForCausalLM); vllm>=0.9 pulls torch 2.7+cu126 → won't run
+    # here. transformers 4.51.3 (vllm 0.8.5 expects 4.51.x + has Qwen3; 5.x breaks vllm). Installing
+    # this stack downgrades huggingface-hub (1.17→0.36, transformers caps <1.0) and numpy (2.4→2.2);
+    # the LIGHT-CORE pins above are the login-node baseline, the GPU node carries these. flashinfer is
+    # intentionally absent → vllm uses the xformers backend. See DECISIONS.md 2026-06-06.
+    "torch==2.6.0",
+    "vllm==0.8.5.post1",
+    "transformers==4.51.3",
+    "xformers==0.0.29.post2",
     "datasets",
 ]
 lean = [
-    # Persistent Lean 4 REPL (replaces lean-dojo; see DECISIONS.md 2026-06-04). The pantograph-repl
-    # is built against a specific Lean version, so the pin MUST match the target toolchain:
-    #   * 0.3.15 -> Lean v4.29.0  (the quarantined plumbing/CI stack)
-    #   * Goedel-pin (v4.9.0-rc1) -> a matching older pantograph; pin TBD when first run there.
-    "pantograph==0.3.15",
+    # The GOEDEL-PIN verification backend needs NO Python package: it drives the version-matched
+    # `leanprover-community/repl` exe (vendored in the mathlib build; `lake build repl`) over JSON on
+    # stdio. See DECISIONS.md 2026-06-05 (supersedes the PyPantograph plan — PyPantograph has no
+    # release matching Lean v4.9.0-rc1; its repl binary is toolchain-specific).
+    #
+    # pantograph is OPTIONAL and PLUMBING-ONLY: the quarantined v4.29.0 stack's PantographBackend.
+    #   * 0.3.15 -> Lean v4.29.0 (matches the sibling project's prebuilt env).
+    "pantograph==0.3.15",  # v4.29.0 plumbing/CI only; NOT used for any reported number.
 ]
 train = [
     "trl",                  # Phase 2 GRPO/DPO (or replace with a minimal loop)

@@ -39,9 +39,18 @@ fi
 echo "[build_lean] Mathlib built. Confirming with the trivial probe (AtpLeanEnv.Probe)..."
 lake build AtpLeanEnv.Probe || { echo "FATAL: probe build failed"; exit 1; }
 
+# Build the version-matched verification REPL (leanprover-community/repl, vendored as a dep package).
+# This is the Goedel-pin verification backend (DECISIONS.md 2026-06-05, supersedes PyPantograph).
+# Cheap (~1 min): depends only on Lean core, not Mathlib. Produces .lake/packages/REPL/.lake/build/bin/repl.
+echo "[build_lean] building the repl exe (leanprover-community/repl @ v4.9.0-rc1)..."
+( cd "$ENV_DIR/.lake/packages/REPL" && lake build repl ) || { echo "FATAL: repl build failed"; exit 1; }
+REPL_BIN="$ENV_DIR/.lake/packages/REPL/.lake/build/bin/repl"
+[ -x "$REPL_BIN" ] || { echo "FATAL: repl exe missing at $REPL_BIN"; exit 1; }
+echo "[build_lean] repl exe ready: $REPL_BIN"
+
 OLEANS=$(find .lake -name '*.olean' | wc -l)
 echo "[build_lean] DONE $(date) — $OLEANS oleans present."
 # Marker the rest of the harness can check for env readiness.
-printf 'goedel-pin ready: %s\nlean v4.9.0-rc1 + xinhjBrant/mathlib4@2f65ba7\noleans=%s\n' \
-    "$(date -Is)" "$OLEANS" > "$PROJ/results/_lean_env_ready.txt"
+printf 'goedel-pin ready: %s\nlean v4.9.0-rc1 + xinhjBrant/mathlib4@2f65ba7\noleans=%s\nrepl: %s\n' \
+    "$(date -Is)" "$OLEANS" "$REPL_BIN" > "$PROJ/results/_lean_env_ready.txt"
 echo "[build_lean] wrote results/_lean_env_ready.txt"

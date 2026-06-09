@@ -13,6 +13,7 @@ from atp.lean import (
     LeanEnvNotReady,
     PantographBackend,
     RawVerification,
+    ReplBackend,
     ScriptedBackend,
     Theorem,
     Verifier,
@@ -119,20 +120,28 @@ def test_build_source_adds_imports_when_missing():
 # Point it at any built lake project via ATP_LEAN_ENV_DIR; skips cleanly when no env is built.
 # --------------------------------------------------------------------------------------
 def _built_backend():
+    """The real verification backend for the Goedel pin: leanprover-community/repl.
+
+    (Supersedes PantographBackend here — PyPantograph has no release matching Lean v4.9.0-rc1;
+    see DECISIONS.md 2026-06-05. ReplBackend needs no Python package, only the built `repl` exe.)
+    Point it at any built lake env via ATP_LEAN_ENV_DIR; skips cleanly when none is built.
+    """
     import os
 
     cfg = load_config(BASE_CONFIG)
     env_dir = os.environ.get("ATP_LEAN_ENV_DIR")
-    backend = PantographBackend(cfg, project_path=env_dir) if env_dir else PantographBackend(cfg)
+    backend = ReplBackend(cfg, project_path=env_dir) if env_dir else ReplBackend(cfg)
     if not backend._env_built():
-        pytest.skip(f"no built Lean env at {backend.project_path} (build in progress / not staged)")
+        pytest.skip(
+            f"no built Lean env at {backend.project_path} (need mathlib oleans + repl exe at "
+            f"{backend._repl_path()})"
+        )
     return backend
 
 
 @pytest.mark.lean
 @pytest.mark.slow
 def test_contract_accepts_trivial_true():
-    pytest.importorskip("pantograph", reason="pantograph not installed in this env")
     v = Verifier(_built_backend())
     thm = Theorem(name="ok", statement="theorem ok : True")
     res = v.verify(thm, "theorem ok : True := by\n  trivial")
@@ -142,7 +151,6 @@ def test_contract_accepts_trivial_true():
 @pytest.mark.lean
 @pytest.mark.slow
 def test_contract_rejects_false():
-    pytest.importorskip("pantograph", reason="pantograph not installed in this env")
     v = Verifier(_built_backend())
     res = v.verify(
         Theorem(name="bad", statement="theorem bad : (1 : Nat) = 2"),

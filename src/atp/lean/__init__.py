@@ -12,6 +12,7 @@ from atp.lean.backends import (
     ScriptedBackend,
     Theorem,
     always,
+    compute_lean_path,
 )
 from atp.lean.errors import (
     LOOPHOLE_DEFAULT,
@@ -22,16 +23,27 @@ from atp.lean.errors import (
     find_loopholes,
     parse_lean_output,
 )
+from atp.lean.repl import (
+    ReplBackend,
+    ReplTransport,
+    ScriptedReplTransport,
+    SubprocessReplTransport,
+)
 from atp.lean.verifier import Verifier, VerifyResult
 
 __all__ = [
     "LeanBackend",
     "LeanEnvNotReady",
     "PantographBackend",
+    "ReplBackend",
+    "ReplTransport",
+    "ScriptedReplTransport",
+    "SubprocessReplTransport",
     "RawVerification",
     "ScriptedBackend",
     "Theorem",
     "always",
+    "compute_lean_path",
     "LOOPHOLE_DEFAULT",
     "FailingStep",
     "LeanMessage",

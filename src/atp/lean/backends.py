@@ -73,6 +73,52 @@ def always(success: bool, output: str = "", timed_out: bool = False) -> Scripted
     return ScriptedBackend(lambda _t, _p: RawVerification(success, output, timed_out=timed_out))
 
 
+def compute_lean_path(project_path: Path, toolchain: str) -> str:
+    """Compute LEAN_PATH from the filesystem (avoids `lake env`, which can hang on an elan lock).
+
+    Toolchain stdlib lib + every dependency package's build lib + the project's own build lib,
+    shared by every real backend. Overridable via `ATP_LEAN_PATH` (e.g. a slurm script that
+    pre-staged oleans to node-local disk).
+
+    IMPORTANT — Lean version layout: newer toolchains put oleans under `.lake/build/lib/lean/`,
+    but the Goedel pin (v4.9.0-rc1) puts them directly under `.lake/build/lib/`. We probe BOTH so
+    the same code targets either stack; without the bare `build/lib` branch, LEAN_PATH would miss
+    all of mathlib on the v4.9.0-rc1 env (verified empirically on this cluster, 2026-06-05).
+    """
+    override = os.environ.get("ATP_LEAN_PATH", "").strip()
+    if override:
+        return override
+    parts: list[str] = []
+    elan_home = Path(os.environ.get("ELAN_HOME", Path.home() / ".elan"))
+    mangled = toolchain.replace("/", "--").replace(":", "---")
+    tc_lib = elan_home / "toolchains" / mangled / "lib" / "lean"
+    if tc_lib.exists():
+        parts.append(str(tc_lib))
+
+    def _libs(base: Path) -> None:
+        # Prefer the nested `lib/lean` (new layout); fall back to the bare `lib` (v4.9 layout).
+        # Probe RECURSIVELY: some packages (e.g. importGraph, REPL) keep NO top-level `*.olean`,
+        # only nested ones (`build/lib/ImportGraph/*.olean`). A non-recursive glob skips them, and
+        # dropping importGraph — a mathlib dependency — makes `import Mathlib` silently yield an
+        # EMPTY env (no error), which corrupts every verdict. `next(rglob, ...)` stops at the first
+        # hit, so this stays cheap even for mathlib's thousands of oleans. (Bug found 2026-06-05.)
+        for candidate in (base / "lean", base):
+            if candidate.is_dir() and next(candidate.rglob("*.olean"), None) is not None:
+                parts.append(str(candidate))
+                return
+
+    packages = project_path / ".lake" / "packages"
+    if packages.exists():
+        for pkg in sorted(packages.iterdir()):
+            lib = pkg / ".lake" / "build" / "lib"
+            if lib.exists():
+                _libs(lib)
+    proj_lib = project_path / ".lake" / "build" / "lib"
+    if proj_lib.exists():
+        _libs(proj_lib)
+    return os.pathsep.join(parts) or "."
+
+
 class PantographBackend:
     """Real whole-proof verification via a persistent PyPantograph Lean REPL.
 
@@ -126,30 +172,8 @@ class PantographBackend:
         ) is not None
 
     def _lean_path(self) -> str:
-        """Compute LEAN_PATH from the filesystem (avoids `lake env` which can hang on an elan lock).
-
-        Mirrors the sibling project's approach: toolchain lib + every package's build lib + project.
-        Overridable via `ATP_LEAN_PATH` (e.g. a slurm script that pre-staged to local disk).
-        """
-        override = os.environ.get("ATP_LEAN_PATH", "").strip()
-        if override:
-            return override
-        parts: list[str] = []
-        elan_home = Path(os.environ.get("ELAN_HOME", Path.home() / ".elan"))
-        mangled = self._toolchain().replace("/", "--").replace(":", "---")
-        tc_lib = elan_home / "toolchains" / mangled / "lib" / "lean"
-        if tc_lib.exists():
-            parts.append(str(tc_lib))
-        packages = self.project_path / ".lake" / "packages"
-        if packages.exists():
-            for pkg in sorted(packages.iterdir()):
-                lib = pkg / ".lake" / "build" / "lib" / "lean"
-                if lib.exists():
-                    parts.append(str(lib))
-        proj_lib = self.project_path / ".lake" / "build" / "lib" / "lean"
-        if proj_lib.exists():
-            parts.append(str(proj_lib))
-        return os.pathsep.join(parts) or "."
+        """LEAN_PATH for this env (delegates to the shared, version-aware `compute_lean_path`)."""
+        return compute_lean_path(self.project_path, self._toolchain())
 
     def _get_server(self):
         if self._server is not None:
