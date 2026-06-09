@@ -38,11 +38,11 @@ def _transport(*, solve_on_refine: bool = False, always_solve: bool = False) -> 
     """Scripted model. Returns a completion whose token cost respects the clamped max_tokens.
 
     - always_solve: every call returns a `trivial` proof.
-    - solve_on_refine: proposals return a bad proof; refinements (prompt has 'Lean feedback') solve.
+    - solve_on_refine: proposals fail; refinements (prompt has 'error feedback') solve.
     """
 
     def respond(payload):
-        is_refine = "Lean feedback" in payload["prompt"]
+        is_refine = "error feedback" in payload["prompt"]
         solved = always_solve or (solve_on_refine and is_refine)
         text = GOOD if solved else BAD
         # A real server generates up to max_tokens; model that so spend == clamp.
@@ -79,8 +79,8 @@ def test_agent_refines_then_solves():
     assert state.n_attempts == 2
     assert state.attempts[0].kind == "propose" and state.attempts[0].ok is False
     assert state.attempts[1].kind == "refine" and state.attempts[1].ok is True
-    # the refinement prompt carried the previous proof + Lean feedback
-    assert "Lean feedback" in transport.calls[1]["prompt"]
+    # the refinement prompt carried the previous proof + Lean error feedback
+    assert "error feedback" in transport.calls[1]["prompt"]
     assert "bad_tactic" in transport.calls[1]["prompt"]
 
 
@@ -120,6 +120,27 @@ def test_agent_state_resume_skips_solved_work(tmp_path):
     state = agent2.prove(THM, state_path=path)
     assert state.solved
     assert transport2.calls == []  # work was not redone
+
+
+def test_load_empty_checkpoint_returns_none(tmp_path):
+    """A zero-byte/whitespace checkpoint (preempt-killed mid-write) loads as no-state, not a crash.
+
+    Regression: a timeout kill left empty agent_state files; resume then died deterministically on
+    `json.loads("")` every requeue, stranding those cells. load() must treat them as "start fresh".
+    """
+    empty = tmp_path / "empty.json"
+    empty.write_text("")
+    assert AgentState.load(empty) is None
+    blank = tmp_path / "blank.json"
+    blank.write_text("   \n")
+    assert AgentState.load(blank) is None
+
+
+def test_load_corrupt_checkpoint_returns_none(tmp_path):
+    """A truncated/garbage checkpoint loads as no-state rather than raising."""
+    corrupt = tmp_path / "corrupt.json"
+    corrupt.write_text('{"theorem_name": "t", "attempts": [')  # truncated JSON
+    assert AgentState.load(corrupt) is None
 
 
 def test_agent_resume_continues_unsolved_with_carried_budget(tmp_path):

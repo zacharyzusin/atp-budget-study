@@ -136,6 +136,12 @@ class WholeProofAgent:
         proof = self.template.extract_proof(theorem, completion.text)
         result = self.verifier.verify(theorem, proof)
 
+        # Persist the raw verifier output ONLY when the verdict looks like an infra glitch (rejected
+        # with no parseable Lean error) — that's the case worth debugging; a normal compile error is
+        # already in `feedback`. Keeps state files small.
+        raw_dbg = ""
+        if (not result.ok) and result.earliest_error is None and result.reason != "loophole":
+            raw_dbg = (result.raw_output or "")[:4000]
         state.attempts.append(
             Attempt(
                 index=state.n_attempts,
@@ -145,6 +151,7 @@ class WholeProofAgent:
                 reason=result.reason,
                 feedback=result.feedback,
                 completion_tokens=completion.completion_tokens,
+                raw_output=raw_dbg,
             )
         )
         if self.client.meter is not None:

@@ -36,6 +36,7 @@ class Attempt:
     reason: str  # VerifyResult.reason: ok | compile_error | timeout | loophole
     feedback: str
     completion_tokens: int
+    raw_output: str = ""  # truncated verifier raw output (debug; "" when uninteresting)
 
 
 @dataclass
@@ -88,8 +89,20 @@ class AgentState:
 
     @classmethod
     def load(cls, path: str | os.PathLike[str]) -> AgentState | None:
-        """Load state from `path`, or None if there's no checkpoint yet."""
+        """Load state from `path`, or None if there's no usable checkpoint yet.
+
+        A preempt/timeout kill can leave an empty or truncated file behind despite the atomic
+        tmp+rename in `save` (e.g. a zero-byte file from a kill before the first save). Treat an
+        empty or unparseable checkpoint as "no state" so the cell simply restarts from scratch on
+        resume, instead of failing deterministically forever on `json.loads("")`.
+        """
         path = Path(path)
         if not path.exists():
             return None
-        return cls.from_dict(json.loads(path.read_text()))
+        text = path.read_text()
+        if not text.strip():
+            return None
+        try:
+            return cls.from_dict(json.loads(text))
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return None
