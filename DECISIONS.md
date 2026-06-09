@@ -192,3 +192,152 @@ bundled "environment travels with the model" comparison; or (b, cleaner) impleme
 driving the Goedel model in tactic mode**, isolating search-vs-whole-proof with model + mathlib held
 constant — viable only if Goedel emits usable single-tactic steps (quick probe needed). Not blocking
 Phase 0; logged now so it isn't a surprise.
+
+### 2026-06-05 — Verification backend = leanprover-community/repl (NOT PyPantograph) — SUPERSEDES the 2026-06-04 Pantograph decision
+**The Pantograph decision does not survive contact with the Goedel pin.** PyPantograph ships a
+`pantograph-repl` binary **compiled against a specific Lean toolchain**, and **no PyPantograph release
+matches our pin (Lean v4.9.0-rc1)** — its oldest tagged toolchain is v4.18.0 (verified by walking every
+tag's `src` submodule → `leanprover/Pantograph` `lean-toolchain`: v0.3.0→4.18.0, …, v0.3.15→4.29.1).
+The sibling project's binary is v4.29.0, and **olean format is version-specific**, so it cannot load our
+v4.9.0-rc1 mathlib. Using Pantograph at the pin would require digging up a pre-tag Pantograph commit and
+building it from source with a matching old Python wrapper — fragile, and there's a better option already
+in hand.
+
+**Decision:** verify with **`leanprover-community/repl`**, the persistent Lean process that the
+Goedel/DeepSeek-Prover eval harnesses themselves use. It is **already vendored** as a dependency package
+of the pinned mathlib build (`.lake/packages/REPL`), so its `repl` exe is **version-matched to v4.9.0-rc1
+by construction** — built with a 40 s `lake build repl` (no Mathlib recompile; depends only on Lean core).
+It needs **NO Python package** (just a subprocess speaking newline-delimited JSON over stdio), which
+removes the entire version-matching problem Pantograph created. New `src/atp/lean/repl.py`:
+`ReplBackend` keeps ONE process with `import Mathlib` loaded as **base env 0** (slow cold start ~4–5 min,
+amortized across the whole sweep), runs every candidate proof against env 0 (independent), and reformats
+the REPL's JSON messages to `name.lean:line:col: sev: text` so the Task-0.2 `errors.py`/loophole/earliest-
+step logic is reused unchanged. `sorries` (reported out-of-band) are surfaced as a sorry-warning line so
+the Verifier still rejects them. Transport is injectable (`ScriptedReplTransport` for the fast suite,
+`SubprocessReplTransport` for real) — same DI pattern as `VLLMClient`. Per-proof timeout restarts the
+(possibly wedged) process. **`PantographBackend` is kept only for the quarantined v4.29.0 plumbing/CI
+stack** (it works there); the Goedel-pin guardrail is unaffected — this strictly *improves* measurement
+validity by matching the prover's own verification harness. `[lean]` optional dep on `pantograph` is now
+plumbing-only; the Goedel-pin path requires no pip install. **Empirically validated 2026-06-05** on the
+built env: `import Mathlib`→env 0; `True := by trivial` accepted (no messages); `(1:Nat)=2 := by rfl`
+rejected ("The rfl tactic failed … ⊢ 1 = 2").
+
+### 2026-06-05 — LEAN_PATH must probe BOTH `.lake/build/lib/lean` and `.lake/build/lib` (Lean-version layout)
+`compute_lean_path` (extracted to a shared free function in `backends.py`, used by both backends)
+originally looked only under `.lake/build/lib/lean` (the newer-toolchain layout, e.g. v4.29.0). **The
+Goedel pin (v4.9.0-rc1) places package oleans directly under `.lake/build/lib`** (no `/lean`), so the
+old code produced a LEAN_PATH **missing all of mathlib** on the pin — every real verify would have failed
+with phantom "unknown identifier" errors indistinguishable from proving failures (a silent measurement
+bug). Now each package/project lib probes `lib/lean` first, then bare `lib`, selecting whichever actually
+contains oleans. Covered by two unit tests (bare-layout finds mathlib; nested-layout still wins when
+present). Found while validating the env, 2026-06-05.
+
+### 2026-06-06 — Cold `import Mathlib` fix is node-LOCAL staging, NOT the pickle (premise corrected)
+The 2026-06-05 plan was to defeat the ~4.7k-olean GPFS open-storm by pickling the Mathlib env to ONE
+file and `unpickleEnvFrom`-ing it (a single sequential read). **That premise was wrong.** Two pickle
+jobs (10244652, etc.) still timed out at the 2700 s `import Mathlib` ceiling — you cannot create the
+pickle without first completing one cold import, and under contention even a *sequential* read of the
+4.2 GB olean tree measured **~3.8 MB/s → 19m14s** (random small-file opens were >45 min). Worse, once
+I finally produced a pickle (via the local route below) it was **1112 bytes** — inspection shows it
+starts with `olean.<hash>` and lists module names + offsets: the REPL pickle is a lazy **olean index**
+that memory-maps the oleans at unpickle time, **not** a self-contained env snapshot. So a pickle on
+GPFS re-triggers the exact same open-storm; it only helps when the oleans are on fast local disk.
+**Decision: stage the built env to node-local SSD (`/local/$USER`, 294 GB; `/tmp` fallback) at the
+top of every sweep job, then point `ReplBackend` at it via the new `ATP_LEAN_PROJECT` env override.**
+Measured on ins071: `cp -a` the env to `/local` ≈ 10 min (bounded, sequential), then `import Mathlib`
+**from local = 141 s** (vs >2700 s timeout off contended GPFS), and a warm `unpickleEnvFrom` of the
+local index = **2 s** with correct verdicts (`Nat.Prime 7 by decide`→ok, `1=2 by rfl`→compile_error).
+The pickle is therefore demoted to a *local* warm-start nicety (141 s→2 s for restarts within a job),
+written next to the local project automatically. `slurm/sweep.sh` now stages once per node (restart-safe
+via a `.staged_ok` marker + olean-count match) before the GPU/probe steps. The Goedel-pin guardrail is
+unchanged — verification still runs on the same v4.9.0-rc1 + pinned-mathlib oleans, just read locally.
+
+### 2026-06-06 — GPU stack pinned to cu124 (driver-bound): vllm 0.8.5.post1 / torch 2.6.0 / transformers 4.51.3
+Task 0.3 GPU deps were deferred+unpinned; bringing up vLLM exposed a hard cluster constraint. The l40s
+nodes run **NVIDIA driver 550.54.14 = CUDA 12.4**. A naive `pip install vllm` pulled **vllm 0.22.1 +
+torch 2.11.0+cu130**, which fails at `import torch` time on the GPU with *"NVIDIA driver too old (found
+12040)"* → `cuda.is_available() False`. So **torch must be a cu124 build** (driver 550.54.14 is exactly
+the cu124 minimum; cu126/cu128/cu130 need newer drivers). The model is **`Qwen3ForCausalLM`**
+(Goedel-Prover-V2-8B, confirmed via config.json), so vLLM must also have Qwen3 support — first added in
+the **0.8.5** line. **0.8.5.post1 is the unique sweet spot**: ships torch 2.6.0+cu124 *and* has Qwen3;
+vllm≥0.9 moves to torch 2.7+cu126 (won't run here). Pinned `transformers==4.51.3` (vllm 0.8.5 expects
+4.51.x + Qwen3; transformers 5.x breaks vllm). flashinfer omitted on purpose → vLLM uses the xformers
+backend (`xformers==0.0.29.post2`). **Gotcha:** mixing cu13→cu124 wheels corrupted the `nvidia/`
+namespace (uninstalling a cu13 lib deleted the cu12 `libnccl.so.2` sharing the same path → torch
+ImportError); fixed by purging all bare/cu13 `nvidia-*` orphans then `--force-reinstall --no-deps` the
+cu12 set. Installing the GPU stack also downgrades huggingface-hub 1.17→0.36 (transformers caps <1.0)
+and numpy 2.4→2.2 — fast suite still 118-green, so the light-core code tolerates both. Verified on an
+l40s (job 10258474): torch 2.6.0+cu124 `cuda.is_available True`, matmul OK, `import vllm` OK. Versions
+recorded in pyproject `[gpu]`.
+
+### 2026-06-06 — Prover inference: chat-completions + official Goedel-V2 prompt + 40960 context (was 0/5)
+First real GPU smoke (job 10258932) ran the full pipeline green but scored **pass@4000 = 0/5**.
+Inspecting the agent traces showed the failure was an inference-format mismatch, not hard problems
+(the easiest, `mathd_algebra_182`, is a one-line `ring` identity): (1) the client drove the model via
+raw **`/v1/completions`** with a hand-built "Complete the following Lean 4 code…" string, applying NO
+chat template — but Goedel-Prover-V2-8B is a **Qwen3 reasoning model** (`tokenizer_config.json` has the
+`<|im_start|>` chat template); raw completion makes it emit prose ("This completes the proof. The
+`ring_nf` tactic…") instead of a ```lean4 block; (2) the 4000-token budget truncated the chain-of-
+thought before the model ever reached its final fenced proof. This is exactly the
+[[feedback_inference_mode_match]] failure class. **Fixes:** (a) added `model.chat_completions` (default
+true) → `VLLMClient` now sends `messages=[{role:user,…}]` to `/v1/chat/completions` so vLLM applies the
+model's own template; client parses both `choices[].text` and `choices[].message.content`. (b)
+`WholeProofTemplate` now emits the **official Goedel-Prover-V2 prompt** — "Complete the following Lean 4
+code:" + the formal block ending in `:= by sorry` + the model-card "provide a detailed proof plan…"
+suffix; refinement carries statement+error in a clean chat turn (no dangling open fence). (c) bumped
+`max_model_len` 16384→**40960** (model's native context; reasoning needs CoT room) and the smoke budget
+4000→32000; slurm scripts now read max_model_len from config. flashinfer absent → vLLM samples with the
+PyTorch-native top-p/top-k path (fine). Fast suite 123-green (added chat-mode + prompt tests). Validating
+on resubmitted smoke 10260159.
+
+## 2026-06-06 — REMOVE the REPL env pickle entirely (it crashes on norm_num); harden probe + verify
+**Decision:** `ReplBackend._load_base_env` now ALWAYS does a fresh `import Mathlib` and NEVER calls
+`pickleTo`/`unpickleEnvFrom`. The `mathlib_env.pkl` path is deleted from the code.
+
+**Why:** The Phase-0 smoke (job 10266928) scored every real proof 0 (`pass@32000 = 0/5`) with
+"Proof rejected (no parseable error)". Root cause (captured via `scripts/diag_repl.py` + the
+2-problem live repro 10269064 with per-attempt `raw_output`): an env restored via `unpickleEnvFrom`
+is a lazy olean *index*, not a real snapshot, and it CANNOT evaluate a compiled `@[init]` meta
+extension. The first proof that uses `norm_num`/`nlinarith` aborts the whole Lean process:
+`libc++abi: terminating ... cannot evaluate '[init]' declaration 'Mathlib.Meta.NormNum.normNumExt'
+in the same module`. `_restart()` then reloads from the *same* broken pickle → crashes again →
+persistent "no parseable error" for every later proof. The probe (`trivial`/`rfl`) never exercises a
+compiled extension, so it passed a broken env. A clean CPU-only replay (fresh `import Mathlib`, ~95s)
+verified the SAME proofs correctly, including `norm_num` — so the pickle, not the proofs or the
+parser, was the fault. The pickle only ever saved ~140s once per process; correctness wins.
+
+**Also (defense in depth):**
+- `slurm/sweep.sh` probe now additionally requires a `norm_num` proof to be accepted — a broken env
+  aborts the process *there*, before any GPU spend, instead of masquerading as low pass@B.
+- `ReplBackend.verify` retries ONCE on an infra crash (process death), restarting onto a fresh env,
+  so a transient REPL death never scores a *valid* proof as failed; a persistent crash returns a
+  distinct `REPL_INFRA_ERROR` output (never confused with a real compile error). Tests:
+  `test_always_imports_never_pickles`, `test_infra_crash_retries_once_on_fresh_process`,
+  `test_persistent_infra_crash_reports_infra_error_not_compile`.
+- Per-attempt truncated `raw_output` is persisted in agent state (only for unparseable rejections)
+  so future infra glitches are debuggable from results/.
+
+**Status:** fast suite 126 passed; stale `mathlib_env.pkl` removed from the GPFS env; decisive smoke
+(job 10270058) running to confirm pass@B > 0.
+
+## 2026-06-07 — Sweep robustness: per-cell containment + loud failure + generous request timeout
+- **Decision:** a single (problem,seed) cell failure must NEVER abort the sweep. `run_sweep` contains
+  every per-cell exception, skips writing that cell's file (so resume retries it), and always writes
+  `metrics.json` for the cells that did finish. Rationale: under concurrency one transient vLLM
+  `APITimeoutError` killed baseline 10272937 at 165/732 with zero recorded metrics.
+- **Decision:** the slurm wrapper must fail LOUDLY. With `set -uo pipefail` (intentionally no `-e`, so
+  per-stage guards control flow), the sweep command's exit code is now checked explicitly, and a
+  missing `metrics.json` after a "clean" exit is treated as failure. A crashed sweep must show Slurm
+  FAILED, never COMPLETED.
+- **Decision:** vLLM request timeout = 3600s (config `model.request_timeout_s`), max_retries=4. One
+  request generates up to `max_model_len//2` (20480) tokens; at the concurrent per-stream rate that is
+  tens of minutes, so the prior 600s default spuriously timed out. Sized as a ceiling, not a guess.
+
+## 2026-06-07 — Fit completion length to the context window (reactive clamp + retry)
+- **Decision:** the client absorbs vLLM context-length 400s by shrinking `max_tokens` to
+  `window - prompt_tokens - margin` and retrying once, rather than letting them fail the cell.
+  Reactive (catch the 400) not proactive (pre-count tokens) because the server applies the chat
+  template, so an exact client-side prompt-token count isn't available; and the 400 is returned
+  before any generation, so the retry costs nothing. Budget is still respected (clamp is min'd with
+  the original budgeted request). True no-room cases (prompt ≈ whole window) re-raise into sweep
+  containment. Trigger: baseline 10304768 cell imo_2019_p1 seed=0.

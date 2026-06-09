@@ -201,3 +201,222 @@ Newest entries at the bottom. Never delete history.
 - Next: (when build done) install pantograph + flip the lean contract tests green on the Goedel pin;
   pin the Goedel-Prover-V2-8B revision; `sbatch slurm/sweep.sh configs/phase0_baseline.yaml baseline`
   for the real pass@B curve → log numbers + GPU-hours here. That closes Phase 0.
+
+### 2026-06-05 — Real Lean verification WORKING on the Goedel pin (REPL backend); lean+slow contract tests green
+- Did: Mathlib build (job 10223218) **COMPLETED** 2026-06-04 23:21 (4675 oleans, ready marker written).
+  Went to flip the deferred lean tests green and hit a wall: **PyPantograph has no release matching the
+  Goedel pin** (Lean v4.9.0-rc1) — its oldest tagged toolchain is v4.18.0 (walked every PyPantograph tag's
+  `src` submodule → `leanprover/Pantograph` `lean-toolchain`), and the sibling's prebuilt binary is v4.29.0
+  (olean format is version-specific → can't load our oleans). **Pivoted the verification backend to
+  `leanprover-community/repl`** — already vendored in the mathlib build as the `REPL` package, so it's
+  version-matched by construction; built its exe with a 40 s `lake build repl` (depends only on Lean core,
+  no Mathlib recompile). It's also the REPL Goedel/DeepSeek's own harnesses use. Wrote `src/atp/lean/repl.py`
+  (`ReplBackend` + injectable transport: `SubprocessReplTransport` real / `ScriptedReplTransport` for tests),
+  superseding PantographBackend for all reported numbers (Pantograph kept for the v4.29.0 plumbing stack
+  only). Updated `slurm/build_lean.sh` (now also `lake build repl`), `pyproject.toml` `[lean]` note,
+  `DECISIONS.md` (2 entries), `lean/__init__` exports, and the contract tests (now drive ReplBackend, no
+  pantograph importorskip). 
+- **Three real bugs found + fixed while bringing the REPL up against the live env (each would have silently
+  corrupted every verdict):**
+  1. **LEAN_PATH layout**: `compute_lean_path` looked only under `.lake/build/lib/lean`, but v4.9.0-rc1 puts
+     oleans in bare `.lake/build/lib` → mathlib missing from LEAN_PATH. Probe both.
+  2. **LEAN_PATH recursion** (the nasty one): the olean probe used a NON-recursive `glob("*.olean")`, so
+     packages with only nested oleans — **`importGraph` (a mathlib dependency)** and `REPL` — were dropped.
+     Missing importGraph makes `import Mathlib` return an **empty env 0 with NO error** (even core `True`/
+     `trivial` vanish) in ~0 s — indistinguishable from a loaded env except every proof fails. Fixed with
+     `rglob` (stops at first hit; 6→9 LEAN_PATH parts, matching the proven manual build).
+  3. **stdout buffering / PTY**: the repl responds with `IO.println` and never flushes; Lean block-buffers
+     stdout to a pipe → a persistent pipe driver hangs forever (a trivial command got no pipe response in
+     25 s; 1 s over a PTY). Drive it through a **pseudo-terminal** (raw slave; daemon reader thread → queue;
+     stderr drained separately) — the same trick pexpect-based harnesses use.
+- Tests: `make test` (fast) → **115 passed, 3 deselected** (+14: new `tests/test_lean_repl.py`, incl. the two
+  LEAN_PATH-layout regressions and the recursion regression). ruff clean. `import atp.lean.repl` stays
+  login-node safe (no pantograph/torch/openai). **REAL `lean+slow` contract tests GREEN for the first time:
+  `2 passed in 126s`** (`test_contract_accepts_trivial_true`, `test_contract_rejects_false`) against the
+  Goedel pin. End-to-end smoke through `ReplBackend`+`Verifier`: TRUE→ok, `Nat.Prime 7 by decide`→ok (proves
+  Mathlib genuinely loaded), `1=2 by rfl`→compile_error, `sorry`→loophole.
+- Numbers: **cold Mathlib load ≈ 130–270 s (one-time per process), warm verify ≈ 0.2 s** — the persistent
+  REPL amortizes the load exactly as intended (this is the whole reason for a long-lived process). No GPU yet.
+- Issues: cold load is GPFS-IO-bound and slow; fine because it's paid once per worker. `make smoke`/sweep
+  must run the repl from a context with `~/.elan/bin` on PATH + the env's LEAN_PATH (handled by the backend).
+- Next: **the verification half of Phase 0 is DONE.** Remaining for the baseline: pin the Goedel-Prover-V2-8B
+  model revision, bring up vLLM on an l40s (`slurm/vllm_server.sh`), then `sbatch slurm/sweep.sh
+  configs/phase0_baseline.yaml baseline` for the real pass@B curve → log numbers + GPU-hours. (Wire a sweep
+  guard that asserts a non-empty LEAN_PATH / a successful trivial-true probe before spending GPU, so a
+  silent env regression can't masquerade as low pass@B.)
+
+## 2026-06-06 — GPFS open-storm defeated by node-local staging; smoke pipeline running
+- **Blocker resolved.** The 2026-06-05 "pickle the env to dodge the open-storm" plan failed: cold
+  `import Mathlib` kept timing out at the 2700 s ceiling (jobs 10244652 etc.), because (a) you can't
+  pickle without one successful cold import, and (b) under GPFS contention even a *sequential* read of
+  the 4.2 GB / 4686-olean tree ran at **~3.8 MB/s (19m14s)**; random opens were >45 min.
+- **Root-caused the pickle.** Produced one (via local route) — it's **1112 bytes**: a lazy `olean.`
+  *index* (module→hash/offset) that mmaps oleans at unpickle. NOT self-contained → a GPFS pickle just
+  re-opens all 4.7k oleans. (DECISIONS 2026-06-06.)
+- **Fix = stage env to node-local SSD.** Copy the built env to `/local/$USER/atp-lean-env` once per
+  node, point `ReplBackend` at it via new `ATP_LEAN_PROJECT` override. Measured on ins071:
+  `cp -a` ≈ **10 min** (bounded sequential), then `import Mathlib` from local = **141 s** (vs >2700 s
+  GPFS timeout), warm unpickle = **2 s**, verdicts correct (`Nat.Prime 7`→ok, `1=2 by rfl`→
+  compile_error, RESULT: PASS via `scripts/make_pickle_local.py`).
+- **Code:** `ReplBackend.__init__` honors `ATP_LEAN_PROJECT` (explicit arg still wins);
+  `slurm/sweep.sh` stages to local SSD (restart-safe `.staged_ok` + olean-count match) before the
+  GPU/probe steps; corrected the misleading pickle docstrings. New test
+  `test_lean_project_env_override_points_at_local_stage`. **Fast suite: 118 passed; ruff clean.**
+- **Running:** smoke job **10257669** (`sbatch slurm/sweep.sh configs/smoke.yaml smoke`) — first
+  end-to-end test of stage→import→vLLM→5-problem pass@B on a fresh GPU node.
+- **Next:** confirm smoke green (esp. real fresh-node staging + import time, vLLM up, pass@B writes),
+  then `sbatch slurm/sweep.sh configs/phase0_baseline.yaml baseline` for the real curve (≥3 seeds);
+  log numbers + GPU-hours.
+
+## 2026-06-06 (cont.) — GPU stack up; chat-format fix; conda-activate & verifier bugs
+- **GPU stack pinned & working.** vllm **0.8.5.post1** / torch **2.6.0+cu124** / transformers
+  **4.51.3** is the unique sweet spot (l40s driver 550.54.14 = CUDA 12.4 → cu126/cu128/cu130 wheels
+  fail "driver too old"; vllm≥0.9 needs torch 2.7+cu126; transformers 5.x breaks vllm 0.8.5). Verified
+  cuda.is_available on l40s; vLLM serves Goedel-Prover-V2-8B. (DECISIONS 2026-06-06.)
+- **Inference-format fix (smoke 10258932 had pass@4000 = 0/5).** Goedel-V2 is a Qwen3 *reasoning*
+  prover; raw `/v1/completions` made it emit prose, not Lean. Switched to `/v1/chat/completions` +
+  the official Goedel-V2 prompt (```lean4 + plan suffix) + max_model_len **40960** + budget 32000.
+  Confirmed live: the model now emits real ```lean4 proof blocks, extraction works, the propose→refine
+  loop runs. (templates.py, client.py, configs/base.yaml.)
+- **conda-activate silent-failure ROOT-CAUSED & fixed.** Smoke 10260159 died at the Lean probe with
+  `No module named 'atp'`; diag jobs showed why: on some nodes (ins095) `conda activate <prefix>`
+  returns **rc=0 but does NOT switch python** (stays base anaconda python) → base python has no atp.
+  Node-dependent (ins082 fine). Fix: after `conda activate`, **force** `export PATH="$ATP_ENV/bin:$PATH"`
+  (+ CONDA_PREFIX) and verify `python`==env python AND `import atp`, retry ×3, fail-fast BEFORE the
+  ~15min stage. Applied to sweep.sh, vllm_server.sh, diag_repl.sh. Also wrap activation in `set +u`
+  (conda scripts trip nounset on some nodes).
+- **VERIFIER BUG found (smoke 10266928: ran=5, pass@32000 = 0/5).** Every real proof rejected with
+  "Proof rejected (no parseable error)" — the Verifier's fallback when `raw.success` is False but no
+  Lean error parsed; reachable ONLY via ReplBackend.verify's generic `except` path. **The proofs are
+  valid**: a clean CPU-only replay (scripts/diag_repl.py) of the exact `mathd_algebra_182` attempt0
+  COMPILES (only `unreachableTactic` warnings), and replaying the smoke's first 12 attempts through one
+  ReplBackend.verify() is all-correct (real errors, OK proofs, loophole detected). So the bug manifests
+  ONLY live (vLLM + Lean co-resident): degradation starts at **global verify #3** (problem index 1,
+  amc12a_2015_p10) and persists. NOT memory (MaxRSS 6.1G/64G, no OOM), NOT wall-timeout (reason was
+  compile_error, not timeout) → a non-TimeoutError exception under live timing, most likely
+  `_read_response` stream-framing desync (blank-line framing) or REPL process death.
+- **In progress:** added per-attempt `raw_output` persistence (whole_proof.py/state.py) + tagged the
+  infra exception `REPL_INFRA_ERROR` with child stderr tail (repl.py); running focused 2-problem LIVE
+  repro (job 10269064, configs/smoke2.yaml) to capture the exact exception, THEN fix precisely +
+  regression test. Fast suite 125 passed. **Baseline NOT launched** — blocked on this fix.
+- **Throughput note for baseline:** harness drives vLLM single-stream (~38–42 tok/s = expected l40s
+  8B decode). Sequential full baseline (732 cells × 128000 budget) ≈ **340 GPU-h** (> the 50 GPU-h ask
+  threshold). Cell-level concurrency (shared vLLM batches; per-thread ReplBackend) → ~20 GPU-h at the
+  SAME GPU cost, no effect on results. Decide before launching.
+
+## 2026-06-06 (cont. 2) — SMOKE GREEN: pass@32000 = 3/5; full pipeline correct
+- **Verifier bug FIXED** (see DECISIONS 2026-06-06 "REMOVE the REPL env pickle"). Root cause was the
+  `unpickleEnvFrom` env crashing the Lean process on `norm_num`'s `@[init]` extension; removed the
+  pickle (always fresh `import Mathlib`), strengthened the probe to require a `norm_num` proof, and
+  added a verify retry-once-on-crash. Captured the exact crash via per-attempt `raw_output` in a
+  2-problem live repro (job 10269064).
+- **Decisive smoke (job 10270058, configs/smoke.yaml, 5 problems, seed 0, budget 32000): GREEN.**
+  Probe: fresh `import Mathlib` 128s, `true + norm_num accepted, false rejected`. Live verification
+  produced REAL compile errors, ZERO `REPL_INFRA_ERROR`/"no parseable error".
+  **pass@32000 = 0.600 ± 0.000 (3/5).** Solved (1st attempt each): mathd_algebra_182 (707 tok),
+  amc12a_2008_p8 (2326), amc12a_2015_p10 (2681). Unsolved (hard, budget-exhausted): amc12a_2019_p21,
+  aime_1984_p5. tokens_to_first_proof median 2326. Elapsed ~1.5h on 1×l40s (stage 981s + import 128s
+  + vLLM + eval; single-stream ~40 tok/s).
+- **Confirms the whole chain end-to-end:** conda-activate PATH fix + chat-format/40960 inference fix +
+  pickle-removal/norm_num fix all working together. Phase-0 smoke criterion MET.
+- **Next (BLOCKED on a decision):** the real baseline. Sequential it is ~340 GPU-h (732 cells ×
+  128000 budget at single-stream ~40 tok/s) — over the 50 GPU-h ask threshold. Need to choose:
+  (a) add cell-level concurrency (shared vLLM batches; per-thread ReplBackend) → ~20 GPU-h, same GPU
+  cost, no effect on results; (b) reduce scope (e.g. cap budget at 32000, fewer seeds); (c) shard via
+  array jobs (more GPUs). Recommend (a). Asking the user before launching.
+
+## 2026-06-06 (cont. 3) — cell-level concurrency implemented + validated; baseline launched
+- **Implemented cell-level concurrency** (user-approved over scope-reduction/array-sharding). The
+  harness runs (problem,seed) cells through a `ThreadPoolExecutor(eval.n_workers)`; one shared vLLM
+  transport batches the concurrent requests; each worker thread gets its OWN `ReplBackend` (Lean REPL
+  subprocess) via a thread-local factory in `build_solve_fn` (amortizes its `import Mathlib`), cleaned
+  up via `close_backends()`. `eval.n_workers` config field (default 1 = sequential, safe for
+  tests/smoke). Resume still loads finished cells serially; results deterministically ordered.
+  sweep.sh bumped to 16 CPU / 110 GB for 8 Lean procs + vLLM. New tests: concurrent-runs-all-cells
+  (asserts real overlap), concurrent-resume. Fast suite 128 passed, ruff clean.
+- **Concurrency smoke (job 10272321, configs/smoke_concurrent.yaml, n_workers=4): GREEN.**
+  pass@32000 = 0.600 (3/5) — IDENTICAL to the sequential smoke (same 3 solved: mathd_algebra_182,
+  amc12a_2008_p8, amc12a_2015_p10); REPL_INFRA_ERROR count = 0. **Elapsed 19m01s vs ~90m sequential
+  (~4.7x)** at n_workers=4. Confirms correctness preserved + real throughput gain + per-thread REPL
+  correctness + concurrent Mathlib imports OK.
+- **Baseline LAUNCHED:** `sbatch slurm/sweep.sh configs/phase0_baseline.yaml baseline` — miniF2F test
+  split, 3 seeds [0,1,2], budgets [2000,8000,32000,128000], n_workers=8. Restartable (requeues skip
+  done cells). Will log pass@B curve + GPU-hours when complete.
+
+### 2026-06-07 — Baseline mid-run cost projection (corrected)
+- Job 10272937 healthy at 9.3h: **162/732 cells, 126 solved, 0 REPL_INFRA_ERROR**. Startup paid
+  once: stage 1014s, import 137s, probe green (true + norm_num accepted, false rejected), vLLM up.
+- Throughput (last-30-cells): **14.6 cells/h** (avg-so-far 18.5/h; the easy head is exhausted).
+  5.8M tokens spent so far; **22% of cells (36/162) burn the full 128k budget** — these dominate cost.
+  Median tokens_to_solve on solved cells = 2628.
+- **Projection: ~570 cells remaining → ~39h more wall (~3–4 requeues) → ~48–50 total GPU-h** on one
+  L40s. This is ~2x the "~20–30 GPU-h" estimate the concurrency choice was approved on; the gap is
+  the full-budget tail, not infra. User said **continue** (2026-06-07) → run to completion, full
+  3-seed curve. Restartable; requeues skip done cells. Will log final pass@B + actual GPU-h on finish.
+
+### 2026-06-07 — Baseline 10272937 CRASHED at 165/732 (masqueraded as COMPLETED); hardened + resubmitted
+- **Failure:** job 10272937 exited 0 / sacct COMPLETED / log said "[sweep] done" — but `metrics.json`
+  was MISSING and only 165/732 cells existed. Root cause in `.err`: a single
+  `openai.APITimeoutError: Request timed out` propagated through `ThreadPoolExecutor.map` (re-raises
+  the first worker exception) → killed the whole `run_sweep` before it wrote metrics. Two defects:
+  (1) **no per-cell isolation** — one transient timeout aborts the run; (2) **bash masked it** —
+  `set -uo pipefail` (no -e) let the crashed `python … sweep` fall through to the success echo + exit 0,
+  so Slurm logged COMPLETED. The 600s transport timeout was the trigger: one request = up to
+  max_model_len//2 = 20480 tok; at ~6-15 tok/s per stream under 8-way concurrency that's 30-45 min > 600s.
+- **Fixes (all unit-tested, ruff clean, bash -n OK):**
+  - `harness.py`: `_run_cell` now catches every exception, logs `CELL FAILED`, returns None (NO cell
+    file written → retried on next resume). Sweep finishes + writes metrics regardless. New manifest
+    field `n_failed`. Tests: `test_one_cell_failure_does_not_abort_sweep`, `test_failed_cell_is_retried_on_resume`.
+  - `config.py` ModelCfg: `request_timeout_s=3600` (safe ceiling > worst-case generation) + `request_max_retries=4`.
+  - `client.py` `OpenAITransport`: accept `timeout_s`/`max_retries`; `run.py` wires them from config.
+  - `sweep.sh`: capture sweep exit code → FATAL+exit on non-zero; also FATAL if metrics.json missing
+    after a clean exit. No more silent COMPLETED-on-crash.
+- **Resubmitted:** job 10304768 (`configs/phase0_baseline.yaml baseline`, --resume). Skips the 165
+  saved cells, continues to 732. Dataset confirmed 244 problems × 3 seeds = 732 cells.
+
+### 2026-06-07 — Context-window overflow (contained); fixed client-side clamp
+- Job 10304768 (hardened sweep) running healthy; at ~177 cells the new containment caught its first
+  real failure: `imo_2019_p1 seed=0` → `openai.BadRequestError 400`: requested 20710 (prompt) + 20480
+  (completion) = 41190 > 40960 context. **Sweep kept running** (containment working as designed).
+- Cause: the agent requests a fixed `max_model_len//2 = 20480` completion regardless of prompt length;
+  long *refinement* prompts (theorem + failed proof + Lean error) push prompt+completion past the
+  window. Deterministic, so that cell would fail every resume → never complete.
+- Fix (client-side, unit-tested): `VLLMClient._complete_fitting_context` catches the context-length
+  400 (the 400 is returned BEFORE generation, so the retry is ~free), parses window + prompt tokens
+  from the message, sets `max_tokens = window - prompt - margin` (also capped by the original budgeted
+  request), retries once. If room < `context_min_completion` (256) it re-raises → cell recorded failed.
+  New ModelCfg-independent client fields `context_margin_tokens=32`, `context_min_completion=256`.
+  Tests: test_context_overflow_is_clamped_and_retried / _respects_budget_cap / _no_room_left_reraises /
+  _non_context_error_propagates_unchanged. Full fast suite green, ruff clean.
+- **Not cancelling 10304768** (failure rate ~0.6%): cancel would lose in-flight cells + re-stage. Failed
+  cells write no file, so the end-of-run resubmit (carrying this fix) retries exactly them; any Slurm
+  requeue also auto-loads the fixed code. Will resubmit to mop up if n_failed>0 at completion.
+
+### 2026-06-08 — Baseline status check + empty-checkpoint resume bug fixed
+- **Baseline still running, healthy.** Job 10304768 (the hardened resume) hit the 12h Slurm TIMEOUT
+  at 2026-06-08T02:57 (165→further cells, killed mid-run); manually requeued as **job 10347059**
+  (ins057), started 15:00, ~6.5h in at check time. Startup green: staged 4686 oleans (586s), import
+  Mathlib + first verify 64s, probe OK (true + norm_num accepted, false rejected), vLLM up. Actively
+  writing cells (now on seed-2 problems). **527/732 cells done (~72%)**, ~205 remaining. 0
+  REPL_INFRA_ERROR. Raw per-cell tally: 408/527 solved (NOT the pass@B curve — that's metrics.json at
+  completion). At ~14-15 cells/h this 12h window will TIMEOUT again ~03:00 → ≥1 more manual requeue
+  to reach 732.
+- **BUG FOUND: empty-checkpoint deterministic resume failure.** The 10304768 TIMEOUT kill left **38
+  zero-byte agent_state JSON files**. On resume `AgentState.load` did `json.loads("")` →
+  `JSONDecodeError: Expecting value: line 1 column 1`. Of the 38, 28 belong to already-completed cells
+  (resume skips them via the problems/ cell, harmless); **10 are genuinely stuck** (empty state + no
+  problems/ cell) and showed up as the 10 `CELL FAILED` lines in sweep-10347059.out — all seed=1
+  (aime_1983_p3, aime_1984_p7, amc12_2001_p21, amc12a_2002_p13, amc12a_2019_p12, imo_2019_p1,
+  amc12a_2021_p8, amc12a_2021_p12, mathd_algebra_362, amc12a_2002_p13, numbertheory_3pow..., amc12a_2019_p12).
+  Containment held (sweep didn't crash) but these would fail EVERY requeue forever — same
+  deterministic-failure class as the earlier context-overflow bug. (Atomic tmp+rename in save() can't
+  prevent a 0-byte file from a kill *before* the first save.)
+- **FIX (user-approved "harden load + test now"):** `AgentState.load` now treats an empty/whitespace
+  OR unparseable checkpoint as "no state → start fresh" (returns None) instead of raising. So the next
+  requeue auto-mops-up the 10 stuck cells with no manual file surgery. Two regression tests added
+  (test_load_empty_checkpoint_returns_none, test_load_corrupt_checkpoint_returns_none). Fast suite
+  green (137 passed, exit 0), ruff clean. NOTE: not committed/deployed to the running job — the fix
+  takes effect on the NEXT requeue (Slurm requeue reloads code) or a fresh resubmit.
+- **Next:** let 10347059 finish its pass; on its TIMEOUT, requeue (now carries the load fix → 10 stuck
+  cells start fresh and complete). When n_failed==0 and 732/732 done, read metrics.json for the real
+  3-seed pass@B curve + actual GPU-h.
