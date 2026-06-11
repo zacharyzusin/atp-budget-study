@@ -8,13 +8,19 @@ data:
   benchmark: minif2f
   split: test
   exclude_unprovable: true
-  use_novel_split: true        # lead with novel split for headline claims
+  use_novel_split: false       # novel split is empty for miniF2F-test (novel=0; all flagged
+                               # contaminated) — so run on the full audited test set, directly
+                               # comparable to the Phase 0 baseline curve. (novel_names plumbing now
+                               # exists via data.novel_names_file; the headline novel-split framing
+                               # still needs a genuinely held-out problem set to populate it.)
 
 budget:
   values: [8000]               # hold fixed per sweep; rerun this file with 2000 / 32000 separately
 
 eval:
   seeds: [0, 1, 2]
+  n_workers: 8                 # match the baseline: 8 concurrent Lean REPLs + shared vLLM batching
+                               # (ablation.sh allocates 16c/110G for this). Default 1 would be ~8x slower.
 
 # Each axis below is varied INDEPENDENTLY against the minimal baseline (one-factor-at-a-time),
 # plus a final "best-combo" cell assembled from the per-axis winners. The runner should support
@@ -27,9 +33,9 @@ sweep:
       components: { memory: {enabled: false}, reviewer: {enabled: false},
                     retrieval: {enabled: false}, tactic_skeletons: {enabled: false} }
   axes:
-    generation_mode:
+    generation_mode:                    # bfs deferred (needs the REPL proof-state stepping layer)
       - { agent: { mode: whole_proof } }
-      - { agent: { mode: bfs } }
+      # - { agent: { mode: bfs } }        # re-enable once BFS tactic search lands (Task 1.2)
     budget_alloc:                       # fresh-sample vs refinement split
       - { agent: { refinement: { alloc_split: 0.0 } } }
       - { agent: { refinement: { alloc_split: 0.5 } } }
@@ -40,10 +46,11 @@ sweep:
     reviewer:
       - { agent: { components: { reviewer: { enabled: false } } } }
       - { agent: { components: { reviewer: { enabled: true  } } } }
-    retrieval:
+    retrieval:                          # corpus = Mathlib premise dump (scripts/build_premise_corpus.py)
       - { agent: { components: { retrieval: { enabled: false } } } }
-      - { agent: { components: { retrieval: { enabled: true, backend: bm25,     k: 8 } } } }
-      - { agent: { components: { retrieval: { enabled: true, backend: reprover, k: 8 } } } }
+      - { agent: { components: { retrieval: { enabled: true, backend: bm25, k: 8,
+            corpus: scratch/premises/mathlib_2f65ba7f.jsonl } } } }
+      # - reprover backend deferred (needs a trained neural index); re-enable when built.
     tactic_skeletons:
       - { agent: { components: { tactic_skeletons: { enabled: false } } } }
       - { agent: { components: { tactic_skeletons: { enabled: true, schedule: default } } } }

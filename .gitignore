@@ -34,3 +34,6 @@ dist/
 
 # pre-existing duplicate scaffold bundle (kept on disk, not tracked)
 atp-budget-study-starter/
+
+# transient last-submitted job-id pointer (scratch)
+.last_retrieval_budget_job

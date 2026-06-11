@@ -13,10 +13,11 @@ reloads and continues — and a problem already solved short-circuits instead of
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from atp.agents.components import ComponentPipeline, PromptContext, build_components
 from atp.agents.state import (
     STOP_BUDGET,
     STOP_MAX_ROUNDS,
@@ -52,6 +53,9 @@ class WholeProofAgent:
     refine_enabled: bool = True
     max_rounds: int = 64
     sample_max_tokens: int = 2048
+    # Composable Phase 1 components. The default empty pipeline is a no-op (every hook is the
+    # identity) → byte-for-byte the minimal baseline.
+    components: ComponentPipeline = field(default_factory=ComponentPipeline)
 
     @classmethod
     def from_config(
@@ -60,6 +64,12 @@ class WholeProofAgent:
         client: VLLMClient,
         verifier: Verifier,
     ) -> WholeProofAgent:
+        if config.agent.mode != "whole_proof":
+            # Guard the generation-mode ablation: a 'bfs' cell must NOT silently run as whole-proof.
+            raise NotImplementedError(
+                f"agent.mode={config.agent.mode!r} has no agent yet; only 'whole_proof' is "
+                "implemented (BFS tactic search is deferred — needs the REPL stepping layer)"
+            )
         ref = config.agent.refinement
         return cls(
             client=client,
@@ -68,6 +78,7 @@ class WholeProofAgent:
             max_refine=ref.max_iters,
             refine_enabled=ref.enabled,
             sample_max_tokens=config.model.max_model_len // 2,
+            components=build_components(config),
         )
 
     def prove(self, theorem: Theorem, state_path: str | Path | None = None) -> AgentState:
@@ -100,9 +111,18 @@ class WholeProofAgent:
     def _search(
         self, theorem: Theorem, state: AgentState, state_path: str | Path | None
     ) -> None:
-        for _ in range(self.max_rounds):
+        for round_index in range(self.max_rounds):
             # Fresh proposal opens a round.
             prompt = self.template.render(theorem)
+            prompt = self.components.decorate_prompt(
+                prompt,
+                PromptContext(
+                    theorem=theorem,
+                    kind="propose",
+                    round_index=round_index,
+                    history=tuple(state.attempts),
+                ),
+            )
             if self._step(theorem, state, prompt, kind="propose", path=state_path) != "failed":
                 return
 
@@ -110,7 +130,20 @@ class WholeProofAgent:
             if self.refine_enabled:
                 for _ in range(self.max_refine):
                     last = state.attempts[-1]
-                    prompt = self.template.render_refinement(theorem, last.proof, last.feedback)
+                    # Enrich the Lean error with the reviewer's critique (if any) for refinement.
+                    feedback = last.feedback
+                    if last.review_critique:
+                        feedback = f"{feedback}\n\nReviewer critique: {last.review_critique}"
+                    prompt = self.template.render_refinement(theorem, last.proof, feedback)
+                    prompt = self.components.decorate_prompt(
+                        prompt,
+                        PromptContext(
+                            theorem=theorem,
+                            kind="refine",
+                            round_index=round_index,
+                            history=tuple(state.attempts),
+                        ),
+                    )
                     status = self._step(theorem, state, prompt, kind="refine", path=state_path)
                     if status != "failed":
                         return
@@ -127,14 +160,30 @@ class WholeProofAgent:
     ) -> str:
         """One generate+verify+checkpoint.
 
-        Returns "solved" | "no_progress" | "failed". `client.generate` may raise `BudgetExhausted`
-        (handled by `prove`), which is the normal budget-out path before any work is wasted.
+        Returns "solved" | "no_progress" | "budget" | "failed". `client.generate` may raise
+        `BudgetExhausted` (handled by `prove`) — the normal budget-out path before work is wasted.
         """
         completion = self.client.generate(
             prompt, max_tokens=self.sample_max_tokens, label=kind
         )
         proof = self.template.extract_proof(theorem, completion.text)
         result = self.verifier.verify(theorem, proof)
+
+        # Reviewer (Phase 1): consult the critic ONLY on a real proof Lean just rejected, so Lean
+        # stays the authoritative gate and a solve is never blocked. The critic spends budget, so it
+        # can exhaust mid-step; we still record the (failed) attempt, then stop cleanly.
+        review_accept: bool | None = None
+        review_critique = ""
+        budget_out = False
+        if (not result.ok) and completion.completion_tokens > 0:
+            try:
+                verdict = self.components.review(theorem, proof, result.feedback, self.client)
+            except BudgetExhausted:
+                budget_out = True
+            else:
+                if verdict is not None:
+                    review_accept = verdict.accept
+                    review_critique = verdict.critique
 
         # Persist the raw verifier output ONLY when the verdict looks like an infra glitch (rejected
         # with no parseable Lean error) — that's the case worth debugging; a normal compile error is
@@ -152,6 +201,8 @@ class WholeProofAgent:
                 feedback=result.feedback,
                 completion_tokens=completion.completion_tokens,
                 raw_output=raw_dbg,
+                review_accept=review_accept,
+                review_critique=review_critique,
             )
         )
         if self.client.meter is not None:
@@ -166,6 +217,11 @@ class WholeProofAgent:
         if completion.completion_tokens == 0:
             self._finish(state, STOP_NO_PROGRESS, path)
             return "no_progress"
+
+        # The reviewer used the last of the budget — record done, like the generate() budget path.
+        if budget_out:
+            self._finish(state, STOP_BUDGET, path)
+            return "budget"
 
         self._checkpoint(state, path)
         return "failed"

@@ -38,9 +38,9 @@ agent:
     max_iters: 4
     alloc_split: 0.5        # fraction of B spent on refinement vs. fresh samples (0..1)
   components:               # Phase 1 ablation toggles — each independently testable
-    memory:        { enabled: false }                       # carry solved lemmas / past errors as context
-    reviewer:      { enabled: false }                       # second-pass check before accepting
-    retrieval:     { enabled: false, backend: bm25, k: 8 }  # bm25 | reprover | none
+    memory:        { enabled: false, max_items: 3 }         # carry recent failed attempts as "don't repeat"
+    reviewer:      { enabled: false, max_tokens: 256 }      # critic on Lean-failed proofs; scores false-accepts
+    retrieval:     { enabled: false, backend: bm25, k: 8, corpus: null }  # bm25 (corpus=premises JSONL) | reprover(deferred)
     tactic_skeletons: { enabled: false, schedule: default } # fixed common-tactic-skeleton prompts
 
 search:                    # used when agent.mode == bfs
@@ -53,6 +53,8 @@ data:
   split: test                 # train | valid | test | novel
   exclude_unprovable: true    # drop the known-unprovable miniF2F items
   use_novel_split: false      # lead headline claims with this true
+  novel_names_file: null      # when use_novel_split=true, a newline/JSON-list file of held-out
+                              # problem names (resolved relative to project.root); run_eval loads it.
 
 eval:
   seeds: [0, 1, 2]            # >=3 for headline numbers

@@ -40,6 +40,18 @@ def _result(name, seed, *, solved, tts=None, spent=0, budget=1000):
 
 
 # -- metrics ---------------------------------------------------------------------------
+def test_resolve_endpoint_file_honors_env_override(monkeypatch):
+    from atp.eval.run import resolve_endpoint_file
+
+    cfg = load_config(BASE_CONFIG)
+    monkeypatch.delenv("ATP_VLLM_ENDPOINT_FILE", raising=False)
+    assert resolve_endpoint_file(cfg) == cfg.model.endpoint_file  # default: the config path
+    # A per-task override (the ablation Slurm wrapper sets this) wins, so co-located array tasks
+    # never read each other's vLLM endpoint.
+    monkeypatch.setenv("ATP_VLLM_ENDPOINT_FILE", "results/_vllm_endpoint_job_3.txt")
+    assert resolve_endpoint_file(cfg) == "results/_vllm_endpoint_job_3.txt"
+
+
 def test_pass_at_b_metric():
     # 2 problems × 2 seeds. p_a solved at 100 tokens; p_b unsolved.
     results = [
@@ -288,3 +300,40 @@ def test_run_eval_end_to_end_mocked(tmp_path):
     assert (result.run_dir / "run_manifest.json").exists()
     assert (result.run_dir / "pass_at_b.png").exists()  # plot rendered
     assert result.manifest["model"]["name"] == cfg.model.name
+
+
+def test_run_eval_resolves_novel_names_file_from_config(tmp_path):
+    """run_eval must pick up `data.novel_names_file` itself (the CLI/Slurm plumbing) — restricting
+    to the held-out split with NO explicit novel_names passed."""
+    from atp.lean import RawVerification, ScriptedBackend
+    from atp.models import ScriptedTransport, completion_response
+
+    root = tmp_path / "miniF2F"
+    (root / "formal").mkdir(parents=True)
+    (root / "formal" / "valid.lean").write_text(
+        "import Mathlib\n\nopen Nat\n\n"
+        "theorem t_a : True := sorry\n\ntheorem t_b : True := sorry\n"
+    )
+    (tmp_path / "novel.txt").write_text("t_b\n")  # hold out exactly one of the two problems
+    cfg = load_config(BASE_CONFIG)
+    data = cfg.data.model_copy(update={
+        "minif2f_dir": str(root), "split": "valid", "exclude_unprovable": False,
+        "use_novel_split": True, "novel_names_file": "novel.txt",
+    })
+    cfg = cfg.model_copy(update={
+        "data": data, "project": cfg.project.model_copy(update={"root": str(tmp_path)}),
+    })
+
+    transport = ScriptedTransport(
+        lambda payload: completion_response("```lean4\ntheorem t : True := by\n  trivial\n```", 50)
+    )
+    backend = ScriptedBackend(
+        lambda _t, proof: RawVerification(success="trivial" in proof, output="")
+    )
+
+    from atp.eval.run import run_eval
+
+    result = run_eval(cfg, tmp_path / "run", transport=transport, backend=backend)
+    # Only t_b is novel → 1 problem × 3 seeds = 3 cells (not 6). The file was resolved by run_eval.
+    assert result.n_ran == 3
+    assert result.manifest["dataset"]["split"] == "novel"

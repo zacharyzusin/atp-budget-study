@@ -341,3 +341,139 @@ parser, was the fault. The pickle only ever saved ~140s once per process; correc
   before any generation, so the retry costs nothing. Budget is still respected (clamp is min'd with
   the original budgeted request). True no-room cases (prompt ≈ whole window) re-raise into sweep
   containment. Trigger: baseline 10304768 cell imo_2019_p1 seed=0.
+
+## 2026-06-10 — Phase 1 component framework: no-op-by-default composable pipeline
+- **Decision:** each Phase 1 ablation axis is a `Component` with optional hooks (first hook:
+  `decorate_prompt`), assembled by `build_components(config)` into an ordered `ComponentPipeline`.
+  **Every hook defaults to a no-op and an empty pipeline is the identity**, so an agent with no
+  components enabled is byte-for-byte the Phase 0 baseline. Rationale: the completed Phase 0 pass@B
+  curve is the reference each axis is measured against — the baseline path must stay provably
+  unchanged. Enforced by `test_agent_baseline_prompts_carry_no_hint`.
+- **Decision:** add hooks only when a component needs them (no speculative interfaces). Today only
+  `decorate_prompt` exists (prompt-side). Accept-side hooks (reviewer) and others land with their
+  component. Pipeline order is fixed in code (not config-driven) so a toggle set maps to one
+  pipeline → reproducible config-hash.
+- **Decision:** unknown sub-options (e.g. a bad skeleton schedule name) raise in `build_components`,
+  i.e. *before* any GPU/Lean work — fail fast on the login node, not 6h into a sweep.
+
+## 2026-06-10 — Tactic-skeletons component (first Phase 1 axis): fixed schedule, fresh-proposal-only
+- **Decision:** tactic-skeletons appends a one-line structural hint (e.g. "try `nlinarith`/`norm_num`",
+  "simplify then `linarith`", "`omega` for ℕ/ℤ arithmetic") to **fresh proposal prompts only**,
+  cycling a fixed schedule by `round_index % len`. Refinement prompts are left untouched — the
+  concrete Lean error already steers them and a generic skeleton hint would only dilute that signal.
+- **Decision:** schedules are hard-coded (no learning, no data dependency); the name is recorded via
+  the config in the run manifest, so a schedule change is an explicit, logged edit. Started with one
+  `default` schedule of 8 competition-style skeletons (ordered by how often each closes miniF2F/
+  ProofNet goals). This is the cheap "structural priors" axis the plan wants to verify/refute.
+- **Scope note:** this is Tasks 1.1 (framework) + first slice of 1.3 (one component). BFS (1.2),
+  memory, reviewer, retrieval remain unimplemented placeholders. No GPU run yet — sweep is gated on
+  team sign-off per PROJECT_PLAN §12.
+
+## 2026-06-10 — Memory component (Phase 1 axis): within-problem failure recall, prompt-side
+- **Decision:** the memory component summarises the most-recent *failed* attempts (compact proof
+  snippet + Lean error) into **fresh-proposal prompts only**, as an explicit "do not repeat these"
+  block, to stop the budget re-drawing near-duplicate dead ends. Refinement prompts are left clean
+  (same rationale as skeletons: the immediate Lean error is the signal). Round 0 (no history) is a
+  no-op → baseline-identical.
+- **Decision:** scope is deliberately **within-problem only** (read-only over `ctx.history`); no
+  cross-problem global solved-lemma memory yet — that's a separate, larger design (shared store,
+  contamination/leakage care) deferred unless the ablation motivates it.
+- **Decision:** to give components prior-attempt context without new plumbing, `PromptContext`
+  gained a `history: tuple[Attempt, ...]` field (default empty → backward-compatible); the agent
+  threads `tuple(state.attempts)` in. Bounded by `memory.max_items` (config, default 3) and a
+  per-item proof-snippet char cap so prompts can't blow up.
+
+## 2026-06-10 — BFS (Task 1.2) needs a Lean proof-state stepping layer first (FORK, not yet built)
+- **Finding:** the `LeanBackend` protocol is **whole-proof only** (`verify(theorem, proof)`); the
+  REPL backend checks a complete proof against base env 0 and has **no tactic-stepping /
+  proofState interface**. True tactic-level BFS (the BFS-Prover comparator the plan intends) needs
+  incremental `{"tactic", "proofState"}` stepping wired onto the REPL — a separable Lean-infra
+  subsystem with its own correctness traps (see reference_lean_repl_cluster).
+- **Decision (pending team):** do NOT silently build the stepping layer. Surfaced as an explicit
+  fork — (A) build REPL proofState stepping then real BFS; (B) keep doing the prompt-side/whole-proof
+  components first; (C) cheap pseudo-BFS over whole proofs (rejected as not the real comparator).
+  Proceeded with prompt-side components (skeletons, memory) meanwhile.
+
+## 2026-06-10 — Reviewer/critic component (Phase 1 axis): pinned semantics
+- **Decision (semantics, user-delegated):** the reviewer is an LLM critic consulted **only on a
+  candidate proof Lean has just REJECTED**. Lean stays the free, authoritative gate, so a true solve
+  is never blocked/delayed/discarded by the critic, and the critic's token cost is paid only on
+  failures (where the agent refines anyway). Rejected the alternatives: a *pre-Lean* gate would risk
+  throwing away real solves (and saves no token budget, since Lean isn't token-metered); a
+  *post-Lean-on-passes* scorer would spend budget after the loop already ended.
+- **Consequence — clean false-accept metric:** because every reviewed proof is known-bad (Lean
+  failed it), an ACCEPT is by definition a false accept. `reviewer_false_accept_rate = accepts /
+  reviewed`, aggregated over cells (`ProblemResult.n_reviewed`, `n_review_false_accept`), surfaced in
+  metrics.json only when the reviewer ran. This is the plan's required soundness number (how
+  unreliable the critic would be as a standalone acceptance gate).
+- **Behavioural value:** the critique is appended to the next refinement prompt (a second opinion on
+  *why* it's wrong, on top of the raw Lean error). So the ablation is honest on both axes — does the
+  critique improve pass@B enough to pay for its token cost, and the standalone false-accept rate.
+- **Budget safety:** the critic call is metered; if it exhausts mid-step the failed attempt is still
+  recorded, then the cell finishes STOP_BUDGET cleanly (new `_step` return value "budget"). Verdict
+  parsing is conservative: ACCEPT only on an explicit accept token, first explicit token wins, else
+  REJECT. `ReviewerCfg.max_tokens` default 256 (small, so the critic can't starve proving).
+
+## 2026-06-10 — Retrieval component (Phase 1 axis): BM25 baseline over a premise-corpus file
+- **Decision:** implement the **BM25** retrieval baseline (lexical, rank-bm25, no GPU); **defer
+  ReProver** (`backend: reprover` raises NotImplementedError — it needs a trained neural index).
+  Retrieves the top-k library lemmas for the goal and injects them into **fresh proposals only**
+  (consistent with skeletons/memory; the ablation question is "do up-front relevant lemmas help at
+  fixed budget"). Index over `name + decl`; query = the theorem statement; identifier-run tokenizer.
+- **Decision:** retrieve over a **premise corpus JSONL** (`RetrievalCfg.corpus`, `{"name","decl"}`
+  per line). The corpus is a *separate data-prep artifact* (a Mathlib declaration dump), NOT built at
+  runtime — keeps the component pure/testable and the heavy Lean/Mathlib export out of the agent.
+  bm25 without a corpus **raises at build time** (fail fast on the login node), never silently
+  retrieves nothing. ⇒ **Prerequisite for the retrieval sweep arm: produce/stage the corpus** (a
+  `scripts/build_premise_corpus.py` from the pinned Mathlib, not yet written).
+- **Pipeline order (fixed):** retrieval → memory → skeletons → reviewer (outer context first).
+
+## 2026-06-10 — Premise corpus built by lexically parsing pinned-Mathlib source (not the REPL)
+- **Decision:** build the BM25 premise corpus by **parsing Mathlib `.lean` source** (the 4361 files
+  vendored in the staged Lean env at `.lake/packages/mathlib/Mathlib`), NOT by enumerating the
+  compiled environment via the REPL. Rationale: pure CPU/string work, login-node safe, no REPL
+  gotchas (see reference_lean_repl_cluster); approximate captures only add mild bag-of-words noise to
+  a lexical index — never unsoundness (a retrieved premise is a hint; Lean still checks the proof).
+- **Parser** (`src/atp/data/premises.py`): tracks the `namespace` stack to qualify names (sections
+  don't affect names), captures each decl's signature from its keyword up to `:=`/`where` (multi-line
+  headers joined), strips attributes/comments/docstrings. Kinds: theorem/lemma/def/abbrev/instance
+  (named). First occurrence of a name wins (deterministic via sorted files). CLI:
+  `scripts/build_premise_corpus.py` (defaults derive source root + commit from base config; writes a
+  `<out>.meta.json` provenance sidecar).
+- **Result:** 148,727 premises → `scratch/premises/mathlib_2f65ba7f.jsonl` (24 MB), pinned to the
+  Goedel mathlib commit. BM25 index builds in 2.1s, ~250ms/query. Wired into phase1_ablation.yaml's
+  retrieval arm. **Known limitation (honest ablation finding):** BM25 retrieves excellently when the
+  goal names library concepts (gcd, sin/cos → exact lemmas) but weakly for bare symbolic algebra
+  (a+b=b+a) where there are no distinctive identifiers — a lexical-retrieval property, not a bug.
+
+## 2026-06-10 — Phase 1 ablation expansion (Task 1.4): OFAT cells, hash-deduped, fail-fast
+- **Decision:** a `sweep` config (baseline + axes) expands to concrete validated `ExperimentConfig`
+  cells via `atp.eval.ablation.expand_ablation` — baseline = base⊕sweep.baseline; each variant cell =
+  baseline⊕variant (OFAT: differs only in its axis). The existing `run_eval` runs each cell unchanged
+  into `results/<run>/<cell>/`; a Slurm array maps array-id → cell. CLI: `atp ablation --list/--check/
+  --cell-id`. Each variant is re-validated → malformed overrides fail on the login node.
+- **Decision (efficiency):** dedup cells by `config_hash`. Each axis's "control" variant is identical
+  to the baseline (e.g. memory-off, alloc_split=0.5, whole_proof), so without dedup the 244×3 baseline
+  grid would run ~7× over. First cell with a given config wins (the baseline), so an axis contributes
+  only its *distinct* variants. phase1 → 14 raw cells collapse to **7 distinct** (baseline + bfs-less
+  generation_mode dropped + budget_alloc 0.0/1.0 + memory/reviewer/retrieval/tactic_skeletons on).
+- **Decision (correctness guard):** `agent.mode='bfs'` has no agent yet, and `solve_fn` always builds
+  the whole-proof agent — so a bfs cell would silently run as whole-proof and corrupt the generation-
+  mode arm. `WholeProofAgent.from_config` now raises NotImplementedError on non-whole_proof mode, and
+  `validate_cells` flags it pre-flight. The bfs variant is commented out in phase1_ablation.yaml
+  (re-enable when BFS lands), mirroring the deferred reprover retrieval cell.
+
+## 2026-06-10 — Ablation Slurm array wrapper (slurm/ablation.sh): per-task isolation + flock staging
+- **Decision:** one array task = one ablation cell (`--array=0-6%4` for phase1's 7 cells), each
+  serving its own vLLM and running that cell's problems×seeds grid via `atp ablation --cell-id`.
+  Adapted from sweep.sh by DUPLICATION (not refactor) — sweep.sh is battle-tested and the baseline
+  path; left byte-identical to avoid regressing it (untestable off-cluster). Header note says keep the
+  shared hardening in sync.
+- **Decision (concurrency correctness):** co-located array tasks (l40s nodes have several GPUs) would
+  collide on (a) the shared vLLM endpoint file and (b) the node-local Lean-env staging rm+copy. Fixes:
+  per-task **port** (`8000+task`) + per-task **endpoint file** read via new `ATP_VLLM_ENDPOINT_FILE`
+  override (`run.resolve_endpoint_file`); and **flock**-guarded staging so the first task stages and
+  the rest reuse `.staged_ok`. Range-guard: a task id ≥ cell count exits 0 (over-provisioning safe).
+- **Decision:** keep the loud-failure contract (capture rc, require metrics.json) per cell, so a
+  crashed cell shows Slurm FAILED not COMPLETED. Launch remains gated on team sign-off (PROJECT_PLAN
+  §12); smoke one cell (small data.limit) before the full array.

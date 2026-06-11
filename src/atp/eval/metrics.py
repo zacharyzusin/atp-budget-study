@@ -92,15 +92,37 @@ def effective_accuracy(
     }
 
 
+def reviewer_false_accept_rate(results: list[ProblemResult]) -> dict[str, float | int] | None:
+    """Fraction of reviewer-judged (Lean-failed) proofs the critic wrongly ACCEPTed.
+
+    Returns None when the reviewer was never consulted (off, or no failed attempts to judge), so the
+    metric appears only for reviewer runs. `rate` is the headline soundness number for the reviewer
+    ablation: how unreliable the critic would be as a standalone acceptance gate.
+    """
+    reviewed = sum(r.n_reviewed for r in results)
+    if reviewed == 0:
+        return None
+    false_accepts = sum(r.n_review_false_accept for r in results)
+    return {
+        "n_reviewed": reviewed,
+        "n_false_accept": false_accepts,
+        "rate": false_accepts / reviewed,
+    }
+
+
 def summarize(
     results: list[ProblemResult], budgets: list[int]
 ) -> dict[str, object]:
     """All Phase-0 metrics in one dict (ready to dump to results/<run>/metrics.json)."""
     curve = pass_at_b(results, budgets)
     max_b = max(budgets) if budgets else 0
-    return {
+    out: dict[str, object] = {
         "n_cells": len(results),
         "pass_at_b": [vars(p) for p in curve],
         "tokens_to_first_proof": tokens_to_first_proof(results),
         "effective_accuracy": effective_accuracy(results, max_b),
     }
+    far = reviewer_false_accept_rate(results)
+    if far is not None:
+        out["reviewer_false_accept"] = far
+    return out

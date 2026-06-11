@@ -1,0 +1,55 @@
+# configs/phase1_ablation_smoke.yaml — tiny end-to-end smoke for the Phase 1 ablation MACHINERY.
+# Goal: confirm `atp ablation --cell-id` runs a real cell end-to-end on GPU+Lean (cell dispatch →
+# run_eval → per-cell metrics.json → component construction incl. the BM25 corpus load + reviewer
+# critic call), BEFORE the full sweep. NOT for reporting numbers (3 problems, 1 seed).
+#
+# Fire it (after `srun ... --pty bash` on an l40s, or via the wrapper):
+#   sbatch --array=0-0 slurm/ablation.sh configs/phase1_ablation_smoke.yaml phase1_smoke   # baseline only
+#   sbatch            slurm/ablation.sh configs/phase1_ablation_smoke.yaml phase1_smoke   # all 7 cells
+# Pre-flight (no GPU):  atp ablation --config configs/phase1_ablation_smoke.yaml --check
+
+defaults: base
+
+data:
+  benchmark: minif2f
+  split: valid              # easy split, fast; not the reported test/novel split
+  exclude_unprovable: true
+  use_novel_split: false
+  limit: 3                  # first 3 problems only
+
+budget:
+  values: [32000]           # single budget; the reasoning prover needs CoT room (4000/8000 truncate)
+
+eval:
+  seeds: [0]                # single seed for smoke
+  n_workers: 2              # lightly exercise the concurrent path
+
+# Same axes as phase1_ablation.yaml (so the smoke validates every component cell), tiny data.
+sweep:
+  baseline:
+    agent:
+      mode: whole_proof
+      refinement: { enabled: true, max_iters: 2, alloc_split: 0.5 }
+      components: { memory: {enabled: false}, reviewer: {enabled: false},
+                    retrieval: {enabled: false}, tactic_skeletons: {enabled: false} }
+  axes:
+    generation_mode:                    # bfs deferred (needs the REPL stepping layer)
+      - { agent: { mode: whole_proof } }
+      # - { agent: { mode: bfs } }
+    budget_alloc:
+      - { agent: { refinement: { alloc_split: 0.0 } } }
+      - { agent: { refinement: { alloc_split: 0.5 } } }
+      - { agent: { refinement: { alloc_split: 1.0 } } }
+    memory:
+      - { agent: { components: { memory: { enabled: false } } } }
+      - { agent: { components: { memory: { enabled: true  } } } }
+    reviewer:
+      - { agent: { components: { reviewer: { enabled: false } } } }
+      - { agent: { components: { reviewer: { enabled: true  } } } }
+    retrieval:
+      - { agent: { components: { retrieval: { enabled: false } } } }
+      - { agent: { components: { retrieval: { enabled: true, backend: bm25, k: 8,
+            corpus: scratch/premises/mathlib_2f65ba7f.jsonl } } } }
+    tactic_skeletons:
+      - { agent: { components: { tactic_skeletons: { enabled: false } } } }
+      - { agent: { components: { tactic_skeletons: { enabled: true, schedule: default } } } }

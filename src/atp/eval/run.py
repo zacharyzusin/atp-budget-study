@@ -12,6 +12,7 @@ PantographBackend for the pin: PyPantograph has no v4.9.0-rc1 release — DECISI
 
 from __future__ import annotations
 
+import os
 import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -21,6 +22,7 @@ from atp.agents.whole_proof import WholeProofAgent
 from atp.budget.meter import BudgetMeter
 from atp.config import apply_env
 from atp.data import load_dataset
+from atp.data.contamination import load_novel_names
 from atp.eval.harness import RunResult, SolveFn, run_sweep
 from atp.eval.metrics import pass_at_b
 from atp.lean.backends import LeanBackend
@@ -84,6 +86,16 @@ def build_solve_fn(
     return solve_fn
 
 
+def resolve_endpoint_file(config: ExperimentConfig) -> str:
+    """The vLLM endpoint file to read, honoring a per-task override.
+
+    Concurrent ablation array tasks each serve their OWN vLLM on a different node, so the shared
+    `model.endpoint_file` would collide — a cell could read another cell's endpoint. The Slurm
+    wrapper points each task at a per-task file via `ATP_VLLM_ENDPOINT_FILE`; honor it when set.
+    """
+    return os.environ.get("ATP_VLLM_ENDPOINT_FILE") or config.model.endpoint_file
+
+
 def run_eval(
     config: ExperimentConfig,
     run_dir: str | Path,
@@ -96,10 +108,13 @@ def run_eval(
     apply_env(config)
     run_dir = Path(run_dir)
 
-    dataset = load_dataset(config, model_revision=config.model.revision, novel_names=novel_names)
+    # Explicit names (tests) win; otherwise resolve `data.novel_names_file` from the config so the
+    # CLI / Slurm paths get the held-out split without re-plumbing each call site.
+    names = list(novel_names) or load_novel_names(config)
+    dataset = load_dataset(config, model_revision=config.model.revision, novel_names=names)
     if transport is None:
         transport = OpenAITransport.from_endpoint_file(
-            config.model.endpoint_file,
+            resolve_endpoint_file(config),
             timeout_s=config.model.request_timeout_s,
             max_retries=config.model.request_max_retries,
         )

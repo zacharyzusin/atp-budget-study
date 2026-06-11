@@ -12,7 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from atp.data.contamination import mark_contamination
+from atp.data.contamination import load_novel_names, mark_contamination
 from atp.data.exclusions import apply_exclusions, load_exclusions
 from atp.data.manifest import DatasetManifest
 from atp.data.minif2f import load_minif2f
@@ -37,6 +37,7 @@ __all__ = [
     "load_exclusions",
     "apply_exclusions",
     "mark_contamination",
+    "load_novel_names",
     "FLAG_UNPROVABLE",
     "FLAG_NOVEL",
     "FLAG_CONTAMINATED",

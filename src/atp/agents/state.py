@@ -37,6 +37,10 @@ class Attempt:
     feedback: str
     completion_tokens: int
     raw_output: str = ""  # truncated verifier raw output (debug; "" when uninteresting)
+    # Reviewer component (Phase 1): set only when the reviewer was consulted on this (failed)
+    # attempt. `review_accept=True` on a failed attempt is a false-accept (see reviewer.py).
+    review_accept: bool | None = None
+    review_critique: str = ""
 
 
 @dataclass

@@ -1,0 +1,43 @@
+# configs/phase1_retrieval_budget.yaml — Phase 1 follow-up: does BM25 retrieval's +3.4pp lift
+# (measured at B=8000 in the OFAT ablation, job 10436909) hold / grow / shrink across budgets?
+#
+# OFAT over ONE axis (retrieval), reported over the full budget curve. A single run meters to
+# max(budget.values)=32000 and pass@B reports every listed point — so the 8000 column EXACTLY
+# reproduces the Phase 1 retrieval/baseline numbers (same seeds, identical trajectory up to 8k),
+# a free reproduction check, while 2000 and 32000 are new. retrieval-off dedups to the baseline,
+# so this expands to exactly 2 cells: baseline + retrieval__1.
+
+defaults: base
+
+data:
+  benchmark: minif2f
+  split: test
+  exclude_unprovable: true
+  use_novel_split: false       # full audited 244-problem test set, comparable to Phase 0 + the
+                               # B=8000 ablation (novel split empty for miniF2F-test; novel_names
+                               # not wired into the CLI yet — headline novel framing is a follow-up).
+
+budget:
+  values: [2000, 8000, 32000]  # curve, not separate runs; meter runs once to 32000.
+
+eval:
+  seeds: [0, 1, 2]
+  n_workers: 8                 # match the baseline: 8 concurrent Lean REPLs + shared vLLM batching
+                               # (ablation.sh allocates 16c/110G). 32k cells may exceed the 12h short
+                               # wall — --requeue + resume-safe containment continue from checkpoint.
+
+sweep:
+  baseline:                    # the reference cell retrieval is measured against (identical to the
+    agent:                     # Phase 0 / B=8000 baseline: all components off, even refine split).
+      mode: whole_proof
+      refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+      components: { memory: {enabled: false}, reviewer: {enabled: false},
+                    retrieval: {enabled: false}, tactic_skeletons: {enabled: false} }
+  axes:
+    retrieval:                          # corpus = Mathlib premise dump (scripts/build_premise_corpus.py)
+      - { agent: { components: { retrieval: { enabled: false } } } }   # == baseline (dedups away)
+      - { agent: { components: { retrieval: { enabled: true, backend: bm25, k: 8,
+            corpus: scratch/premises/mathlib_2f65ba7f.jsonl } } } }
+
+# Output: results/phase1_retrieval_budget/<cell>/metrics.json with pass@B at 2k/8k/32k each.
+# Analysis: retrieval Δ vs baseline at each budget -> append to results/phase1/FINDINGS.md.

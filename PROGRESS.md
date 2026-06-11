@@ -420,3 +420,213 @@ Newest entries at the bottom. Never delete history.
 - **Next:** let 10347059 finish its pass; on its TIMEOUT, requeue (now carries the load fix → 10 stuck
   cells start fresh and complete). When n_failed==0 and 732/732 done, read metrics.json for the real
   3-seed pass@B curve + actual GPU-h.
+
+### 2026-06-10 — Phase 0 baseline COMPLETE (732/732, n_failed=0)
+- Did: Final requeue **job 10403513** (ins038) ran COMPLETED 2026-06-09 19:24, elapsed 7h32m. The
+  empty/corrupt-checkpoint `AgentState.load` fix worked: the 10 previously-stuck seed-1 cells started
+  fresh and finished. This pass ran=109, skipped=623 → full coverage.
+- Tests: n/a this session (load fix + regression tests landed previous session; carried in via git_sha
+  77795e1).
+- Numbers: **732/732 cells, n_failed=0, 0 REPL_INFRA_ERROR.** 3-seed pass@B (seeds 0,1,2; 244 problems):
+  - pass@2000   = 0.296 ± 0.033
+  - pass@8000   = 0.601 ± 0.019
+  - pass@32000  = 0.695 ± 0.006
+  - pass@128000 = 0.749 ± 0.009   (= effective_accuracy @128k)
+  tokens_to_first_proof: median 2534, mean 8266 (n_solved=548). Curve steep 2k→8k (+30pp), flat after
+  32k (+5.4pp for 4× budget). results/baseline/{metrics.json,run_manifest.json,pass_at_b.png}.
+  Config = whole_proof + refinement(max_iters=4, alloc_split=0.5); all OTHER agent components
+  (memory/retrieval/reviewer/tactic_skeletons) DISABLED — this is the true no-frills baseline.
+- Issues: none. Clean run, deterministic-failure bug classes all contained/fixed.
+- Next: Phase 0 baseline pass@B curve is the reference. Next sweeps = turn on agent components one at a
+  time (refinement-only already in baseline; retrieval/reviewer/tactic_skeletons) to measure marginal
+  lift vs baseline at matched budget.
+
+### 2026-06-10 — Phase 1 kickoff: component framework + tactic-skeletons (Task 1.1 + first 1.3 slice)
+- Did: Built the composable component framework (`src/atp/agents/components/base.py`:
+  `Component`, `PromptContext`, `ComponentPipeline`; `__init__.py`: `build_components(config)`) and
+  the **tactic-skeletons** component (`skeletons.py`) — the first Phase 1 ablation axis. Wired the
+  pipeline into `WholeProofAgent` (`from_config` builds it; `_search` threads propose/refine prompts
+  through `decorate_prompt`). Empty pipeline = no-op = byte-identical baseline (so Phase 0 pass@B
+  stays the valid reference). User chose tactic-skeletons as the first axis; sweep held for approval.
+- Tests: new `tests/test_components.py` — 11 tests (framework no-op/compose, skeletons
+  propose-only + schedule cycling + bad-schedule raises, build_components wiring, and two
+  agent-integration tests incl. baseline-carries-no-hint). Full fast suite green (148 passed,
+  was 137), ruff clean. No GPU/Lean touched.
+- Numbers: n/a (no run this session).
+- Issues: none.
+- Next: continue Phase 1 component implementation per plan order — BFS tactic search (1.2) and the
+  remaining 1.3 components (memory, reviewer, retrieval), each test-first. THEN check in before the
+  GPU ablation sweep (1.4–1.5), which is gated on team sign-off (PROJECT_PLAN §12). Tactic-skeletons
+  is ready to include in that sweep when it runs.
+
+### 2026-06-10 — Phase 1 cont.: memory component + discovered the BFS stepping-layer fork
+- Did: Implemented the **memory** component (`src/atp/agents/components/memory.py`) — second Phase 1
+  axis. Within-problem, prompt-side: summarises recent failed attempts into fresh proposals as a
+  "don't repeat" block (propose-only; round 0 is a no-op). Threaded read-only attempt history into
+  `PromptContext` (new `history` field, default empty → backward-compatible); agent passes
+  `tuple(state.attempts)`. Added `MemoryCfg.max_items` (default 3) + base.yaml. Wired into
+  `build_components` with fixed order memory→skeletons.
+- Tests: +6 in `tests/test_components.py` (no-op without failures, summarise propose-only,
+  max_items cap = most recent, build order, agent-integration recall across rounds). Full fast
+  suite green (**154 passed**, was 148), ruff clean. No GPU/Lean.
+- Numbers: n/a (no run).
+- Issues / decision: **BFS (Task 1.2) is not a drop-in** — the Lean backend is whole-proof only
+  (no proofState/tactic stepping). Real tactic-level BFS needs a REPL stepping layer first
+  (separable Lean-infra subsystem). Logged as a fork in DECISIONS.md; did NOT build it unprompted.
+- Next: get a steer on the BFS fork (build the stepping layer now vs. finish the cheaper
+  prompt-/accept-side axes first: reviewer, retrieval). Whichever — still test-first, and the GPU
+  ablation sweep stays gated on team sign-off (PROJECT_PLAN §12). Skeletons + memory ready for it.
+
+### 2026-06-10 — Phase 1 cont.: reviewer/critic component (3rd axis) + false-accept metric
+- Did: Implemented the **reviewer** component (`src/atp/agents/components/reviewer.py`) and its
+  framework hook (`Component.review` / `ComponentPipeline.review` / `ReviewVerdict` in base.py).
+  Semantics pinned (DECISIONS.md): critic runs ONLY on Lean-rejected candidates → Lean stays
+  authoritative, a solve is never blocked, false-accept rate is exactly accepts/reviewed. Wired into
+  the agent: `_step` consults the critic on failures (budget-metered, new "budget" return value if it
+  exhausts mid-step), records `Attempt.review_accept`/`review_critique`, and `_search` threads the
+  critique into the refinement prompt. Added `ReviewerCfg.max_tokens` (256) + base.yaml.
+  Eval: `ProblemResult.{n_reviewed,n_review_false_accept}` + `metrics.reviewer_false_accept_rate`
+  (surfaced in metrics.json only when the reviewer ran).
+- Tests: +12 in `tests/test_components.py` (verdict parsing incl. ambiguous→reject; critic calls
+  model + spends budget + respects max_tokens; prompt-only components have no review opinion;
+  build_components wiring; end-to-end false-accept recorded + critique reaches refinement + metric
+  =1.0; metric None without reviewer). Full fast suite green (**166 passed**, was 154), ruff clean.
+  Backward-compatible: new Attempt/ProblemResult fields all default → old baseline checkpoints load.
+- Numbers: n/a (no run).
+- Issues: none.
+- Next: **retrieval** (last cheap axis: BM25 premise injection; ReProver backend deferred — needs an
+  index). Then the BFS stepping-layer decision. GPU ablation sweep still gated on team sign-off.
+  Built so far and sweep-ready: tactic-skeletons, memory, reviewer.
+
+### 2026-06-10 — Phase 1 cont.: retrieval component (4th axis, BM25 baseline)
+- Did: Implemented the **retrieval** component (`src/atp/agents/components/retrieval.py`): BM25
+  (rank-bm25, already a dep) over a premise-corpus JSONL (`RetrievalCfg.corpus`), injecting top-k
+  library lemmas into fresh proposals (propose-only). `_BM25Index` + `load_premises` + `Premise`.
+  ReProver backend deferred (raises). bm25-without-corpus raises at build (fail fast). Added
+  `RetrievalCfg.corpus` + k≥1 validation + base.yaml. Wired into build_components; fixed pipeline
+  order retrieval→memory→skeletons→reviewer.
+- Tests: +7 in `tests/test_components.py` (load_premises parse/skip-blank/empty-raises; BM25 ranks
+  the additive goal's add_comm above mul_comm; propose-only; reprover deferred; bm25 requires corpus;
+  build order retrieval-first). Full fast suite green (**173 passed**, was 166), ruff clean. No
+  GPU/Lean — tested with a tiny temp corpus.
+- Numbers: n/a (no run).
+- Issues / prerequisite: the retrieval sweep arm needs a real **premise corpus** (a Mathlib
+  declaration dump → JSONL). Not built yet; `scripts/build_premise_corpus.py` is the follow-up data
+  task. The other three axes need no such artifact.
+- Next: all CPU/prompt-side + accept-side Phase 1 axes are now built (skeletons, memory, reviewer,
+  retrieval). Remaining: BFS (1.2, blocked on the REPL proof-state stepping layer) + the retrieval
+  corpus data task. Decision point for the team: (a) build the premise corpus + BFS stepping layer,
+  or (b) run the fixed-budget ablation sweep now over the 4 ready axes (3 need no new data; retrieval
+  waits on the corpus). GPU ablation sweep still gated on team sign-off (PROJECT_PLAN §12).
+
+### 2026-06-10 — Phase 1 cont.: built the Mathlib premise corpus (unblocks retrieval sweep arm)
+- Did: Wrote the premise-corpus parser (`src/atp/data/premises.py`: strip_comments / extract_premises
+  with namespace-stack qualification + multi-line signature capture / build_corpus) and the CLI
+  (`scripts/build_premise_corpus.py`). Ran it over all 4361 pinned-Mathlib source files →
+  **148,727 premises** at `scratch/premises/mathlib_2f65ba7f.jsonl` (24 MB, +.meta.json provenance),
+  in 18s. Verified end-to-end: BM25 index builds in 2.1s, ~250ms/query; retrieval returns the exact
+  lemma for concept-named goals (Real.cos_sq_add_sin_sq for the trig identity; spot-on gcd hits),
+  weak for bare algebra (expected lexical limitation). Wired the corpus path into
+  phase1_ablation.yaml's bm25 retrieval cell (reprover cell commented out — deferred).
+- Tests: +7 in `tests/test_premises.py` (comment stripping incl. nested/docstring; namespace-not-
+  section qualification; multi-line signature join; attributes/modifiers; anonymous-instance skip;
+  dedup; file limit). Full fast suite green (**180 passed**, was 173), ruff clean (src+tests).
+- Numbers: corpus = 148,727 premises; index 2.1s; query ~250ms. No GPU.
+- Issues: none.
+- Next: ALL FOUR Phase 1 axes are now sweep-ready with no missing data (skeletons, memory, reviewer,
+  retrieval+corpus). Remaining builds: BFS (1.2, REPL stepping layer) and ReProver retrieval (trained
+  index) — both deferred. Open decision: prep+launch the fixed-budget ablation sweep over the 4 ready
+  axes (Task 1.4 sweep-runner axis-expansion may need a check first), vs. build BFS next. GPU sweep
+  still gated on team sign-off (PROJECT_PLAN §12).
+
+### 2026-06-10 — Phase 1: built the ablation sweep machinery (Task 1.4) — sweep is launch-ready
+- Did: Discovered Task 1.4 was never built — the CLI `sweep` ran a SINGLE config; `phase1_ablation.yaml`'s
+  `sweep.axes` had no consumer (the baseline only ever exercised one cell). Built it:
+  `src/atp/eval/ablation.py` (expand_ablation → OFAT cells, hash-dedup, validate_cells pre-flight,
+  ablation_manifest) + `atp ablation` CLI (--list / --check / --cell-id N → run_eval into
+  results/<run>/<cell>/, writes ablation_cells.json). Added correctness guards so an unimplemented
+  `mode=bfs` cell can't silently run as whole-proof (agent raises; --check flags it); commented the
+  bfs variant out of phase1_ablation.yaml (deferred, like reprover).
+- Tests: +13 in `tests/test_ablation.py` (baseline-first; OFAT differs-only-in-axis; hash-dedup;
+  retrieval cell carries corpus; invalid-override + bfs-mode + retrieval-without-corpus all raise with
+  cell name; manifest; CLI --list/--cell-id; **the shipped phase1 config passes --check end-to-end**,
+  which loads the real 148k corpus to validate the BM25 cell). Full fast suite green (**193 passed**,
+  was 180), ruff clean. No GPU/Lean.
+- Numbers: phase1_ablation.yaml → **7 runnable cells**: baseline, budget_alloc__0 (0.0) /__2 (1.0),
+  memory__1, reviewer__1, retrieval__1 (bm25+corpus), tactic_skeletons__1. `atp ablation --check`
+  passes; `--list` shows all 7 with distinct hashes.
+- Issues: none.
+- Next: the ONLY thing between here and the ablation sweep is `slurm/ablation.sh` — an array wrapper
+  (array-id→--cell-id) reusing sweep.sh's hardening (proxy/conda/Lean-staging/norm_num probe/vLLM).
+  Untestable off-cluster + GPU-gated, so deferred to its own step (smoke 1 cell first). After that:
+  team sign-off → launch the fixed-budget ablation (PROJECT_PLAN §12 gate). Then BFS (1.2) + ReProver.
+
+### 2026-06-10 — Phase 1: ablation Slurm array wrapper — sweep is one `sbatch` from launch (gated)
+- Did: Wrote `slurm/ablation.sh` (array wrapper: array-id→cell, per-task vLLM port+endpoint file,
+  flock-guarded node-local Lean staging, range-guard skip, norm_num probe, loud failure). Added the
+  `ATP_VLLM_ENDPOINT_FILE` override (`run.resolve_endpoint_file`) so co-located array tasks don't read
+  each other's vLLM. sweep.sh left untouched (duplicated the hardening, not refactored — lower risk to
+  the green baseline path). Both scripts `bash -n` clean.
+- Tests: +1 (`test_resolve_endpoint_file_honors_env_override`). Full fast suite green (**194 passed**,
+  was 193), ruff clean.
+- Numbers: n/a (no run — launch is GPU-gated).
+- Issues: none. Scripts are untestable off-cluster, so smoke ONE cell (small data.limit on an
+  interactive l40s, or `--array=0-0`) before the full 7-cell array.
+- Next: TEAM SIGN-OFF → launch the fixed-budget ablation: `sbatch slurm/ablation.sh` (7 cells:
+  baseline + budget_alloc 0.0/1.0 + memory + reviewer + retrieval(bm25) + tactic_skeletons), ≥3 seeds,
+  results/phase1_ablation/<cell>/metrics.json each. Then analysis (per-axis pass@B vs baseline +
+  reviewer false-accept) → results/phase1/FINDINGS.md (Task 1.6). Deferred: BFS (1.2), ReProver.
+
+### 2026-06-10 — Phase 1: ablation smoke config ready to fire (pre-flight green)
+- Did: Added `configs/phase1_ablation_smoke.yaml` — the same 7-cell ablation axes on tiny data
+  (split=valid, limit=3, seeds=[0], budget=[32000], n_workers=2) to validate the end-to-end machinery
+  on GPU+Lean before the full sweep. `atp ablation --list` → 7 cells; `--check` passes (loads the real
+  148k corpus to validate the BM25 cell). Header documents the fire commands.
+- Tests: +1 (`test_smoke_config_is_tiny_and_same_shape_as_phase1`). Full fast suite green (**197
+  passed**, was 194), ruff clean.
+- Numbers: n/a (no run — GPU-gated).
+- Fire commands (interactive l40s or sbatch):
+    atp ablation --config configs/phase1_ablation_smoke.yaml --check          # pre-flight, no GPU
+    sbatch --array=0-0 slurm/ablation.sh configs/phase1_ablation_smoke.yaml phase1_smoke  # baseline cell only
+    sbatch            slurm/ablation.sh configs/phase1_ablation_smoke.yaml phase1_smoke   # all 7 cells
+- Next: TEAM fires the smoke (1 cell) → confirm a real metrics.json under results/phase1_smoke/baseline/.
+  Then sign-off → full sweep: `sbatch slurm/ablation.sh` (configs/phase1_ablation.yaml). Then Task 1.6
+  analysis (per-axis pass@B vs baseline + reviewer false-accept) → results/phase1/FINDINGS.md.
+
+### 2026-06-10 — Phase 1: fixed-budget OFAT ablation COMPLETE (job 10436909)
+- Did: Ran the full 7-cell ablation (`slurm/ablation.sh configs/phase1_ablation.yaml`). All 7 array
+  tasks COMPLETED, ~3.8h each, two waves on `%4`. No timeouts/requeues. Every cell **n_cells=732/732**
+  (244 problems × 3 seeds, n_failed=0). Concurrency fixes held under real co-location (tasks 0&1 shared
+  ins056 → distinct ports 8000/8001 + flock-shared Lean staging, no collision).
+- Numbers (pass@8000, ±seed std; baseline seed std=3.3pp = the noise band):
+    baseline            60.1 ± 3.3%   (ref)
+    retrieval (BM25)    63.5 ± 1.9%   +3.4pp  ← ONLY mover; also tightens variance
+    tactic_skeletons    61.1 ± 2.3%   +1.0pp  (borderline, within noise)
+    budget_alloc 0.0    60.7 ± 1.8%   +0.5pp  | 1.0  60.5 ± 0.9%  +0.4pp  (flat across full range)
+    memory              60.5 ± 3.1%   +0.4pp
+    reviewer            60.4 ± 2.3%   +0.3pp
+  Reviewer false-accept (consulted only on Lean-rejected → every accept is a false-accept):
+    **17/249 = 6.8%** → LLM critic is NOT a reliable verifier; Lean stays authoritative (design validated).
+- Analysis written: `results/phase1/FINDINGS.md` (Task 1.6 DONE).
+- Issues: none. (Earlier-caught config bugs n_workers 1→8 and use_novel_split true→false were fixed
+  pre-launch; this run was clean.)
+- Next: PROMOTE retrieval — rerun BM25 across budgets (2k / 32k) to see if +3.4pp holds/grows/shrinks
+  with B, and build the best-combo cell around it. Deprioritize memory/reviewer/budget_alloc as
+  standalone levers at this budget. Deferred still: BFS (1.2, needs REPL stepping), ReProver backend.
+
+### 2026-06-11 — Novel-split CLI plumbing (wait-window task while job 10461442 runs)
+- Did: Wired the held-out novel split end-to-end (the data layer already accepted `novel_names`, but
+  nothing fed it). Added `data.novel_names_file` (config field, newline- or JSON-list of held-out
+  problem names, resolved relative to project.root) + `load_novel_names(config)` loader in
+  `data/contamination.py` (skips blanks/`#` comments, de-dups, raises on missing-but-configured or
+  empty-after-parse). Threaded it through `run_eval` at a single DRY point — explicit `novel_names`
+  (tests) win, else fall back to the config file — so `atp sweep` / `atp ablation` / Slurm all pick it
+  up with no per-call-site plumbing. Updated base.yaml (+field) and the stale "not wired into the CLI
+  yet" comments in phase1_ablation.yaml.
+- Tests: +10 (9 in test_data.py: newline/json/none/relative-path/missing/empty/bad-json/load_dataset
+  composition; 1 in test_eval.py: `run_eval` restricts to the held-out split from the config file
+  alone, n_ran 6→3, manifest split="novel"). Full fast suite **210 passed, 1 skipped**, ruff clean.
+- Numbers: n/a (no run). Note: still need a genuinely held-out problem set to populate the file —
+  miniF2F-test has novel=0. This unblocks that follow-up; it doesn't create the held-out set.
+- Next: cross-budget retrieval job 10461442 (baseline+retrieval @ 2k/8k/32k) still running; completion
+  watcher armed → append the 2k/8k/32k retrieval table to results/phase1/FINDINGS.md when it lands.

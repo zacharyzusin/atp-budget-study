@@ -31,6 +31,10 @@ class ProblemResult:
     benchmark: str = ""
     split: str = ""
     config_hash: str = ""
+    # Reviewer component (Phase 1): how many Lean-failed attempts the critic judged, and how many it
+    # (wrongly) ACCEPTed. Both 0 when the reviewer is off. Feeds reviewer_false_accept_rate.
+    n_reviewed: int = 0
+    n_review_false_accept: int = 0
 
     @classmethod
     def from_agent_state(
@@ -44,6 +48,9 @@ class ProblemResult:
         config_hash: str = "",
     ) -> ProblemResult:
         spent = int(state.budget.get("spent", 0)) if state.budget else 0
+        # The reviewer is consulted only on Lean-failed attempts, so every recorded verdict here is
+        # on a known-bad proof: an ACCEPT is by definition a false accept (see reviewer.py).
+        reviewed = [a for a in state.attempts if a.review_accept is not None]
         return cls(
             problem_name=state.theorem_name,
             seed=seed,
@@ -56,6 +63,8 @@ class ProblemResult:
             benchmark=benchmark,
             split=split,
             config_hash=config_hash,
+            n_reviewed=len(reviewed),
+            n_review_false_accept=sum(1 for a in reviewed if a.review_accept),
         )
 
     def solved_within(self, b: int) -> bool:

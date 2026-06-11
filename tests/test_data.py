@@ -17,6 +17,7 @@ from atp.data import (
     apply_exclusions,
     load_dataset,
     load_minif2f,
+    load_novel_names,
     load_proofnet,
     mark_contamination,
 )
@@ -140,6 +141,70 @@ def test_novel_split_requires_names(tmp_path):
 def test_novel_split_filters(tmp_path):
     cfg = _cfg(tmp_path, split="valid", use_novel_split=True, exclude_unprovable=False)
     ds = load_dataset(cfg, novel_names={"t_one"})
+    assert [p.name for p in ds.problems] == ["t_one"]
+    assert ds.manifest.use_novel_split is True
+
+
+# -- novel_names_file plumbing (config → CLI/run) --------------------------------------
+def _cfg_root(tmp_path, **data_overrides):
+    """A config whose project.root is tmp_path, so relative novel_names_file resolves there."""
+    cfg = _cfg(tmp_path, **data_overrides)
+    proj = cfg.project.model_copy(update={"root": str(tmp_path)})
+    return cfg.model_copy(update={"project": proj})
+
+
+def test_load_novel_names_none_returns_empty(tmp_path):
+    assert load_novel_names(_cfg_root(tmp_path)) == []
+
+
+def test_load_novel_names_newline_skips_blanks_and_comments(tmp_path):
+    (tmp_path / "novel.txt").write_text("# held-out set\nt_one\n\n  t_two  \nt_one\n")
+    cfg = _cfg_root(tmp_path, novel_names_file="novel.txt")
+    assert load_novel_names(cfg) == ["t_one", "t_two"]  # trimmed, comment/blank dropped, de-duped
+
+
+def test_load_novel_names_json_list(tmp_path):
+    (tmp_path / "novel.json").write_text('["t_one", "t_two"]')
+    cfg = _cfg_root(tmp_path, novel_names_file="novel.json")
+    assert load_novel_names(cfg) == ["t_one", "t_two"]
+
+
+def test_load_novel_names_resolves_relative_to_project_root(tmp_path):
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "n.txt").write_text("t_one\n")
+    cfg = _cfg_root(tmp_path, novel_names_file="sub/n.txt")
+    assert load_novel_names(cfg) == ["t_one"]
+
+
+def test_load_novel_names_missing_file_raises(tmp_path):
+    cfg = _cfg_root(tmp_path, novel_names_file="nope.txt")
+    with pytest.raises(FileNotFoundError, match="novel_names_file"):
+        load_novel_names(cfg)
+
+
+def test_load_novel_names_empty_file_raises(tmp_path):
+    (tmp_path / "empty.txt").write_text("# only a comment\n\n")
+    cfg = _cfg_root(tmp_path, novel_names_file="empty.txt")
+    with pytest.raises(ValueError, match="empty"):
+        load_novel_names(cfg)
+
+
+def test_load_novel_names_bad_json_raises(tmp_path):
+    (tmp_path / "bad.json").write_text('{"not": "a list"}')
+    cfg = _cfg_root(tmp_path, novel_names_file="bad.json")
+    with pytest.raises(ValueError, match="list of strings"):
+        load_novel_names(cfg)
+
+
+def test_novel_names_file_flows_into_load_dataset(tmp_path):
+    # The end-to-end config path: a names file restricts the dataset exactly like explicit names do.
+    (tmp_path / "novel.txt").write_text("t_one\n")
+    cfg = _cfg_root(
+        tmp_path, split="valid", use_novel_split=True, exclude_unprovable=False,
+        novel_names_file="novel.txt",
+    )
+    # mirrors run_eval's resolution (explicit names empty → fall back to the config file)
+    ds = load_dataset(cfg, novel_names=load_novel_names(cfg))
     assert [p.name for p in ds.problems] == ["t_one"]
     assert ds.manifest.use_novel_split is True
 

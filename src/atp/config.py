@@ -86,16 +86,24 @@ class RefinementCfg(_Strict):
 
 class MemoryCfg(_Strict):
     enabled: bool = False
+    # How many of the most-recent failed attempts to carry into a fresh proposal as "don't repeat".
+    max_items: int = Field(3, ge=1)
 
 
 class ReviewerCfg(_Strict):
     enabled: bool = False
+    # Token budget for one critic call. Small: the critic emits a short verdict + critique, and it
+    # is charged against the same per-problem budget, so an oversized critic would starve proving.
+    max_tokens: int = Field(256, ge=1)
 
 
 class RetrievalCfg(_Strict):
     enabled: bool = False
     backend: Literal["none", "bm25", "reprover"] = "bm25"
-    k: int = 8
+    k: int = Field(8, ge=1)
+    # Path to a premises JSONL ({"name","decl"} per line) to retrieve over. Required for bm25; the
+    # corpus is a separate data-prep artifact (a Mathlib declaration dump), not produced at runtime.
+    corpus: str | None = None
 
 
 class SkeletonsCfg(_Strict):
@@ -127,6 +135,8 @@ class DataCfg(_Strict):
     split: Literal["train", "valid", "test", "novel"] = "test"
     exclude_unprovable: bool = True
     use_novel_split: bool = False
+    novel_names_file: str | None = None  # newline- or JSON-list file of held-out problem names,
+    #                       resolved relative to project.root. Required when use_novel_split=True.
     limit: int | None = None  # smoke configs cap the problem count
     # Data source dirs (None → loader defaults: miniF2F to the sibling copy; ProofNet# unset).
     minif2f_dir: str | None = None
