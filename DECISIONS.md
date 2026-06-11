@@ -477,3 +477,18 @@ parser, was the fault. The pickle only ever saved ~140s once per process; correc
 - **Decision:** keep the loud-failure contract (capture rc, require metrics.json) per cell, so a
   crashed cell shows Slurm FAILED not COMPLETED. Launch remains gated on team sign-off (PROJECT_PLAN
   §12); smoke one cell (small data.limit) before the full array.
+
+## 2026-06-11 — Retrieval (BM25) deprioritized: Phase 1 +3.4pp did not replicate
+- **Decision:** do NOT promote BM25 premise retrieval as a lever and do NOT anchor a best-combo cell
+  on it. A second independent campaign (job 10461442, budget-metered to 32k for the whole curve) gives
+  retrieval Δ = +2.2/+0.7/−0.8 pp at 2k/8k/32k — the Phase 1 +3.4pp@8k did not replicate (+0.7pp).
+- **Why:** paired flip analysis shows symmetric churn (gains≈losses: +47/−31, +46/−41, +20/−26 at
+  2k/8k/32k), i.e. the BM25 context perturbs the stochastic generation rather than injecting usable
+  premises; the net sign is noise-driven and trends negative as budget grows. With per-seed std
+  ~1.5–3pp and n=3, a ~3pp OFAT delta is not distinguishable from run-to-run variance.
+- **Methodology rule adopted:** treat a single OFAT mean-delta under ~1 baseline-σ as noise; require
+  more seeds or paired/within-run (flip-count) evidence before calling a component a real effect. By
+  this rule none of the Phase 1 components cleared noise.
+- **Consequence:** re-prioritize generation-mode BFS (Task 1.2) and a genuinely held-out novel split
+  ahead of retrieval. Only revisit retrieval with a relevance filter / smaller k or the deferred
+  ReProver neural backend — both speculative, not currently justified.

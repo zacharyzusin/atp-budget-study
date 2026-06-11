@@ -630,3 +630,25 @@ Newest entries at the bottom. Never delete history.
   miniF2F-test has novel=0. This unblocks that follow-up; it doesn't create the held-out set.
 - Next: cross-budget retrieval job 10461442 (baseline+retrieval @ 2k/8k/32k) still running; completion
   watcher armed → append the 2k/8k/32k retrieval table to results/phase1/FINDINGS.md when it lands.
+
+## 2026-06-11 — Cross-budget retrieval rerun: the +3.4pp did NOT replicate
+- Did: ran baseline vs retrieval (BM25 k=8) metered to 32k → whole [2k/8k/32k] curve in one campaign
+  (job 10461442; retrieval cell timed out 10 seed2-tail problems short of 732, resume job 10481853
+  finished them — resume-safe). Both cells 732/732, n_failed=0.
+- Numbers: within-campaign retrieval Δ = **+2.2pp @2k, +0.7pp @8k, −0.8pp @32k** (baseline 0.303/0.594/
+  0.701; retrieval 0.325/0.601/0.693). Phase 1's **+3.4pp @8k did NOT replicate** (+0.7pp here). Both
+  are valid within-campaign comparisons; the gap is run-to-run vLLM variance (separate processes aren't
+  bitwise-reproducible; per-seed std ~1.5–3pp, n=3). NB confirmed in code: meter limits to max(values)
+  and WholeProofAgent ignores the ceiling (`alloc_split` is never read), so an 8k point is a valid 8k
+  measurement within its run — just not bitwise-equal across runs (my earlier "reproduces exactly" was
+  too strong: in expectation, not bitwise).
+- Key evidence: paired flip analysis — gains≈losses at every B (+47/−31, +46/−41, +20/−26). Symmetric
+  churn ⇒ BM25 context perturbs generation more than it injects usable premises; net sign is just which
+  way the noise leaned. As B grows, losses overtake gains (baseline already gets the easy ones).
+- Decision: retrieval is NOT a robust lever; do NOT anchor a best-combo cell on it (see DECISIONS).
+  Revised conclusion appended to results/phase1/FINDINGS.md (supersedes its earlier "promote retrieval"
+  takeaway). Methodology bar raised: a single ~3pp OFAT delta at n=3 is noise — need more seeds or
+  paired/within-run analysis; by that bar no Phase 1 component cleared noise.
+- Next: re-prioritize behind (a) generation-mode BFS (Task 1.2, needs REPL proof-state stepping) and
+  (b) a genuinely held-out novel split (plumbing landed; still need the held-out problem set). BM25
+  retrieval parked; only revisit with a relevance filter / smaller k or the ReProver neural backend.
