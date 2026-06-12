@@ -492,3 +492,21 @@ parser, was the fault. The pickle only ever saved ~140s once per process; correc
 - **Consequence:** re-prioritize generation-mode BFS (Task 1.2) and a genuinely held-out novel split
   ahead of retrieval. Only revisit retrieval with a relevance filter / smaller k or the deferred
   ReProver neural backend — both speculative, not currently justified.
+
+## 2026-06-11 — Second benchmark (ProofNet#) over BFS; REPL must send native UTF-8
+- **Decision:** spend the post-Phase-1 effort on a second audited benchmark (ProofNet#,
+  PAug/ProofNetSharp) rather than the BFS generation-mode build. Validate-premise: the Neural-AO*
+  prior (search < Pass@1) + our baseline curve being flat after 32k (whole-proof saturating) argue
+  against the large BFS build (REPL stepping + 2nd model + search module) before any cheap signal it
+  helps. ProofNet# is foundational, low-build-risk (loader exists), and re-tests every Phase 1
+  conclusion on a different distribution (undergrad analysis/algebra vs miniF2F competition math).
+- **Decision (gate protocol):** before the first GPU run on ANY newly staged benchmark, run the
+  CPU-only statement compile-gate (scripts/validate_statements.py). A benchmark whose heads don't
+  elaborate against the pinned mathlib is silently all-zeros; the gate is cheap and decisive. It
+  immediately earned its keep (caught the astral-char bug below).
+- **Decision (correctness):** the REPL transport MUST serialize commands with ensure_ascii=False
+  (native UTF-8). The json default (ensure_ascii=True) emits a UTF-16 surrogate pair for astral-plane
+  (>U+FFFF) chars, which Lean's JSON reader mangles ("expected token"). This corrupts verification of
+  any statement OR model proof using astral math notation (𝓝 nhds, 𝓟 principal, 𝓤 uniformity, ...).
+  BMP notation (∫) was unaffected. Latent on miniF2F (0/1466 result files had astral chars), surfaced
+  by ProofNet# analysis problems. Locked in with _encode_command + a regression test.

@@ -199,17 +199,22 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return out
 
 
-def _resolve_defaults(raw: dict[str, Any], configs_dir: Path) -> dict[str, Any]:
-    """Pop `defaults: <name>` and deep-merge raw onto that base config."""
+def _resolve_defaults(
+    raw: dict[str, Any], configs_dir: Path, _seen: tuple[str, ...] = ()
+) -> dict[str, Any]:
+    """Pop `defaults: <name>` and deep-merge raw onto that base config.
+
+    Chains recursively: `defaults: proofnet_baseline` (which itself sets `defaults: base`) merges
+    the whole chain, so a smoke/variant config can extend a full experiment config. Cycles raise.
+    """
     defaults = raw.pop("defaults", None)
     if defaults is None:
         return raw
-    if defaults in (None, "base"):
-        base_path = configs_dir / "base.yaml"
-    else:
-        base_path = configs_dir / f"{defaults}.yaml"
-    base_raw = _read_yaml(base_path)
-    base_raw.pop("defaults", None)  # base.yaml has no defaults, but be safe
+    name = "base" if defaults in (None, "base") else defaults
+    if name in _seen:
+        raise ValueError(f"cyclic config defaults: {' -> '.join((*_seen, name))}")
+    base_raw = _read_yaml(configs_dir / f"{name}.yaml")
+    base_raw = _resolve_defaults(base_raw, configs_dir, (*_seen, name))  # resolve base's own chain
     return _deep_merge(base_raw, raw)
 
 

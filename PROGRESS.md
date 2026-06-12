@@ -652,3 +652,29 @@ Newest entries at the bottom. Never delete history.
 - Next: re-prioritize behind (a) generation-mode BFS (Task 1.2, needs REPL proof-state stepping) and
   (b) a genuinely held-out novel split (plumbing landed; still need the held-out problem set). BM25
   retrieval parked; only revisit with a relevance filter / smaller k or the ReProver neural backend.
+
+## 2026-06-11 — Pivot to ProofNet# (2nd benchmark); found+fixed a latent REPL verification bug
+- Decision: pursue a second audited benchmark (ProofNet#) over the BFS build — validate-premise
+  (search<Pass@1 prior + saturating baseline curve argue against the large BFS build now); ProofNet#
+  is foundational (generalization + contamination probe) and reuses existing infra. (DECISIONS.)
+- Did: staged ProofNet# (PAug/ProofNetSharp, 186 test / 185 valid) via scripts/build_proofnet_sharp.py
+  -> scratch/proofnet/{test,valid}.jsonl (prefixed-unique names — bare lean names collide 19x across
+  textbooks; per-row opens parsed; trailing ":=" stripped). Added a CPU-only compile-gate
+  (scripts/validate_statements.py + slurm/validate_statements.sh): compile "<head> := by sorry", a
+  bad head -> error, run BEFORE GPU (a bench whose heads don't elaborate is silently all-zeros).
+- Gate caught a REAL bug: first pass 168/186 (90.3%), 18 fail "expected token", ALL on 𝓝/𝓟 filter
+  notation (Rudin/Shakarchi/Pugh/Munkres analysis). Diagnosis (3 diag jobs): NOT my flattening
+  (verbatim headers fail too), NOT a homoglyph (mathlib registers 𝓝 = U+1D4DD, ProofNet uses
+  U+1D4DD), NOT the env (∫ U+222B parses, ascii parses). Root cause: REPL transport used
+  json.dumps default ensure_ascii=True -> astral-plane (>U+FFFF) chars sent as a UTF-16 surrogate
+  pair (𝓝 -> 𝓝) that Lean's JSON reader mangles. BMP escapes (∫ -> ∫) round-trip, so
+  only astral notation bit. Fix: ensure_ascii=False (native UTF-8) in src/atp/lean/repl.py
+  (extracted _encode_command + regression test). Re-gate: **186/186 (100%)**.
+- Impact on prior results: LATENT, never triggered on miniF2F — scanned results/baseline (1466 json,
+  244x3 + attempts): 0 contain any astral char (competition math doesn't use 𝓝). Phase 0 + Phase 1
+  miniF2F numbers STAND, no re-run needed. (The fix is still a correctness win for any future astral
+  notation in model proofs, on every benchmark.)
+- Tests: +3 (encode-command astral regression; gate tally + first-error). Fast suite green, ruff clean.
+  Pushed @ 0852dac (staging+gate) and 5e31745 (astral fix).
+- Next: ProofNet# baseline pass@B (job below) — the generalization number + a 2nd-benchmark check on
+  the "Phase 1 components are noise" conclusion.

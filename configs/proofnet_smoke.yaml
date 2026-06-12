@@ -1,0 +1,14 @@
+# configs/proofnet_smoke.yaml — tiny end-to-end smoke for the ProofNet# path (rule 5: smoke first).
+# Exercises data load + vLLM generation + Lean verify (with the astral-UTF-8 fix) on a few problems
+# before the full baseline. NOT a result — limit/seeds/budget are deliberately tiny.
+
+defaults: proofnet_baseline
+
+data:
+  limit: 3            # first 3 ProofNet# test problems
+
+budget:
+  values: [2000, 8000]
+
+eval:
+  seeds: [0]

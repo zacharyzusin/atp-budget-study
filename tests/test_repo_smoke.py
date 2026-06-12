@@ -90,6 +90,32 @@ def test_defaults_merge_overrides_base():
     assert smoke.project.root == base.project.root
 
 
+def test_defaults_chain_transitively(tmp_path):
+    """`defaults` resolves recursively: a config extending an experiment config (which itself
+    extends base) inherits the whole chain — so smoke configs can extend an experiment config."""
+    import shutil
+
+    cfgdir = tmp_path / "configs"
+    cfgdir.mkdir()
+    shutil.copy(BASE_CONFIG, cfgdir / "base.yaml")
+    # mid layer overrides a base field; top layer overrides a different one.
+    (cfgdir / "mid.yaml").write_text("defaults: base\ndata:\n  benchmark: proofnet_sharp\n")
+    (cfgdir / "top.yaml").write_text("defaults: mid\neval:\n  seeds: [0]\n")
+    cfg = load_config(cfgdir / "top.yaml")
+    assert cfg.data.benchmark == "proofnet_sharp"  # inherited from mid
+    assert cfg.eval.seeds == [0]                    # set by top
+    assert cfg.model.name == load_config(BASE_CONFIG).model.name  # inherited transitively from base
+
+
+def test_defaults_cycle_raises(tmp_path):
+    cfgdir = tmp_path / "configs"
+    cfgdir.mkdir()
+    (cfgdir / "a.yaml").write_text("defaults: b\n")
+    (cfgdir / "b.yaml").write_text("defaults: a\n")
+    with pytest.raises(ValueError, match="cyclic"):
+        load_config(cfgdir / "a.yaml")
+
+
 def test_unknown_key_is_rejected(tmp_path):
     """A typo'd config key must fail validation (extra='forbid')."""
     bad = tmp_path / "bad.yaml"
