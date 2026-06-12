@@ -712,3 +712,19 @@ Newest entries at the bottom. Never delete history.
   --requeue makes Slurm auto-requeue preemptions from the last completed cell — far less babysitting
   than chaining ~6 short 12h walls. The 78 done cells are skipped on resume. Monitor re-armed (bzwnzow53).
 - Saved the GPU-h guidance to user memory (feedback_gpuh_limit_flexible).
+
+## 2026-06-12 (cont.) — meantime tooling while the ProofNet# baseline runs
+- Built scripts/analyze_results.py (reusable; the FINDINGS analysis was ad-hoc before): `curve`
+  (pass@B mean±std + tokens-to-first-proof), `compare` (two runs side by side + per-B Δ), `flips`
+  (paired per-(problem,seed) gains/losses at fixed B = the project's noise bar). CPU-only, works on a
+  partial in-flight dir. VALIDATED: reproduces the miniF2F baseline exactly (2k=29.6 8k=60.1 32k=69.5
+  128k=74.9). +5 unit tests (synthetic records), fast suite green, ruff clean.
+- Live preliminary ProofNet# read off the 78 in-flight cells (seed0, alphabetically-early Artin/analysis
+  problems — biased): pass@{2k,8k,32k,128k} = {7.7, 16.7, 17.9, 20.5}%. Two early signals: ProofNet#
+  is much harder (~20% vs miniF2F ~75% @128k — real generalization gap), and 32k->128k still rises
+  (+2.6pp), so keeping the 128k tier looks justified (not flat). Preliminary — not representative.
+- Staged configs/phase1_ablation_proofnet.yaml (ProofNet# OFAT, mirrors phase1_ablation.yaml; expands
+  to 7 cells; reuses the existing Mathlib premise corpus). LAUNCH GATE in-file: only run after the
+  baseline lands and shows pass@8k comfortably > 0 (validate-premise; partial read ~17% looks fine).
+- Pre-existing ruff E501s remain in throwaway diag scripts (diag_repl.py, make_pickle_local.py); left
+  untouched (not this session's work).

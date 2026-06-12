@@ -1,0 +1,60 @@
+# configs/phase1_ablation_proofnet.yaml — Phase 1 OFAT ablation on ProofNet# (2nd-benchmark recheck).
+# Mirrors configs/phase1_ablation.yaml exactly EXCEPT the dataset is ProofNet# (proofnet_sharp/test),
+# so we can re-test the Phase 1 conclusion ("no agent component beat noise on miniF2F") on a second,
+# harder, less competition-contaminated benchmark. Same OFAT design, same fixed-budget protocol.
+#
+# LAUNCH GATE (validate-premise): only run this AFTER the ProofNet# baseline (job 10534104) lands and
+# shows pass@8000 is comfortably above ~0 (the partial read was ~17%). If ProofNet#'s baseline solve
+# rate at B were near zero, no component could show a detectable effect and the ablation would be
+# uninformative spend. Hold B fixed per sweep (default 8000, where miniF2F had the most headroom);
+# rerun at 2000/32000 only if a component clears noise at 8000.
+
+defaults: base
+
+data:
+  benchmark: proofnet_sharp
+  split: test                    # 186 problems, matches the baseline (results/proofnet_baseline)
+  proofnet_dir: scratch/proofnet
+  exclude_unprovable: false      # no audited unprovable-list for ProofNet# yet; keep all 186
+  use_novel_split: false
+
+budget:
+  values: [8000]                 # hold fixed per sweep; rerun this file with 2000 / 32000 separately
+
+eval:
+  seeds: [0, 1, 2]
+  n_workers: 8                   # match the baseline (ablation.sh allocates 16c/110G)
+
+# One-factor-at-a-time vs the minimal baseline, plus a best-combo cell of any per-axis winners.
+sweep:
+  baseline:
+    agent:
+      mode: whole_proof
+      refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+      components: { memory: {enabled: false}, reviewer: {enabled: false},
+                    retrieval: {enabled: false}, tactic_skeletons: {enabled: false} }
+  axes:
+    generation_mode:                    # bfs deferred (needs the REPL proof-state stepping layer)
+      - { agent: { mode: whole_proof } }
+      # - { agent: { mode: bfs } }        # re-enable once BFS tactic search lands (Task 1.2)
+    budget_alloc:                       # fresh-sample vs refinement split
+      - { agent: { refinement: { alloc_split: 0.0 } } }
+      - { agent: { refinement: { alloc_split: 0.5 } } }
+      - { agent: { refinement: { alloc_split: 1.0 } } }
+    memory:
+      - { agent: { components: { memory: { enabled: false } } } }
+      - { agent: { components: { memory: { enabled: true  } } } }
+    reviewer:
+      - { agent: { components: { reviewer: { enabled: false } } } }
+      - { agent: { components: { reviewer: { enabled: true  } } } }
+    retrieval:                          # corpus = the same Mathlib premise dump used for miniF2F
+      - { agent: { components: { retrieval: { enabled: false } } } }
+      - { agent: { components: { retrieval: { enabled: true, backend: bm25, k: 8,
+            corpus: scratch/premises/mathlib_2f65ba7f.jsonl } } } }
+      # - reprover backend deferred (needs a trained neural index); re-enable when built.
+    tactic_skeletons:
+      - { agent: { components: { tactic_skeletons: { enabled: false } } } }
+      - { agent: { components: { tactic_skeletons: { enabled: true, schedule: default } } } }
+
+# Output: per-axis pass@B tables + main-effects + paired-flip analysis (scripts/analyze_results.py)
+# -> results/phase1_proofnet/FINDINGS.md. Reviewer cells MUST also report false-accept rate.
