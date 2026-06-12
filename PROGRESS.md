@@ -678,3 +678,25 @@ Newest entries at the bottom. Never delete history.
   Pushed @ 0852dac (staging+gate) and 5e31745 (astral fix).
 - Next: ProofNet# baseline pass@B (job below) — the generalization number + a 2nd-benchmark check on
   the "Phase 1 components are noise" conclusion.
+
+## 2026-06-12 — ProofNet# baseline hit the 12h wall at 78/558; capped ceiling 128k->32k, resumed
+- Ran ProofNet# baseline (job 10511630, configs/proofnet_baseline.yaml, [2k/8k/32k/128k], 3 seeds).
+  Env/probe/staging all clean (Lean probe OK, vLLM up, refinement loop confirmed feeding Lean errors
+  back as corrected-proof prompts). But it completed only **78/558 cells in the full 12h wall**
+  (sacct TIMEOUT 11:55:13). Measured throughput ~7 cells/h.
+- Root cause = ProofNet# is MUCH harder for the prover than miniF2F. The model rarely solves these
+  undergrad-math problems, so nearly every cell goes unsolved and burns the FULL 128k ceiling (vs
+  miniF2F where ~75% stop early via stop_on_first_success). Finishing all 558 at 128k would take
+  ~76 GPU-h / ~6 more requeues — over the CLAUDE.md >50 GPU-h ask-first line, and wasteful given
+  miniF2F's 32k->128k tier is nearly flat (+5pp).
+- Decision: cap the budget ceiling 128k -> 32k (configs/proofnet_baseline.yaml). ~1/4 the per-cell
+  cost on unsolved cells -> ~27 GPU-h total, ~2 requeues. (DECISIONS.) The 128k point is dropped;
+  2k/8k/32k is sufficient for the generalization number + the Phase-1-noise recheck.
+- KEPT the 78 already-done cells (no re-run): pass@{2k,8k,32k} = (tokens_to_solve <= b), and the
+  ceiling never alters pre-ceiling generation, so a 128k-ceiling cell's 2k/8k/32k columns are
+  identical to a 32k-ceiling run (anything solved in 32k..128k is "unsolved" at b<=32k either way).
+  Resume skips them by filename (harness.py:84, no config_hash guard) -> the dir carries a mixed
+  config_hash (old 0ca3f6631081 for the 78, new for the rest); cosmetic, the curve data is correct.
+- Resubmitted: job 10527591 (resume, capped config). Monitor re-armed for terminal/requeue.
+- Next: on completion verify 558/558, report ProofNet# pass@B [2k/8k/32k] next to miniF2F, and
+  re-test "all Phase 1 components are noise" on this 2nd benchmark.
