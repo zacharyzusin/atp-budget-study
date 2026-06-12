@@ -47,6 +47,18 @@ if TYPE_CHECKING:
     from atp.config import ExperimentConfig
 
 
+def _encode_command(command: dict) -> bytes:
+    """Serialize one REPL command to wire bytes: JSON + blank-line terminator, native UTF-8.
+
+    ensure_ascii=False is load-bearing: send astral-plane (>U+FFFF) chars as raw UTF-8, NOT \\uXXXX
+    escapes. The json default emits a UTF-16 surrogate pair (𝓝 -> \\ud835\\udcdd) that Lean's JSON
+    reader mishandles, mangling the token -> "expected token". BMP notation (∫ -> \\u222b) round-
+    trips fine, so this only bit astral math notation (𝓝 nhds, 𝓟 principal, 𝓤 uniformity, ...) —
+    corrupting both such benchmark statements AND any model proof that emits them, every benchmark.
+    """
+    return (json.dumps(command, ensure_ascii=False) + "\n\n").encode("utf-8")
+
+
 @runtime_checkable
 class ReplTransport(Protocol):
     """A request/response channel to a Lean REPL. Real path = a subprocess; tests = scripted."""
@@ -132,7 +144,7 @@ class SubprocessReplTransport:
     def request(self, command: dict, timeout_s: float) -> dict:
         self._ensure_proc()
         assert self._master_fd is not None
-        os.write(self._master_fd, (json.dumps(command) + "\n\n").encode("utf-8"))
+        os.write(self._master_fd, _encode_command(command))
         return self._read_response(timeout_s)
 
     def _read_response(self, timeout_s: float) -> dict:

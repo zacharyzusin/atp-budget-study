@@ -37,3 +37,5 @@ atp-budget-study-starter/
 
 # transient last-submitted job-id pointer (scratch)
 .last_retrieval_budget_job
+
+.last_validate_job

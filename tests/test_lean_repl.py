@@ -18,8 +18,23 @@ from atp.lean import (
     Verifier,
     compute_lean_path,
 )
+from atp.lean.repl import _encode_command
 
 THM = Theorem(name="t", statement="theorem t : True")
+
+
+def test_encode_command_sends_astral_notation_as_native_utf8():
+    # Regression: astral-plane math notation (𝓝 nhds U+1D4DD, 𝓟 principal U+1D4DF) must reach Lean
+    # as raw UTF-8, not \uXXXX surrogate escapes — Lean's JSON reader mangles surrogate pairs into
+    # "expected token", silently corrupting both such statements and any proof the model emits.
+    wire = _encode_command({"cmd": "theorem t : (𝓝 (0:ℝ)).NeBot := by sorry"})
+    assert wire.endswith(b"\n\n")
+    assert "𝓝".encode() in wire  # raw 4-byte UTF-8 present
+    assert b"\\ud835" not in wire and b"\\udcdd" not in wire  # NOT escaped as a surrogate pair
+    # round-trips back to the exact codepoint
+    import json
+
+    assert json.loads(wire.decode("utf-8"))["cmd"].count("𝓝") == 1
 
 
 def _backend(responder, **kw):
