@@ -510,3 +510,18 @@ parser, was the fault. The pickle only ever saved ~140s once per process; correc
   any statement OR model proof using astral math notation (𝓝 nhds, 𝓟 principal, 𝓤 uniformity, ...).
   BMP notation (∫) was unaffected. Latent on miniF2F (0/1466 result files had astral chars), surfaced
   by ProofNet# analysis problems. Locked in with _encode_command + a regression test.
+
+## 2026-06-12 — ProofNet# baseline budget ceiling: 32k, not 128k
+**Decision.** Cap the ProofNet# baseline budget grid at [2k, 8k, 32k] (drop the 128k tier that the
+miniF2F baseline used).
+**Why.** ProofNet# undergrad math is far harder for Goedel-Prover-V2-8B than miniF2F competition math:
+the prover rarely solves a problem, so almost every cell exhausts the full budget ceiling rather than
+stopping early (stop_on_first_success). At a 128k ceiling that is ~76 GPU-h / ~6 requeues for 558
+cells (measured: 78 cells in one 12h wall, job 10511630 TIMEOUT) — over the >50 GPU-h ask-first rule.
+miniF2F showed 32k->128k is nearly flat (+5pp), so the 128k tier buys little signal here. Capping at
+32k cuts per-unsolved-cell cost ~4x -> ~27 GPU-h, and 2k/8k/32k is enough for the two questions this
+benchmark answers (generalization number + 2nd-benchmark recheck of "Phase 1 components are noise").
+**Validity of kept cells.** The 78 cells already run under the 128k ceiling are KEPT (not re-run):
+solved_within(b) = (tokens_to_solve <= b), and the ceiling never changes generation before it is hit,
+so a 128k-ceiling cell's 2k/8k/32k columns equal a 32k-ceiling run's. Resume skips by filename (no
+config_hash guard) -> the results dir carries a mixed config_hash; cosmetic, curve data is correct.
