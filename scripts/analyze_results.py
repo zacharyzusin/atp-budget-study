@@ -138,6 +138,19 @@ def cmd_flips(args: argparse.Namespace) -> None:
     print(f"  -> {verdict}")
 
 
+def cmd_overlay(args: argparse.Namespace) -> None:
+    from atp.eval.plot import plot_pass_at_b_overlay
+
+    curves = {}
+    for spec in args.runs:
+        label, _, run_dir = spec.partition("=")
+        if not run_dir:
+            label, run_dir = Path(spec).name, spec
+        curves[label] = pass_at_b(load_dir(run_dir), args.budgets)
+    out = plot_pass_at_b_overlay(curves, args.out, title=args.title)
+    print(f"wrote {out}")
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -161,6 +174,13 @@ def main(argv: list[str] | None = None) -> None:
     pf.add_argument("variant_dir")
     pf.add_argument("--budget", type=int, required=True)
     pf.set_defaults(func=cmd_flips)
+
+    po = sub.add_parser("overlay", help="overlay several runs' pass@B curves into one PNG")
+    po.add_argument("runs", nargs="+", help="run dirs, optionally label=dir")
+    po.add_argument("--out", required=True, help="output PNG path")
+    po.add_argument("--budgets", type=int, nargs="+", default=DEFAULT_BUDGETS)
+    po.add_argument("--title", default=None)
+    po.set_defaults(func=cmd_overlay)
 
     args = ap.parse_args(argv)
     args.func(args)
