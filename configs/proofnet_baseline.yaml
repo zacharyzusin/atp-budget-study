@@ -19,15 +19,14 @@ data:
   use_novel_split: false
 
 budget:
-  # Ceiling capped at 32k (NOT 128k like miniF2F). ProofNet# undergrad math is far harder for the
-  # prover: almost every cell goes unsolved and burns the FULL ceiling, so a 128k ceiling costs ~4x
-  # per cell (~76 GPU-h / ~6 requeues for 558 cells, measured: 78 cells in the first 12h wall, job
-  # 10511630). miniF2F showed 32k->128k is nearly flat (+5pp), so the 128k tier buys little here.
-  # Capping at 32k -> ~1/4 cost (~27 GPU-h total). The 78 cells already done under the 128k ceiling
-  # are KEPT and stay valid: pass@{2k,8k,32k} = (tokens_to_solve <= b), and the ceiling never alters
-  # pre-ceiling generation, so their 2k/8k/32k columns are identical to a 32k-ceiling run. Resume
-  # skips them by filename (no config_hash guard), so the dir will carry a mixed config_hash — cosmetic.
-  values: [2000, 8000, 32000]
+  # Full 128k ceiling, same grid as the miniF2F baseline — so the two pass@B curves are directly
+  # comparable AND we can see whether budget-saturation differs on harder problems (miniF2F's
+  # 32k->128k is ~flat, but ProofNet# undergrad math is much harder, so the extra refinement budget
+  # may matter more here — a genuine finding, not necessarily a flat tier). ProofNet# is expensive:
+  # ~every cell goes unsolved and burns the full ceiling -> ~76 GPU-h / ~6x 12h walls for 558 cells
+  # (measured 78 cells/12h, job 10511630). Run on `burst` (long wall + --requeue) so Slurm
+  # auto-requeues preemptions. GPU-h budget OK'd by user 2026-06-12 (good findings > the 50 GPU-h rule).
+  values: [2000, 8000, 32000, 128000]
 
 eval:
   seeds: [0, 1, 2]

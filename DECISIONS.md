@@ -525,3 +525,10 @@ benchmark answers (generalization number + 2nd-benchmark recheck of "Phase 1 com
 solved_within(b) = (tokens_to_solve <= b), and the ceiling never changes generation before it is hit,
 so a 128k-ceiling cell's 2k/8k/32k columns equal a 32k-ceiling run's. Resume skips by filename (no
 config_hash guard) -> the results dir carries a mixed config_hash; cosmetic, curve data is correct.
+
+## 2026-06-12 (revision) — ProofNet# ceiling restored to 128k (supersedes the 32k cap above)
+Supersedes the 32k-cap decision earlier today. User relaxed the >50 GPU-h ask-first rule (good
+findings > marginal cluster cost). Restored the full [2k,8k,32k,128k] grid: directly comparable to the
+miniF2F baseline, and the 32k->128k tier on harder ProofNet# problems is a genuine question (may not be
+flat like miniF2F). Run on partition=burst (4-day wall + --requeue) so preemptions auto-requeue. The 78
+cells already done at 128k are kept (resume skips by filename). Job 10534104.

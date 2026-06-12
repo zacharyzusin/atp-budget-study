@@ -700,3 +700,15 @@ Newest entries at the bottom. Never delete history.
 - Resubmitted: job 10527591 (resume, capped config). Monitor re-armed for terminal/requeue.
 - Next: on completion verify 558/558, report ProofNet# pass@B [2k/8k/32k] next to miniF2F, and
   re-test "all Phase 1 components are noise" on this 2nd benchmark.
+
+## 2026-06-12 (cont.) — reverted ProofNet# ceiling to 128k on burst (GPU-h rule relaxed)
+- User relaxed the >50 GPU-h ask-first rule: if the spend buys good findings, break it. So I reverted
+  the 32k cap back to the full **[2k,8k,32k,128k]** grid. Rationale beyond cost: (a) directly
+  comparable to the miniF2F baseline curve; (b) on harder ProofNet# problems the extra refinement
+  budget may matter MORE than on miniF2F (whose 32k->128k was ~flat) — whether it does is itself a
+  finding; (c) the 78 already-done cells ALREADY computed their 128k data, so capping discarded it.
+- Cancelled the capped resume (10527591, was just RUNNING, 0 new cells lost), reverted config,
+  resubmitted on **partition=burst --time=4-00:00:00** (job 10534104). burst is preemptible but
+  --requeue makes Slurm auto-requeue preemptions from the last completed cell — far less babysitting
+  than chaining ~6 short 12h walls. The 78 done cells are skipped on resume. Monitor re-armed (bzwnzow53).
+- Saved the GPU-h guidance to user memory (feedback_gpuh_limit_flexible).
