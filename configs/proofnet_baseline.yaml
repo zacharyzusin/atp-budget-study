@@ -1,0 +1,36 @@
+# configs/proofnet_baseline.yaml — Phase 0 baseline curve on ProofNet# (second audited benchmark).
+# Mirrors the minimal miniF2F baseline (whole_proof + refinement, all Phase 1 components OFF) so the
+# pass@B curve is directly comparable to results/baseline/. ProofNet# = corrected Lean4 ProofNet
+# (PAug/ProofNetSharp), undergrad pure math — a different distribution from miniF2F competition math,
+# so it probes generalization + is a less competition-contaminated check on the Phase 1 conclusions.
+#
+# GATE FIRST: run scripts/validate_statements.py on this config (slurm/validate_statements.sh) to
+# confirm the statement heads elaborate against the pinned mathlib before any GPU run — ProofNet#'s
+# card claims Lean v4.7.0..v4.16.0-rc2 compatibility (our pin v4.9.0-rc1 is in range) but the mathlib
+# is the xinhjBrant FORK @ 2f65ba7, so verify, don't assume.
+
+defaults: base
+
+data:
+  benchmark: proofnet_sharp
+  split: test                  # 186 problems (valid has 185); test for the headline, mirrors miniF2F
+  proofnet_dir: scratch/proofnet   # staged by scripts/build_proofnet_sharp.py (gitignored data)
+  exclude_unprovable: false    # no audited unprovable-list for ProofNet# yet; keep all 186
+  use_novel_split: false
+
+budget:
+  values: [2000, 8000, 32000, 128000]   # same curve as the miniF2F baseline
+
+eval:
+  seeds: [0, 1, 2]
+  n_workers: 8
+
+# Minimal baseline agent — identical to the miniF2F Phase 0 baseline (no Phase 1 components).
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+  components:
+    memory: { enabled: false }
+    reviewer: { enabled: false }
+    retrieval: { enabled: false }
+    tactic_skeletons: { enabled: false }
