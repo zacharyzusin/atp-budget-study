@@ -728,3 +728,15 @@ Newest entries at the bottom. Never delete history.
   baseline lands and shows pass@8k comfortably > 0 (validate-premise; partial read ~17% looks fine).
 - Pre-existing ruff E501s remain in throwaway diag scripts (diag_repl.py, make_pickle_local.py); left
   untouched (not this session's work).
+
+## 2026-06-13 — ProofNet# baseline relaunch + Phase 1 ablation launched in parallel
+- Baseline job 10534104 died 08:05 (exit 0:53, 0s elapsed, no log) — a burst preempt/cancel that
+  did NOT requeue; monitor lost across session compaction. 78/558 cells intact. Resubmitted as
+  **job 10582326** on burst (3d wall, --requeue + --resume skips the 78 done). Durable monitor armed.
+- Validated scripts/analyze_results.py on the 78 real ProofNet# cells (seed0, biased preliminary):
+  pass@B 2k=7.7% 8k=16.7% 32k=17.9% 128k=20.5%; 16/78 solved, median 2789 tok to first proof.
+  → validate-premise gate (pass@8k comfortably >0) MET on real data; tool works on ProofNet# JSONs.
+- Decision (user: launch in parallel): submitted Phase 1 OFAT ablation on ProofNet# as
+  **array job 10582331** (`_[0-6%4]`, 7 cells, budget=8000, seeds 0/1/2) → results/phase1_proofnet/.
+  Runs concurrently with the baseline on burst (18 idle nodes). Re-tests the miniF2F finding
+  ("no agent component beat noise") on the 2nd, harder benchmark.
