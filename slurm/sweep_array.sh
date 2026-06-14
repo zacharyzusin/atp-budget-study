@@ -84,16 +84,20 @@ if [ ! -f "$PROJ/results/_lean_env_ready.txt" ]; then
     exit 1
 fi
 
-# --- Stage the Lean env to node-local SSD (the cold-load fix) -------------------------------------
+# --- Stage the Lean env to node-local SSD, flock-guarded (SHARDS may co-locate) -------------------
 # `import Mathlib` opens ~4.7k oleans; off contended GPFS that timed out at 2700s (2026-06-05/06,
-# sequential read measured ~3.8 MB/s). From node-local disk the same import is ~141s and can't be
-# throttled by GPFS token contention. We copy the env once per node (sequential ~10-20min, bounded),
-# then point ReplBackend at the local copy via ATP_LEAN_PROJECT. The REPL pickle is only a ~1KB olean
-# index (lazy mmap), so it must live next to LOCAL oleans — which it does once project_path is local.
+# sequential read measured ~3.8 MB/s). From node-local disk the same import is ~141s. Each `short`
+# GPU node has 2 l40s, so TWO shards of this array land on one node and would race the rm -rf + copy
+# into the shared $LOCAL_ENV (seen 2026-06-14: "Directory not empty"/"File exists"/"Permission
+# denied", all 8 shards FAILED in <1min). Serialize per node with flock: the first shard stages, the
+# rest block on the lock then reuse the .staged_ok env. (Mirrors slurm/ablation.sh.)
 GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
 LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
 LOCAL_ENV="$LOCAL_BASE/atp-lean-env"
+mkdir -p "$LOCAL_BASE"
 N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
+exec 9>"$LOCAL_BASE/.atp_stage.lock"
+flock 9   # blocks until this node's staging lock is free
 N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
 if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ]; then
     echo "[sweep] Lean env already staged on $(hostname) ($N_LOCAL oleans) — reusing."
@@ -103,10 +107,11 @@ else
     t0=$SECONDS
     cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
           "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$LOCAL_ENV/" \
-        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; exit 1; }
+        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; flock -u 9; exit 1; }
     touch "$LOCAL_ENV/.staged_ok"
     echo "[sweep] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
 fi
+flock -u 9; exec 9>&-
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
 # GUARDRAIL probe: confirm the Lean env accepts a trivial-true proof AND rejects a false one BEFORE

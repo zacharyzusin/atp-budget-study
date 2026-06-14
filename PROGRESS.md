@@ -771,3 +771,16 @@ Newest entries at the bottom. Never delete history.
   continues unaffected. Watcher PID relaunched; monitor bbct1m1ge re-armed.
 - Gotcha logged: `pkill -f proofnet_watcher.sh` is too broad — it matches the monitor's own pgrep
   command line and kills it. Use `pkill -f 'bash scripts/proofnet_watcher.sh'`.
+
+## 2026-06-14 09:30 — fix: sweep_array.sh Lean-staging race (all 8 shards FAILED in <1min)
+- First sharded baseline array (10584316) DID get GPUs at 09:22 but all 8 shards crashed in 9-59s
+  (exit 1). Cause: each `short` GPU node has 2 l40s, so two shards co-locate and BOTH `rm -rf` + `cp`
+  the Lean env into the shared /local/$USER/atp-lean-env → "Directory not empty"/"File exists"/
+  "Permission denied". sweep_array.sh was copied from the OLD sweep.sh (one-sweep-per-node, no lock).
+- Fix: ported ablation.sh's flock-guarded staging (exec 9>.atp_stage.lock; flock 9; stage-or-reuse;
+  flock -u 9) so the first shard on a node stages and the rest block then reuse .staged_ok. The
+  crashed copies are incomplete (cp died <1min « 10-20min) so N_LOCAL<N_GPFS → next run re-stages
+  cleanly; no manual node cleanup. Resubmitted as array **10584643**; watcher restarted.
+- Op note: `pkill -f <pat>` self-matches the running shell (the pattern is in its own argv) AND any
+  monitor whose pgrep line contains <pat> — killed my Bash shell twice (exit 144) + an earlier
+  monitor. Kill background helpers by PID (ps -eo pid,cmd | grep), not pattern.
