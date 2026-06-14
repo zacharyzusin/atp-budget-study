@@ -824,3 +824,22 @@ Newest entries at the bottom. Never delete history.
   resume-keyed; relaunch the watcher). Old results/proofnet_baseline + results/phase1_proofnet are
   invalid — archive/clear before re-run so resume doesn't skip tainted cells. Then re-test the "all
   Phase 1 components are noise" claim on ProofNet#. Commit the fix.
+
+## 2026-06-14 (cont.) — verifier fix committed; ProofNet# re-run launched
+- Committed the two-hole verifier fix as **aa659f5** (local; not pushed). Editable install confirmed
+  (`atp` -> repo src) so jobs pick up the fix.
+- Archived the invalid runs to `results/_invalid_2026-06-14_verifier_bug/` (proofnet_baseline,
+  phase1_proofnet, proofnet_smoke_old) — moved not deleted; clears resume so re-run starts fresh.
+- Real-Lean smoke (10591889) sat PENDING(Resources) 35min on heavy GPU contention; cancelled it
+  (also: it shares job-name `atp_sweep` with the sharded baseline, which fooled the watcher's
+  "is a sweep queued?" guard and blocked the baseline submit). Fix safety instead established by
+  reasoning: `_load_base_env` already requires `env` in the REPL import response, so a real accept
+  ALWAYS carries `env` → the new env-required check can't reject legit proofs; +unit tests +528/528
+  no_goal audit. First real cells will serve as the live smoke.
+- Relaunched detached watcher (nohup setsid). It submitted **ablation 10592340 (`_[0-6%4]`)** and
+  **sharded baseline 10592350 (`_[0-7%8]`)**, both resume-keyed → results/phase1_proofnet +
+  results/proofnet_baseline. Both PENDING on GPU contention; watcher re-chains across the 12h `short`
+  wall (cap 30) and runs `--aggregate` once all 558 baseline cells land.
+- NEXT: sanity-check first cells (real accepts carry env, no mass no_goal/REPL_INFRA_ERROR), then on
+  completion report ProofNet# pass@B vs miniF2F + re-test the "Phase 1 = noise" claim. Consider
+  pushing aa659f5.
