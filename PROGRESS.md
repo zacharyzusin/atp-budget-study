@@ -740,3 +740,14 @@ Newest entries at the bottom. Never delete history.
   **array job 10582331** (`_[0-6%4]`, 7 cells, budget=8000, seeds 0/1/2) → results/phase1_proofnet/.
   Runs concurrently with the baseline on burst (18 idle nodes). Re-tests the miniF2F finding
   ("no agent component beat noise") on the 2nd, harder benchmark.
+
+## 2026-06-14 05:14 — burst starvation → moved both ProofNet# runs to `short` + durable watcher
+- Burst contention: both jobs sat PENDING (reason=Priority) ~3.5h with ZERO progress (last cell
+  01:34, checked 05:14). Resume-keying preserved all work (baseline 82, ablation budget_alloc__2
+  245/558), but burst kept losing the priority queue after each preempt. Starvation trigger hit.
+- Cancelled burst 10582326/10582331; resubmitted on `short` (non-preemptible, 12h wall, 10 idle
+  nodes): baseline **10584314**, ablation array **10584315**. Both resume from where burst left off.
+- Added scripts/proofnet_watcher.sh — re-chains BOTH runs across the 12h short wall (resubmits
+  sweep.sh / ablation.sh when absent from queue and unfinished; cap 30). Runs detached via
+  nohup+setsid so it survives Claude/session restarts (the burst Monitors kept dying on session
+  interrupts). In-session Monitor b5nocbrrg also alerts if the watcher process goes DOWN.
