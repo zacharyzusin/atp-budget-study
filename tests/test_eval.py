@@ -337,3 +337,61 @@ def test_run_eval_resolves_novel_names_file_from_config(tmp_path):
     # Only t_b is novel → 1 problem × 3 seeds = 3 cells (not 6). The file was resolved by run_eval.
     assert result.n_ran == 3
     assert result.manifest["dataset"]["split"] == "novel"
+
+
+# --- sharding (split the problem set across array tasks/GPUs) + aggregate ------------------------
+
+def test_shards_partition_cells_disjointly_and_cover_all(tmp_path):
+    """3 shards into one dir write each cell once; the union == an unsharded run."""
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset([f"p{i}" for i in range(5)])
+    solve = lambda p, s, b: _state(p.name, solved=False, spent=b)  # noqa: E731
+
+    ref_dir = tmp_path / "ref"
+    run_sweep(cfg, ds, solve, run_dir=ref_dir, seeds=[0, 1])
+    ref_cells = {f.name for f in (ref_dir / "problems").glob("*.json")}
+    assert len(ref_cells) == 10  # 5 problems × 2 seeds
+
+    sh_dir = tmp_path / "sharded"
+    ran = 0
+    for k in range(3):
+        res = run_sweep(cfg, ds, solve, run_dir=sh_dir, seeds=[0, 1],
+                        shard=(k, 3), write_summary=False)
+        ran += res.n_ran
+        assert not (sh_dir / "metrics.json").exists()  # a shard never writes the summary
+    assert ran == 10  # every cell ran exactly once across the shards
+    assert {f.name for f in (sh_dir / "problems").glob("*.json")} == ref_cells
+
+
+def test_shard_id_out_of_range_raises(tmp_path):
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset(["a", "b"])
+    with pytest.raises(ValueError):
+        run_sweep(cfg, ds, lambda p, s, b: _state(p.name, solved=False, spent=b),
+                  run_dir=tmp_path / "r", seeds=[0], shard=(3, 3))
+
+
+def test_aggregate_metrics_matches_unsharded(tmp_path):
+    pytest.importorskip("matplotlib")
+    from atp.eval.run import aggregate_metrics
+
+    cfg = load_config(BASE_CONFIG)
+    ds = _dataset([f"p{i}" for i in range(4)])
+
+    def solve(p, s, b):
+        solved = p.name in ("p0", "p2")
+        return _state(p.name, solved=solved, spent=300 if solved else b)
+
+    ref = tmp_path / "ref"
+    ref_res = run_sweep(cfg, ds, solve, run_dir=ref, seeds=[0, 1])
+
+    sh = tmp_path / "sh"
+    for k in range(2):
+        run_sweep(cfg, ds, solve, run_dir=sh, seeds=[0, 1], shard=(k, 2), write_summary=False)
+    assert not (sh / "metrics.json").exists()
+    agg_metrics, n = aggregate_metrics(cfg, sh)
+    assert n == 8 and (sh / "metrics.json").exists()  # 4 problems × 2 seeds
+
+    ref_pab = {p["budget"]: round(p["mean"], 6) for p in ref_res.metrics["pass_at_b"]}
+    agg_pab = {p["budget"]: round(p["mean"], 6) for p in agg_metrics["pass_at_b"]}
+    assert ref_pab == agg_pab

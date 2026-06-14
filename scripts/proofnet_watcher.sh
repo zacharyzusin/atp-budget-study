@@ -21,6 +21,8 @@ BL_TARGET=558
 AB_CONFIG=configs/phase1_ablation_proofnet.yaml; AB_RUN=phase1_proofnet; AB_DIR=results/$AB_RUN
 AB_TARGET=7
 
+PYBIN=scratch/conda-envs/atp/bin/python   # CPU-only aggregate step; no GPU/Lean needed
+
 log() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 njobs() { squeue -u "$USER_" -h -n "$1" 2>/dev/null | wc -l; }
 bl_cells() { ls "$BL_DIR/problems/" 2>/dev/null | wc -l; }
@@ -39,14 +41,24 @@ while true; do
     exit 0
   fi
 
-  # Baseline: resubmit if not complete and no sweep job queued/running.
-  if [ "$bl_ok" != 1 ] && [ "$(njobs atp_sweep)" -eq 0 ]; then
-    if [ "$bl_resubs" -ge "$MAX_RESUBMITS" ]; then
-      log "STOP baseline: hit cap at $(bl_cells)/$BL_TARGET cells. Needs a human."
-    else
-      out=$(sbatch slurm/sweep.sh "$BL_CONFIG" "$BL_RUN" 2>&1); bl_resubs=$((bl_resubs+1))
-      log "RESUBMIT baseline ($bl_resubs/$MAX_RESUBMITS) at $(bl_cells)/$BL_TARGET -> $out"
-      sleep 60
+  # Baseline (sharded array sweep_array.sh): all shards write per-cell JSONs only. Once every cell
+  # exists, aggregate ONCE to write metrics.json (the completion signal). Otherwise, if no shard job
+  # is queued/running, resubmit the array (each shard --resume-skips its done cells).
+  if [ "$bl_ok" != 1 ]; then
+    if [ "$(bl_cells)" -ge "$BL_TARGET" ]; then
+      if [ ! -f "$BL_DIR/metrics.json" ]; then
+        log "baseline all $BL_TARGET cells present — aggregating metrics.json"
+        if "$PYBIN" -m atp.cli sweep --config "$BL_CONFIG" --name "$BL_RUN" --aggregate >> "$LOG" 2>&1
+        then log "baseline COMPLETE: metrics.json written"; else log "WARN aggregate failed; retry"; fi
+      fi
+    elif [ "$(njobs atp_sweep)" -eq 0 ]; then
+      if [ "$bl_resubs" -ge "$MAX_RESUBMITS" ]; then
+        log "STOP baseline: hit cap at $(bl_cells)/$BL_TARGET cells. Needs a human."
+      else
+        out=$(sbatch slurm/sweep_array.sh "$BL_CONFIG" "$BL_RUN" 2>&1); bl_resubs=$((bl_resubs+1))
+        log "RESUBMIT baseline array ($bl_resubs/$MAX_RESUBMITS) at $(bl_cells)/$BL_TARGET -> $out"
+        sleep 60
+      fi
     fi
   fi
 

@@ -751,3 +751,23 @@ Newest entries at the bottom. Never delete history.
   sweep.sh / ablation.sh when absent from queue and unfinished; cap 30). Runs detached via
   nohup+setsid so it survives Claude/session restarts (the burst Monitors kept dying on session
   interrupts). In-session Monitor b5nocbrrg also alerts if the watcher process goes DOWN.
+
+## 2026-06-14 05:32 — shard the 128k baseline across 8 GPUs (days → ~1 wall)
+- The single-GPU 128k baseline was the long pole (~73 GPU-h remaining = ~6 chained 12h walls).
+  Added problem-set sharding so N array tasks split the (seed,problem) cells across N GPUs into the
+  SAME resume-keyed dir. SAME total GPU-h — pure wall-clock parallelism.
+- Code (test-first, fast suite 231 green, ruff clean):
+  - harness.run_sweep: `shard=(id,n)` slices the flattened cell list; `write_summary` guard so shards
+    emit per-cell JSONs only (no racing/partial metrics.json).
+  - run.run_eval: threads `shard`; skips plot when sharded. New `aggregate_metrics()` writes
+    metrics.json + plot from all cells on disk (CPU-only, no GPU/Lean).
+  - cli `atp sweep`: `--num-shards/--shard-id` (replaces dead `--array-id`) + `--aggregate`.
+  - tests: shards partition disjointly & union==unsharded; out-of-range raises; aggregate==unsharded.
+  - slurm/sweep_array.sh: --array=0-7%8, passes SLURM_ARRAY_TASK_{ID,COUNT} as shard/num-shards.
+  - proofnet_watcher.sh: resubmits sweep_array.sh; runs `--aggregate` once all 558 cells exist
+    (that now produces metrics.json, the completion signal).
+- Validated `--aggregate` on the real 82 partial cells (matches the live curve). Cancelled the
+  single-GPU baseline 10584314; launched sharded array **10584316** (`_[0-7%8]`). Ablation 10584315
+  continues unaffected. Watcher PID relaunched; monitor bbct1m1ge re-armed.
+- Gotcha logged: `pkill -f proofnet_watcher.sh` is too broad — it matches the monitor's own pgrep
+  command line and kills it. Use `pkill -f 'bash scripts/proofnet_watcher.sh'`.

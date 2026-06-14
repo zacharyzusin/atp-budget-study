@@ -61,6 +61,8 @@ def run_sweep(
     budget: int | None = None,
     resume: bool = True,
     n_workers: int | None = None,
+    shard: tuple[int, int] | None = None,
+    write_summary: bool = True,
 ) -> RunResult:
     seeds = list(seeds if seeds is not None else config.eval.seeds)
     budgets = list(config.budget.values)
@@ -74,17 +76,28 @@ def run_sweep(
 
     started = _now()
 
+    # Flatten to an ordered cell list. When `shard=(shard_id, num_shards)` is set, keep only this
+    # shard's stride of the list so an array of sweep tasks splits the problem set across GPUs. Each
+    # cell is keyed by its own file, so shards write disjoint files into the shared problems/ dir
+    # with no coordination; the union over shards is exactly the unsharded set. Sharding over the
+    # flattened (seed, problem) list (not per-problem) keeps cells evenly distributed across tasks.
+    all_cells = [(seed, problem) for seed in seeds for problem in dataset.problems]
+    if shard is not None:
+        shard_id, num_shards = shard
+        if not 0 <= shard_id < num_shards:
+            raise ValueError(f"shard_id {shard_id} out of range [0,{num_shards})")
+        all_cells = [c for i, c in enumerate(all_cells) if i % num_shards == shard_id]
+
     # Resume first (cheap, serial): load finished cells, queue the rest. Preserve cell order so the
     # metrics/results are deterministic regardless of n_workers.
     done: list[ProblemResult] = []
     pending: list[tuple[int, Problem, Path]] = []
-    for seed in seeds:
-        for problem in dataset.problems:
-            cell = _cell_path(problems_dir, problem.name, seed)
-            if resume and cell.exists():
-                done.append(ProblemResult.load(cell))
-            else:
-                pending.append((seed, problem, cell))
+    for seed, problem in all_cells:
+        cell = _cell_path(problems_dir, problem.name, seed)
+        if resume and cell.exists():
+            done.append(ProblemResult.load(cell))
+        else:
+            pending.append((seed, problem, cell))
     n_skipped = len(done)
 
     def _run_cell(args: tuple[int, Problem, Path]) -> ProblemResult | None:
@@ -141,6 +154,11 @@ def run_sweep(
         finished_at=finished,
         extra={"n_ran": n_ran, "n_skipped": n_skipped, "n_failed": n_failed},
     )
-    (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
-    (run_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True))
+    # A shard sees only its slice, so its metrics/manifest would describe a wrong subset and several
+    # shards would race on the same file. Shards skip the summary write (write_summary=False) and
+    # emit per-cell JSONs only; a single `atp sweep --aggregate` pass writes the real metrics.json
+    # once all cells exist. The returned RunResult still carries the (subset) metrics for the log.
+    if write_summary:
+        (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
+        (run_dir / "run_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True))
     return RunResult(run_dir, results, metrics, manifest, n_ran, n_skipped)

@@ -30,15 +30,33 @@ def _cmd_prove(args: argparse.Namespace) -> int:
 def _cmd_sweep(args: argparse.Namespace) -> int:
     from pathlib import Path
 
-    from atp.eval.run import run_eval
+    from atp.eval.run import aggregate_metrics, run_eval
 
     cfg = load_config(args.config)
     run_name = args.name or f"run_{config_hash(cfg)}"
     run_dir = Path(cfg.project.root) / cfg.project.results_dir / run_name
-    print(f"[atp sweep] config={args.config} hash={config_hash(cfg)} run_dir={run_dir}")
+
+    # Aggregate-only: no GPU/Lean. Reads every cell on disk and writes the real metrics.json + plot.
+    # This is the final step after a sharded array finishes (each shard wrote per-cell JSONs only).
+    if args.aggregate:
+        metrics, n = aggregate_metrics(cfg, run_dir)
+        print(f"[atp sweep --aggregate] {n} cells -> {run_dir}/metrics.json")
+        for p in metrics["pass_at_b"]:
+            print(f"  pass@{p['budget']:>7}: {p['mean']:.3f}±{p['std']:.3f} (n={p['n_problems']})")
+        return 0
+
+    if args.num_shards < 1 or not 0 <= args.shard_id < args.num_shards:
+        print(f"[atp sweep] bad shard {args.shard_id}/{args.num_shards}", file=sys.stderr)
+        return 2
+    shard = (args.shard_id, args.num_shards) if args.num_shards > 1 else None
+    tag = f" shard={args.shard_id}/{args.num_shards}" if shard else ""
+    print(f"[atp sweep] config={args.config} hash={config_hash(cfg)} run_dir={run_dir}{tag}")
     # Real path: needs the vLLM endpoint file + the built Goedel-pin Lean env; fails clearly if not.
-    result = run_eval(cfg, run_dir, resume=args.resume)
+    result = run_eval(cfg, run_dir, resume=args.resume, shard=shard)
     print(f"[atp sweep] cells: ran={result.n_ran} skipped={result.n_skipped}")
+    if shard is not None:
+        print("[atp sweep] shard done (per-cell JSONs only); run `--aggregate` for metrics.json")
+        return 0
     for p in result.metrics["pass_at_b"]:
         print(f"  pass@{p['budget']:>7}: {p['mean']:.3f} ± {p['std']:.3f}  (n={p['n_problems']})")
     print(f"[atp sweep] wrote {run_dir}/metrics.json, run_manifest.json, pass_at_b.png")
@@ -106,7 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_sweep = sub.add_parser("sweep", help="run a restartable eval sweep → pass@B + manifest")
     p_sweep.add_argument("--config", required=True)
     p_sweep.add_argument("--name", default=None, help="run dir under results/ (default run_<hash>)")
-    p_sweep.add_argument("--array-id", type=int, default=0)
+    p_sweep.add_argument("--num-shards", type=int, default=1,
+                         help="split the problem set across this many array tasks (GPUs)")
+    p_sweep.add_argument("--shard-id", type=int, default=0,
+                         help="which shard this task runs (0..num-shards-1)")
+    p_sweep.add_argument("--aggregate", action="store_true",
+                         help="no GPU: write metrics.json + plot from existing cells (run once "
+                              "all shards finish)")
     p_sweep.add_argument("--resume", action="store_true")
     p_sweep.set_defaults(func=_cmd_sweep)
 

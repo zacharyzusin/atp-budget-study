@@ -104,6 +104,7 @@ def run_eval(
     backend: LeanBackend | None = None,
     novel_names: Iterable[str] = (),
     resume: bool = True,
+    shard: tuple[int, int] | None = None,
 ) -> RunResult:
     apply_env(config)
     run_dir = Path(run_dir)
@@ -126,14 +127,50 @@ def run_eval(
 
     solve_fn = build_solve_fn(config, run_dir, transport, backend_factory)
     try:
-        result = run_sweep(config, dataset, solve_fn, run_dir=run_dir, resume=resume)
+        result = run_sweep(
+            config,
+            dataset,
+            solve_fn,
+            run_dir=run_dir,
+            resume=resume,
+            shard=shard,
+            write_summary=shard is None,
+        )
     finally:
         solve_fn.close_backends()  # type: ignore[attr-defined]
 
-    # Plot the curve next to the metrics (lazy matplotlib import).
-    from atp.eval.plot import plot_pass_at_b
+    # A shard sees only its slice — defer metrics.json + the plot to `atp sweep --aggregate`, which
+    # runs once all shards finish and reads every cell off disk (see aggregate_metrics).
+    if shard is None:
+        from atp.eval.plot import plot_pass_at_b
 
-    curve = pass_at_b(result.results, list(config.budget.values))
-    title = f"{config.model.name} · {dataset.manifest.split}"
-    plot_pass_at_b(curve, run_dir / "pass_at_b.png", title=title)
+        curve = pass_at_b(result.results, list(config.budget.values))
+        title = f"{config.model.name} · {dataset.manifest.split}"
+        plot_pass_at_b(curve, run_dir / "pass_at_b.png", title=title)
     return result
+
+
+def aggregate_metrics(config: ExperimentConfig, run_dir: str | Path) -> tuple[dict, int]:
+    """Write metrics.json + pass_at_b.png from every per-cell JSON already on disk (no GPU/Lean).
+
+    The aggregation step for a sharded sweep: shards write only per-cell JSONs, so once they all
+    finish this reads `<run_dir>/problems/*.json`, summarizes over the full set, and writes the
+    real metrics.json the single-GPU path would have written. Idempotent; safe to re-run.
+    """
+    import json
+
+    from atp.eval.metrics import summarize
+    from atp.eval.plot import plot_pass_at_b
+    from atp.eval.records import ProblemResult
+
+    run_dir = Path(run_dir)
+    cells = sorted((run_dir / "problems").glob("*.json"))
+    if not cells:
+        raise SystemExit(f"[atp sweep --aggregate] no cells under {run_dir}/problems")
+    results = [ProblemResult.load(c) for c in cells]
+    budgets = list(config.budget.values)
+    metrics = summarize(results, budgets)
+    (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
+    curve = pass_at_b(results, budgets)
+    plot_pass_at_b(curve, run_dir / "pass_at_b.png", title=f"{config.model.name} · aggregate")
+    return metrics, len(results)
