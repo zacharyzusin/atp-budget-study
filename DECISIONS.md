@@ -532,3 +532,25 @@ findings > marginal cluster cost). Restored the full [2k,8k,32k,128k] grid: dire
 miniF2F baseline, and the 32k->128k tier on harder ProofNet# problems is a genuine question (may not be
 flat like miniF2F). Run on partition=burst (4-day wall + --requeue) so preemptions auto-requeue. The 78
 cells already done at 128k are kept (resume skips by filename). Job 10534104.
+
+## 2026-06-14 — Verifier must require a declared goal AND a well-formed REPL success
+Two soundness holes let non-proofs score as `solved` (found while auditing the ProofNet# ablation,
+which reported impossible reviewer/memory pass@8k of 0.5-0.84 vs baseline 0.12):
+1. A submission that compiles but declares no `theorem`/`lemma`/`example` (a generation truncated at
+   the token cap emitting only a preamble `def`/`#eval`/prose) was accepted because acceptance keyed
+   only on "no Lean error message". DECISION: the Verifier now rejects with `reason="no_goal"` unless
+   the proof text contains a goal-bearing declaration. Chose the structural "any declaration" check
+   (not exact-name match) because 525/528 real solves echo the exact name but 3/528 the model renames
+   the theorem — an exact-name gate would have ~0.6% false negatives; the keyword gate has 0 on real
+   data while removing 100% of observed truncation false-positives. Residual (accepted): this is a
+   NECESSARY not SUFFICIENT check — a proof of a *wrong restated* goal would still pass; no evidence
+   of that occurring (model is prompted with the exact statement). Canonical-statement injection is
+   the stronger fix if that ever shows up.
+2. `repl._format_response` treated ANY response with no error-severity message as success — so an
+   empty/malformed `{}` (a wedged or cross-talked REPL under array co-location) scored as verified.
+   DECISION: success now also requires `env` present in the response (the REPL returns a new env id
+   only on a genuinely accepted command); otherwise it's a REPL_INFRA_ERROR, never a pass. Sound but
+   conservative: a malformed response is scored not-solved rather than retried.
+Consequence: miniF2F Phase 0/1 numbers are unaffected (audit: 0 / 6-of-3124 false positives — short
+proofs rarely truncate). ALL ProofNet# results are invalid and will be re-run with the fixed verifier;
+hole #2's old responses aren't persisted so those cells can't be re-scored, only re-run.

@@ -112,6 +112,24 @@ def test_sorry_field_is_surfaced_as_loophole():
     assert "sorry" in res.loopholes
 
 
+def test_malformed_response_without_env_is_not_success():
+    """A response with neither `env` nor messages is spurious -> must NOT score as verified.
+
+    Regression for the ProofNet# reviewer/memory false-positives (2026-06-14): a wedged/
+    cross-talked REPL returning `{}` under co-location was read as 'no errors -> success'.
+    """
+    backend = _backend(_import_then({}))
+    res = backend.verify(THM, "theorem t : True := by trivial")
+    assert res.success is False
+    assert "REPL_INFRA_ERROR" in res.output
+
+
+def test_empty_messages_without_env_is_not_success():
+    backend = _backend(_import_then({"messages": []}))
+    res = backend.verify(THM, "theorem t : True := by trivial")
+    assert res.success is False
+
+
 # -- protocol details ------------------------------------------------------------------
 def test_import_is_sent_once_and_proofs_target_base_env():
     transport = ScriptedReplTransport(_import_then({"env": 5, "messages": []}))

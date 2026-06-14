@@ -8,6 +8,7 @@ This is the deterministic decision layer the agent loop relies on. Given any `Le
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -24,6 +25,13 @@ from atp.lean.errors import (
 
 if TYPE_CHECKING:
     from atp.config import ExperimentConfig
+
+# A whole proof MUST declare the goal it proves. A submission with no `theorem`/`lemma`/`example`
+# (e.g. a generation truncated at the token cap that emitted only a preamble `def`/`#eval`/prose)
+# can still *compile* — Lean has nothing to fail on — and would otherwise be scored "verified".
+# Requiring a declaration is a necessary soundness gate (validated: 528/528 real solves declare
+# one; it removes the truncation false-positives that dominated the ProofNet# runs, 2026-06-14).
+_DECL_RE = re.compile(r"(?m)^\s*(?:theorem|lemma|example)\b")
 
 
 @dataclass(frozen=True)
@@ -45,6 +53,11 @@ class VerifyResult:
             return "Proof verified."
         if self.reason == "timeout":
             return f"Verification timed out after {self.elapsed_s:.1f}s."
+        if self.reason == "no_goal":
+            return (
+                "Proof rejected: no theorem/lemma/example declaration found "
+                "(output may be truncated or incomplete)."
+            )
         if self.reason == "loophole":
             return f"Proof rejected: uses disallowed tactic(s) {', '.join(self.loopholes)}."
         if self.failing_step is not None:
@@ -88,6 +101,9 @@ class Verifier:
             reason = "timeout"
         elif (not raw.success) or parsed.has_error:
             reason = "compile_error"
+        elif not _DECL_RE.search(proof):
+            # Compiled cleanly but proves nothing: the submission never declares the goal.
+            reason = "no_goal"
         elif loopholes:
             reason = "loophole"
         else:

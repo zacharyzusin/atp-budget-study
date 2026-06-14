@@ -67,6 +67,36 @@ def test_sorry_warning_is_treated_as_loophole():
     assert "sorry" in res.loopholes
 
 
+def test_rejects_submission_without_theorem_declaration():
+    """A truncated/preamble-only submission compiles but proves nothing -> must be rejected.
+
+    Regression for the ProofNet# false-positives (2026-06-14): a generation cut off at the token
+    cap emitted only `def is_topology ... :=` (no `theorem`); Lean compiled the bare def with no
+    errors and the proof was scored `solved`.
+    """
+    v = Verifier(always(success=True, output=""))
+    preamble = "def is_topology (X : Type*) (T : Set (Set X)) :=\n  univ ∈ T"
+    res = v.verify(THM, preamble)
+    assert res.ok is False
+    assert res.reason == "no_goal"
+    assert "no theorem" in res.feedback
+
+
+def test_rejects_pure_prose_marked_success():
+    """Even if a backend spuriously 'succeeds', free-form prose declares no goal -> rejected."""
+    v = Verifier(always(success=True, output=""))
+    res = v.verify(THM, "### Detailed Proof\n\nWe are given a function f ...")
+    assert res.ok is False
+    assert res.reason == "no_goal"
+
+
+def test_accepts_lemma_and_example_declarations():
+    """`lemma`/`example` are valid goal-bearing declarations (model may rename `theorem`)."""
+    v = Verifier(always(success=True, output=""))
+    assert v.verify(THM, "lemma t : True := by trivial").ok is True
+    assert v.verify(THM, "example : True := by trivial").ok is True
+
+
 def test_timeout_takes_precedence():
     v = Verifier(always(success=False, output="", timed_out=True))
     res = v.verify(THM, GOOD_PROOF)

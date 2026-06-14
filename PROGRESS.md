@@ -784,3 +784,43 @@ Newest entries at the bottom. Never delete history.
 - Op note: `pkill -f <pat>` self-matches the running shell (the pattern is in its own argv) AND any
   monitor whose pgrep line contains <pat> — killed my Bash shell twice (exit 144) + an earlier
   monitor. Kill background helpers by PID (ps -eo pid,cmd | grep), not pattern.
+
+## 2026-06-14 (cont.) — CRITICAL verifier soundness bug found; ProofNet# runs invalidated; fix landed
+- Checking the runs we were waiting on. **(1) ProofNet# baseline (sharded array 10584643): was at
+  378/558**, 1/8 shards running + 7 PENDING(Resources) after hitting the 12h `short` wall; the
+  detached watcher had died on a session interrupt (log stops 09:33), so nothing re-chained.
+  **(2) Phase 1 ProofNet# ablation (array 10584315): COMPLETED all 7 cells** (3124 solve-records).
+- **The ablation reported impossible "wins"** (pass@8k): reviewer 0.556, memory 0.525,
+  budget_alloc__2 0.375 vs baseline 0.120 — and per-seed they were wildly split (reviewer
+  [0.11,0.74,0.82]). No config tweak can 6x the solve rate on a fixed set → smelled like false
+  positives, NOT a finding. Investigated instead of reporting.
+- **ROOT CAUSE — two independent verifier soundness holes:**
+  1. **Truncation / no-goal (all runs):** a generation cut off at the token cap can emit only a
+     preamble, e.g. `def is_topology (X) (T) := univ ∈ T ∧ ...` with NO `theorem`. `_build_repl_source`
+     submits it raw; Lean compiles a bare def with no errors; `verifier.py` set `ok` purely on
+     "no error-severity message" → scored **solved**. Confirmed on a real baseline cell
+     (`Munkres__exercise_13_4a2__seed0`, completion_tokens=8000, feedback "Proof verified.").
+  2. **Spurious REPL success (concurrency):** `repl._format_response` returned `success = (not
+     has_error)` — so an EMPTY/malformed response (`{}`) with no messages scored as success. A
+     wedged/cross-talked REPL under array co-location returns such responses → mass false solves.
+     This is the extra amplifier in the reviewer/memory/budget_alloc__2 cells (the inflation that
+     SURVIVES the structural check below; the stored agent_states only persist Lean output on
+     FAILURE, so these can't be re-scored — they must be re-run).
+- **Blast radius (audited stored results):** miniF2F **Phase 0 baseline = 548 solved, 0 false
+  positives → headline pass@B numbers STAND**; miniF2F Phase 1 ablation = 6/3124 (0.2%, doesn't move
+  noise-level conclusions). The bug only bites hard on ProofNet# (hard problems → frequent full-budget
+  truncation). **All ProofNet# numbers (baseline + ablation) are INVALID and must be re-run.**
+- **FIX (test-first, fast suite green, ruff clean):**
+  - `verifier.py`: new soundness gate — a clean compile that declares no `theorem`/`lemma`/`example`
+    is `reason="no_goal"`, ok=False (validated: 528/528 real solves declare one → 0 false negatives;
+    removes the truncation FPs, knocking the clean cells to their true ~0.11).
+  - `repl.py` `_format_response`: require `env` in the response for success (a genuinely accepted
+    command returns a new env id). Empty/malformed response → REPL_INFRA_ERROR, not success.
+  - tests: +3 in test_lean_verifier (no-goal preamble, pure prose, lemma/example accepted),
+    +2 in test_lean_repl (no-env `{}` and `{messages:[]}` not success). All pass.
+- **User decisions this session:** cancelled the running baseline 10584643 (generations can't be
+  trusted to re-score for hole #2); fix verifier first (done); audit miniF2F (done — clean).
+- **NEXT:** re-run ProofNet# baseline + Phase 1 ablation with the fixed verifier (on `short`, sharded,
+  resume-keyed; relaunch the watcher). Old results/proofnet_baseline + results/phase1_proofnet are
+  invalid — archive/clear before re-run so resume doesn't skip tainted cells. Then re-test the "all
+  Phase 1 components are noise" claim on ProofNet#. Commit the fix.

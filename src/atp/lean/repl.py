@@ -348,6 +348,16 @@ class ReplBackend:
             line = pos.get("line", 0) or 0
             col = pos.get("column", 0) or 0
             lines.append(f"{theorem.name}.lean:{line}:{col}: warning: declaration uses 'sorry'")
+        # A genuinely accepted command returns a NEW environment id (see module docstring). A
+        # response carrying neither `env` nor any message is malformed/spurious -- e.g. a wedged or
+        # cross-talked REPL returning `{}` under co-location -- and must NOT be scored as verified.
+        # (This silent false-success inflated the ProofNet# reviewer/memory cells, 2026-06-14.)
+        if "env" not in resp and not has_error:
+            lines.append(
+                f"{theorem.name}.lean:0:0: error: REPL_INFRA_ERROR malformed response "
+                f"(no 'env', no messages): {resp!r}"
+            )
+            return False, "\n".join(lines)
         return (not has_error), "\n".join(lines)
 
     # -- verification ------------------------------------------------------------------
