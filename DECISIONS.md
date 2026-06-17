@@ -554,3 +554,20 @@ which reported impossible reviewer/memory pass@8k of 0.5-0.84 vs baseline 0.12):
 Consequence: miniF2F Phase 0/1 numbers are unaffected (audit: 0 / 6-of-3124 false positives — short
 proofs rarely truncate). ALL ProofNet# results are invalid and will be re-run with the fixed verifier;
 hole #2's old responses aren't persisted so those cells can't be re-scored, only re-run.
+
+## 2026-06-17 — Phase 2: pursue mechanism, not more levers (see PHASE2_PLAN.md)
+Decision: the lever-pulling arc is DONE (scaffolding doesn't help — clean null on 2 benchmarks). Do NOT
+add another scaffolding component and do NOT "wind down as-is." Instead spend one analysis pass on data
+already on disk (results/*/agent_states/, full per-attempt corpus) to turn the negative result into a
+MECHANISM that explains the central asymmetry: budget converts to solves on miniF2F (29.6→74.9% over 64×)
+but barely on ProofNet# (4.8→14.3%). Explaining why budget stops paying off OOD also explains the
+scaffolding null (the tested components can't touch the real bottleneck) — a far stronger claim.
+Priority: (A) diversity-collapse analysis + 128k-unsolved failure-mode taxonomy + tokens-to-solve dist +
+subfield stratification — CPU-only, gates everything. The A2 taxonomy decides which downstream direction
+earns GPU-hours: knowledge-failure→one shot at relevance-filtered BM25; approach-failure→retrieval+BFS
+both justified-dead; near-miss→search worth revisiting. Then (B) replicate headline findings on a 2nd
+prover (DeepSeek-Prover-V2-7B) for generality. Then (C) diversity-injection ONLY if A1 supports it.
+Elevate the verifier-soundness bug to a methodological contribution. NOT doing: 3rd benchmark, ReProver,
+more OFAT. Thesis: "compute budget, not agentic scaffolding, is the lever for whole-proof proving at this
+scale; here is where/why it saturates, across two models, with a soundness caveat for how to evaluate."
+Source of this redirection: external review (pasted by user 2026-06-17).

@@ -959,3 +959,28 @@ Newest entries at the bottom. Never delete history.
   miniF2F (no helpful lever), with ProofNet# additionally surfacing retrieval/alloc as harmful — the
   harder OOD benchmark is more sensitive to bad context, not less. budget_alloc__0 ran 554/558 cells
   (4 short, A6000 flakiness); flips are over the 554 paired cells — does not change the verdict.
+
+### 2026-06-17 (Phase 2 Step A) — mechanism found on existing data (no GPU): diversity collapse + reasoning floor
+- Pivot to MECHANISM not levers (DECISIONS 2026-06-17, PHASE2_PLAN.md). Built scripts/analyze_mechanism.py
+  (CPU-only, 9 tests pass) mining results/*/agent_states (full per-attempt corpus). Run over miniF2F
+  baseline (704/732 cells; 28 empty states skipped) + ProofNet# baseline (558/558). Output:
+  results/phase2/{mechanism.json, MECHANISM.md}.
+- **F1 — diversity collapse at the APPROACH level is the saturation mechanism.** Unsolved cells try ~19-24
+  times but commit to only ~2 distinct opening tactics (miniF2F 1.94, ProofNet# 2.28); skeletons vary more
+  (6-9) → reshuffles downstream tactics inside ~2 fixed frames, doesn't reconsider the approach. Identical
+  on both benchmarks → property of hard problems, NOT OOD-specific; the asymmetry is just the fraction
+  trapped (miniF2F 25% unsolved vs ProofNet# 86%). Explains the flat pass@B tail on both curves.
+- **F2 — bottleneck is REASONING, not knowledge/formalization (the gate).** Unsolved taxonomy: reasoning
+  (deep+shallow) 98.9% miniF2F / 95.2% ProofNet#; formalization/syntax 1-4%; hallucinated-lemma 0% / 1.0%.
+  → Retrieval doomed by construction (premises aren't missing; explains its Phase 1 null+harm: BM25 injected
+  irrelevant premises into reasoning-bound problems) → retrieval + ReProver KILLED with data. BFS HELD
+  (failure is closing goals with ~2 ideas; stepping same policy adds no idea). 3rd benchmark unmotivated.
+- **F3 — capability floor, not almost-solving tail.** Deepest-step-before-error: miniF2F median 64 (p90 137,
+  1% never past step1) = long elaborated unclosable proofs; ProofNet# median 23 (p90 65, 10% never past
+  step1) = stalls earlier + more can't-starts but 90% get going. (Caveat: depth = first-error depth, not
+  near-correctness.)
+- **F4 — no easy subfield on ProofNet#** (best Dummit .26/Rudin .22/Artin .21, worst Axler .12); miniF2F
+  easy core amc12/mathd .94. Flat curve = uniformly hard set.
+- **NEXT (GPU): promote Step C (diversity injection — temp/nucleus schedule or distinct-approach prompting),
+  now the best-justified lever since it targets F1; and Step B (DeepSeek-Prover-V2-7B replication) for
+  generality.** All Phase 2 Step A artifacts committed; not pushed.
