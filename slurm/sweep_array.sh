@@ -2,14 +2,18 @@
 #SBATCH --job-name=atp_sweep
 #SBATCH --account=edu
 #SBATCH --partition=short
-#SBATCH --gres=gpu:l40s:1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=110G
+#SBATCH --gres=gpu:A6000:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64G
 #SBATCH --time=11:55:00
 #SBATCH --requeue
 #SBATCH --array=0-7%8
 # CPUs/mem sized for eval.n_workers concurrent Lean REPLs (each ~1 core + ~2-4 GB, Mathlib loaded)
-# PLUS the vLLM server. 16c/110G comfortably covers n_workers=8. n_workers=1 (smoke) underuses it.
+# PLUS the vLLM server. 2026-06-15: the cluster's free-A6000 nodes are CPU-saturated — the 8-GPU-free
+# nodes (ins083/086/087) had only ~4 free cores each, so the old 16c/110G request fit NOWHERE with a
+# free A6000 and the job projected a ~20h wait. Slimmed to 4c/48G (eval.n_workers=3: 3 Lean REPLs +
+# vLLM on 4 cores) to fit those slivers and schedule immediately; throughput/shard drops but 8 shards
+# run in parallel NOW. n_workers is a concurrency knob only — pass@B is invariant to it.
 #SBATCH --output=logs/sweep-%A_%a.out
 #SBATCH --error=logs/sweep-%A_%a.err
 #
@@ -27,8 +31,15 @@ set -uo pipefail
 PROJ="/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
 CONFIG="${1:-configs/phase0_baseline.yaml}"
 RUN_NAME="${2:-baseline}"
-PORT="${ATP_VLLM_PORT:-8000}"
-ENDPOINT_FILE="$PROJ/results/_vllm_endpoint.txt"
+# Per-shard port: co-located shards (A6000 packs up to 8/node) must NOT all bind 8000 — 4 shards on
+# ins087 (job 10642214) collided on 8000 -> "Engine core init failed", vLLM died. Offset by shard id.
+PORT=$(( ${ATP_VLLM_PORT:-8000} + ${SLURM_ARRAY_TASK_ID:-0} ))
+# Per-shard endpoint file + the env override the eval honors (resolve_endpoint_file, eval/run.py:96).
+# A SHARED _vllm_endpoint.txt is clobbered by every shard (last writer wins) -> co-located shards talk
+# to the wrong shard's vLLM and cross-node shards read another node's IP -> APIConnectionError. Unique
+# per shard, and export ATP_VLLM_ENDPOINT_FILE so the eval reads THIS shard's endpoint, not the race.
+ENDPOINT_FILE="$PROJ/results/_vllm_endpoint.s${SLURM_ARRAY_TASK_ID:-0}.txt"
+export ATP_VLLM_ENDPOINT_FILE="$ENDPOINT_FILE"
 
 # Insomnia proxy trap: Slurm jobs inherit a per-session SSH proxy that breaks ALL downloads
 # (model weights etc.). Unset before any network. (See reference_insomnia_compute_proxy.)
@@ -84,32 +95,61 @@ if [ ! -f "$PROJ/results/_lean_env_ready.txt" ]; then
     exit 1
 fi
 
-# --- Stage the Lean env to node-local SSD, flock-guarded (SHARDS may co-locate) -------------------
+# --- Stage the Lean env to node-local tmpfs (/dev/shm), PER-SHARD ----------------------------------
 # `import Mathlib` opens ~4.7k oleans; off contended GPFS that timed out at 2700s (2026-06-05/06,
-# sequential read measured ~3.8 MB/s). From node-local disk the same import is ~141s. Each `short`
-# GPU node has 2 l40s, so TWO shards of this array land on one node and would race the rm -rf + copy
-# into the shared $LOCAL_ENV (seen 2026-06-14: "Directory not empty"/"File exists"/"Permission
-# denied", all 8 shards FAILED in <1min). Serialize per node with flock: the first shard stages, the
-# rest block on the lock then reuse the .staged_ok env. (Mirrors slurm/ablation.sh.)
+# sequential read measured ~3.8 MB/s). From node-local storage the same import is ~141s (faster still
+# from tmpfs/RAM). A6000 nodes pack up to 8 shards of this array on ONE node. History of failures under
+# that co-location:
+#   2026-06-14: concurrent rm -rf + cp into a single $LOCAL_BASE/atp-lean-env -> "Directory not empty"
+#               / "File exists", all 8 shards FAILED in <1min.
+#   2026-06-15: flock + atomic-publish (private stage dir, mv -T publish) closed the *publish* window,
+#               but REUSE shares the published inodes, so when ONE shard re-staged it yanked the files
+#               out from under 4 co-located REUSING shards (job 10634722 on ins086: 3 lost the env).
+#   2026-06-16a: PER-SHARD dirs ("...-sN") so no shard touches another's files. STILL failed: env -sN
+#               vanished mid-run on co-located nodes. ROOT CAUSE found via /etc/slurm/epilogs/cleanup.sh:
+#                   find /local -user $SLURM_JOB_UID -maxdepth 1 -exec rm -rf {} \;
+#               The epilog wipes ALL of /local/$USER whenever ANY of MY jobs ends on the node — so the
+#               first co-located shard to finish deletes the live envs of my other running shards. Also
+#               all shards bound vLLM port 8000 -> collision -> "Engine core init failed" (now offset).
+# Fix (2026-06-16b): stage to /dev/shm (tmpfs, 504G, RAM-fast) — the epilog only touches /tmp and
+#   /local, never /dev/shm, so a co-located shard's exit can't wipe a running shard's env. Per-shard
+#   dirs retained. Cost: 4.2G RAM/shard (<=8 -> ~34G/node of 1TB, and counts within the 64G --mem);
+#   GPFS->shm is one sequential 4.2G cp/shard/wall (cheap vs the random olean opens we were avoiding).
 GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
-LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
-LOCAL_ENV="$LOCAL_BASE/atp-lean-env"
+# /dev/shm is NOT epilog-wiped (unlike /local); fall back to /local then /tmp if shm is absent.
+LOCAL_BASE="${ATP_LOCAL_BASE:-/dev/shm/$USER}"
+[ -d /dev/shm ] || LOCAL_BASE="/local/$USER"; [ -d /local ] || [ -d /dev/shm ] || LOCAL_BASE="/tmp/$USER"
+SHARD_ID="${SLURM_ARRAY_TASK_ID:-0}"
+LOCAL_ENV="$LOCAL_BASE/atp-lean-env-s${SHARD_ID}"   # PER-SHARD: never shared, never raced
 mkdir -p "$LOCAL_BASE"
 N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-exec 9>"$LOCAL_BASE/.atp_stage.lock"
-flock 9   # blocks until this node's staging lock is free
+REPL_REL=".lake/packages/REPL/.lake/build/bin/repl"   # the exe _env_built() requires (repl.py:258)
+exec 9>"$LOCAL_BASE/.atp_stage.s${SHARD_ID}.lock"
+flock 9   # only serializes a requeued duplicate of THIS shard id (normally uncontended)
 N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ]; then
-    echo "[sweep] Lean env already staged on $(hostname) ($N_LOCAL oleans) — reusing."
+# Reuse ONLY a provably-complete env: marker + full olean set + the repl exe. The count-only guard
+# (2026-06-15) once reused a stale exe-LESS env and every cell failed LeanEnvNotReady. When invalid,
+# stage to a PRIVATE temp dir and publish with an atomic rename — the .old cleanup here is safe because
+# nothing else points at this shard's dir.
+if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ] \
+   && [ -x "$LOCAL_ENV/$REPL_REL" ]; then
+    echo "[sweep] Lean env already staged on $(hostname) for shard ${SHARD_ID} ($N_LOCAL oleans + repl exe) — reusing."
 else
-    echo "[sweep] staging Lean env -> $LOCAL_ENV (cp $N_GPFS oleans, ~10-20min off GPFS)..."
-    rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"
+    STAGE="$LOCAL_BASE/atp-lean-env.stage.${SLURM_JOB_ID:-x}.${SHARD_ID}"
+    echo "[sweep] staging Lean env (shard ${SHARD_ID}) -> $STAGE, atomic-publish -> $LOCAL_ENV (cp $N_GPFS oleans, ~3-20min off GPFS)..."
+    rm -rf "$STAGE"; mkdir -p "$STAGE"
     t0=$SECONDS
     cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
-          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$LOCAL_ENV/" \
-        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; flock -u 9; exit 1; }
-    touch "$LOCAL_ENV/.staged_ok"
-    echo "[sweep] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
+          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$STAGE/" \
+        || { echo "FATAL: staging copy to $STAGE failed"; rm -rf "$STAGE"; flock -u 9; exit 1; }
+    [ -x "$STAGE/$REPL_REL" ] \
+        || { echo "FATAL: staged env missing repl exe at $STAGE/$REPL_REL"; rm -rf "$STAGE"; flock -u 9; exit 1; }
+    touch "$STAGE/.staged_ok"
+    rm -rf "$LOCAL_ENV.old"                              # publish atomically (sub-ms vs ~250s absent)
+    mv -T "$LOCAL_ENV" "$LOCAL_ENV.old" 2>/dev/null || true
+    mv -T "$STAGE" "$LOCAL_ENV"
+    rm -rf "$LOCAL_ENV.old"
+    echo "[sweep] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans + repl exe)."
 fi
 flock -u 9; exec 9>&-
 export ATP_LEAN_PROJECT="$LOCAL_ENV"

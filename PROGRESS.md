@@ -843,3 +843,119 @@ Newest entries at the bottom. Never delete history.
 - NEXT: sanity-check first cells (real accepts carry env, no mass no_goal/REPL_INFRA_ERROR), then on
   completion report ProofNet# pass@B vs miniF2F + re-test the "Phase 1 = noise" claim. Consider
   pushing aa659f5.
+
+## 2026-06-15 (cont.) — ProofNet# baseline unblocked: L40S→A6000 GPU switch
+- The resumed baseline sweep array sat PENDING(Resources) with a ~7h projected start: every L40S on
+  the cluster (ins038-039,056-061) was fully allocated. `slurm/sweep_array.sh` pinned `gpu:l40s:1`.
+- Switched the sbatch gres to `gpu:A6000:1` (many idle A6000 on `short`: ins081-094). A6000 = 48 GB
+  VRAM like L40S, vLLM-supported, Goedel-8B fits — drop-in for inference. Cancelled the stuck L40S
+  job 10616874, resubmitted as 10628090: all 8 shards RUNNING within seconds (ins091/ins092), no
+  staging-race (flock held despite 7 shards co-located on ins092).
+- Caveat (recorded, not a problem): cells 423–558 run on A6000 while 1–422 ran on L40S. Each cell is
+  an independent solve-rate measurement and generation is already batch-nondeterministic across vLLM
+  processes, so mixing GPU type does not affect pass@B correctness; GPU type is captured per cell in
+  run_manifest.json. The edit persists for all watcher re-chains.
+- Also restarted the detached watcher twice today (the Bash-launched background shell doesn't survive
+  long on this node); pid 431017 alive. Ablation COMPLETE (7/7); baseline 422/558 → resuming.
+
+## 2026-06-15 (cont.2) — staging-race fix + CPU/mem trim to schedule on A6000
+- First A6000 resubmit (10628090) FAILED silently: all 8 "COMPLETED" exit 0 but 70/22/17/23 cells/shard
+  logged LeanEnvNotReady. Root cause = node-local staging race, now severe: l40s packs 2 shards/node,
+  A6000 packs up to 8. On ins092, 6 shards REUSED a stale env while shard 3 ran `rm -rf $LOCAL_ENV` +
+  a 253s cp — deleting the live env (incl. repl exe) out from under the 6 mid-run. Two holes: (a) the
+  reuse guard checked only olean COUNT, not the repl exe (a stale exe-less env with matching count was
+  reused); (b) `rm -rf`+long-cp leaves the env ABSENT ~250s.
+- Fix (slurm/sweep_array.sh, tested in isolation — 4 cases: stage / reuse / missing-exe→restage /
+  count-mismatch→restage all correct): reuse requires marker + full olean count + `-x repl`; staging
+  goes to a PRIVATE per-task dir then publishes via atomic `mv -T` (sub-ms swap, never deletes the live
+  env). Verified LIVE on 10634722: ins086 had 5 co-located shards — 1 staged to its private dir while
+  4 reused the valid env concurrently, zero LeanEnvNotReady.
+- Scheduling: the slimmed-but-still-16c/110G A6000 job then sat PENDING ~20h — free-A6000 nodes are
+  CPU-saturated (192 cores, ~186-188 alloc → only 4-10 free/node); the 8-GPU-free nodes had ~4 free
+  cores, and no free-A6000 node had 16c+110G together. Trimmed to 4c/48G + eval.n_workers 8→3
+  (proofnet_baseline.yaml). All 8 shards scheduled INSTANTLY (ins086×5/088/093/091). n_workers is a
+  concurrency knob — pass@B invariant; new cells carry a new config_hash (cosmetic, aggregate doesn't
+  guard on it). Throughput/shard lower but 8 shards parallel; remaining 134 cells est ~6-9h, 1 wall.
+- Watcher restarted several times today (Bash-launched bg shell doesn't persist on this node); resubmit
+  count resets per start (fine). Ablation COMPLETE (7/7); baseline resuming 424/558 on job 10634722.
+
+### 2026-06-16 (later) — staging race REGRESSED; root-caused to shared reuse; per-shard env fix
+- Job 10634722 (A6000) made almost no progress (424->428/558): 5 of 8 shards co-located on ins086,
+  and 3 (shards 2/4/5) failed with `LeanEnvNotReady` mid-eval (sacct: all COMPLETED 0:0 but exited in
+  6-30min after fast-failing their cells; shard5 `ran=0 skipped=53`).
+- ROOT CAUSE (deeper than the 2026-06-15 publish-window fix): atomic-publish closed the window during
+  `mv`, but REUSE *shares the published inodes* — it doesn't copy. When one co-located shard re-staged
+  (`mv live->.old; rm -rf .old`), the `rm -rf .old` destroyed files that the OTHER co-located shards
+  were actively reading via the shared `/local/$USER/atp-lean-env` path -> their REPL hit
+  LeanEnvNotReady. ins086 timeline: shards 2/3/5/6 reused a prior-job env; shard 4 re-staged and
+  yanked it out from under them (3/6 died at 6min, 2 at 12min, 4/5 limped to ~28min).
+- FIX: PER-SHARD node-local env — `LOCAL_ENV=$LOCAL_BASE/atp-lean-env-s${SLURM_ARRAY_TASK_ID}`. No shard
+  ever reads/moves/deletes another's files, so co-location can't race no matter how many pack a node.
+  Cost: 4.2G/shard on SSD (<=8 -> ~34G/node, fine) + N concurrent first-stage copies off GPFS; a shard
+  reuses its own dir free on requeue to the same node. Lock is now per-shard (guards only a requeued
+  duplicate of the same id). The reuse guard (marker + full olean count + repl exe) is unchanged.
+  Validated in isolation: 5 co-located shards + a forced re-stage of shard 4 -> all 5 envs stay VALID.
+- Detached watcher won't persist on this node; switched to self-monitoring via the /loop. Resubmitted
+  baseline as job 10642214 (array 0-7%8) with the fixed script. Ablation already DONE (7/7 components,
+  558 cells each). Remaining: ~130 baseline cells -> aggregate metrics.json -> final ProofNet# pass@B.
+
+### 2026-06-16 (later still) — per-shard dirs NOT enough; 3 real co-location root causes found+fixed
+- Job 10642214 (per-shard dirs) ALSO made zero progress (still 428/558). But the failures finally
+  exposed the ACTUAL root causes — co-location of many shards per A6000 node (4-5/node), 3 distinct:
+  1. EPILOG WIPE (the env-vanishing mystery): `/etc/slurm/epilogs/cleanup.sh` runs
+     `find /local -user $SLURM_JOB_UID -maxdepth 1 -exec rm -rf {} \;` on EVERY job end. So the first
+     of my co-located shards to finish deletes ALL of /local/$USER — including the live -sN envs of my
+     other still-running shards (ins085: shard6 ended at 8min -> shard5's -s5 vanished -> LeanEnvNotReady
+     even though its vLLM was happily generating at 84 tok/s). Per-shard dirs can't help; the wipe is
+     node-wide on my uid. /local is 200G (capacity was never the issue); the epilog only touches
+     /tmp + /local, NOT /dev/shm (504G tmpfs). FIX: stage to /dev/shm/$USER (RAM, epilog-proof, faster).
+  2. PORT COLLISION: every shard bound vLLM on 8000 -> 4 co-located shards on ins087 collided ->
+     "Engine core initialization failed", vLLM died. FIX: PORT = 8000 + SLURM_ARRAY_TASK_ID.
+  3. ENDPOINT-FILE CLOBBER (the APIConnectionErrors): all shards wrote the shared
+     results/_vllm_endpoint.txt (last writer wins) and the eval read it -> shards talked to another
+     shard's/node's vLLM. eval/run.py:96 already honors ATP_VLLM_ENDPOINT_FILE; sweep_array.sh just
+     never set it. FIX: per-shard endpoint file + export ATP_VLLM_ENDPOINT_FILE (mirrors slurm/ablation.sh,
+     which had 2+3 already — THAT is why the ablation completed and the sweep didn't).
+- Cross-check: slurm/ablation.sh (proven 7/7) already does per-task port + endpoint; it survived shared
+  /local only by luck (long component runs finish near-together, dodging the mid-run epilog wipe). The
+  /dev/shm staging here is strictly safer. Bumped --mem 48G->64G for the 4.2G tmpfs env in RAM.
+- All three fixes are shell-level + dry-run validated (port 8000+id, paths /dev/shm/.../-sN, endpoint
+  override resolves). Resubmitting baseline with the corrected sweep_array.sh. Self-monitoring via /loop.
+
+### 2026-06-17 — ProofNet# baseline COMPLETE (558/558); pass@B + Phase 1 noise re-test
+- Co-location fixes WORKED: ProofNet# baseline ground out to 558/558 cells, zero LeanEnvNotReady,
+  only tolerated transient node-flakiness (one NVML hit on a shard, self-healed on requeue). Aggregated
+  to results/proofnet_baseline/metrics.json (config_hash 1728bc3977ef; whole_proof + refinement
+  max_iters4 alloc0.5; all Phase 1 components OFF; 186 problems x 3 seeds, metered to 128k).
+
+- **ProofNet# pass@B (mean ± seed-std, n=186)   vs   miniF2F baseline:**
+  |  budget |  ProofNet#        | miniF2F |
+  |---------|-------------------|---------|
+  |    2000 | 4.8% ± 1.4%       | 29.6%   |
+  |    8000 | 9.3% ± 1.1%       | 60.1%   |
+  |   32000 | 12.0% ± 0.6%      | 69.5%   |
+  |  128000 | 14.3% ± 0.8%      | 74.9%   |
+  tokens_to_first_proof: n_solved=80 median=3855 mean=16872. ProofNet# is ~5x harder than miniF2F at
+  every budget for this model — the curve is far flatter (4.8->14.3% over 64x budget vs 29.6->74.9%),
+  i.e. more budget keeps buying proofs but the absolute ceiling is low. Consistent with ProofNet being
+  undergrad-level / out-of-distribution vs miniF2F competition problems for Goedel-Prover-V2-8B.
+
+- **Re-test of "all Phase 1 components are noise" on ProofNet#** (paired flips per (problem,seed) at
+  B=128000, each component vs the ABLATION baseline results/phase1_proofnet/baseline — same config
+  family, NOT the metered proofnet_baseline above; ablation baseline plateaus at 10.9% from 8k):
+  | component          | gains | losses | net | verdict      |
+  |--------------------|-------|--------|-----|--------------|
+  | reviewer__1        |  13   |  10    |  +3 | noise-like   |
+  | budget_alloc__2    |   9   |  11    |  -2 | noise-like   |
+  | memory__1          |   8   |  10    |  -2 | noise-like   |
+  | tactic_skeletons__1|   9   |  12    |  -3 | noise-like   |
+  | budget_alloc__0    |   6   |  25    | -19 | DIRECTIONAL (hurts) |
+  | retrieval__1       |   6   |  42    | -36 | DIRECTIONAL (hurts) |
+  VERDICT: the "all noise" claim does NOT fully transfer. 4/6 are noise-like (gains≈losses, churn), but
+  TWO are clearly directional on ProofNet# — and both HARM: budget_alloc__0 (the front-loaded/no-escalation
+  alloc) net -19, and retrieval__1 net -36 (retrieval actively poisons the prompt on OOD undergrad
+  problems, 42 baseline solves lost for 6 gained). So the substantive finding is UNCHANGED and stronger:
+  no Phase 1 component is a net-positive lever on ProofNet#; two are net-negative. Same direction as
+  miniF2F (no helpful lever), with ProofNet# additionally surfacing retrieval/alloc as harmful — the
+  harder OOD benchmark is more sensitive to bad context, not less. budget_alloc__0 ran 554/558 cells
+  (4 short, A6000 flakiness); flips are over the 554 paired cells — does not change the verdict.

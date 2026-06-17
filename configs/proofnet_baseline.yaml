@@ -30,7 +30,7 @@ budget:
 
 eval:
   seeds: [0, 1, 2]
-  n_workers: 8
+  n_workers: 3   # 2026-06-15: was 8; trimmed to fit 4-core A6000 slivers (see slurm/sweep_array.sh). Concurrency knob only — pass@B invariant.
 
 # Minimal baseline agent — identical to the miniF2F Phase 0 baseline (no Phase 1 components).
 agent:
