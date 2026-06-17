@@ -168,6 +168,38 @@ def tokens_dist(cells: list[dict]) -> dict:
             "deepest_step_p90": pct(0.9), "frac_never_past_step1": round(
                 sum(1 for s in steps if s <= 1) / len(steps), 3)}
 
+def late_solve_approach(cells: list[dict]) -> dict:
+    """Pre-flight for Step C (causal vs symptomatic): when a problem is solved LATE (after several
+    attempts), did the win come from an opening tactic the model had NOT already tried (exploration
+    unlocked it = F1-causal), or from re-trying its dominant approach (= diversity is symptomatic)?
+    Compares early (w=1-2) vs late (w>=3) solves; w = index of the first verifying attempt. The
+    first-shot (w=0) bucket is reported but trivial (empty prior → 'new' by construction)."""
+    rows = []
+    for c in cells:
+        ats = c["attempts"]
+        w = next((i for i, a in enumerate(ats) if a.get("reason") == "ok"), None)
+        if w is None:
+            continue
+        opens = [first_tactic(a.get("proof", "")) for a in ats]
+        t_win = opens[w]
+        if t_win is None:
+            continue
+        prior = [o for o in opens[:w] if o is not None]
+        t_first = next((o for o in opens if o is not None), None)
+        rows.append({"w": w,
+                     "new": t_win not in prior,                       # win uses an untried opening
+                     "switched": t_first is not None and t_win != t_first})
+
+    def bucket(lo, hi):
+        sel = [r for r in rows if lo <= r["w"] <= hi]
+        n = len(sel) or 1
+        return {"n": len(sel),
+                "pct_new_approach": round(100 * sum(r["new"] for r in sel) / n, 1),
+                "pct_switched_from_first": round(100 * sum(r["switched"] for r in sel) / n, 1)}
+    return {"first_shot_w0": bucket(0, 0), "early_w1_2": bucket(1, 2),
+            "late_w3plus": bucket(3, 10**9)}
+
+
 def stratify(cells: list[dict]) -> dict:
     by = defaultdict(lambda: [0, 0])
     for c in cells:
@@ -182,7 +214,8 @@ def analyze(run_dir: str) -> dict:
     return {"run": run_dir, "n_cells": len(cells),
             "solve_rate": round(sum(c["solved"] for c in cells) / (len(cells) or 1), 3),
             "A1_diversity": diversity(cells), "A2_taxonomy": taxonomy(cells),
-            "A3_tokens": tokens_dist(cells), "A4_stratify": stratify(cells)}
+            "A3_tokens": tokens_dist(cells), "A4_stratify": stratify(cells),
+            "A5_late_solve_approach": late_solve_approach(cells)}
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -212,6 +245,11 @@ def main():
         print(f"  A3 unsolved depth: {res['A3_tokens']}")
         top = list(res["A4_stratify"].items())[:5]
         print(f"  A4 top subfields: " + ", ".join(f"{k}={v['solve_rate']}(n{v['n']})" for k, v in top))
+        a5 = res["A5_late_solve_approach"]
+        print(f"  A5 late-solve approach (causal pre-flight):")
+        for b in ("early_w1_2", "late_w3plus"):
+            print(f"       {b:12s} n={a5[b]['n']:<4} new-approach {a5[b]['pct_new_approach']}%  "
+                  f"switched-from-first {a5[b]['pct_switched_from_first']}%")
     print(f"\nwrote {outp}")
 
 if __name__ == "__main__":

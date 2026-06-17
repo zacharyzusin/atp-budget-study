@@ -984,3 +984,17 @@ Newest entries at the bottom. Never delete history.
 - **NEXT (GPU): promote Step C (diversity injection — temp/nucleus schedule or distinct-approach prompting),
   now the best-justified lever since it targets F1; and Step B (DeepSeek-Prover-V2-7B replication) for
   generality.** All Phase 2 Step A artifacts committed; not pushed.
+
+### 2026-06-17 (Phase 2 Step A, pre-flight) — F5: diversity collapse is SYMPTOMATIC, not causal
+- Added A5 late_solve_approach to analyze_mechanism.py (+test, 10 pass). Question: when a problem solves
+  LATE (first verifying attempt index w>=3), does the win use an opening tactic NOT tried before (explora-
+  tion unlocked it = causal) or an already-used approach (better execution = symptomatic)?
+- RESULT: late solves **0.0% new-approach** on BOTH benchmarks (miniF2F n=64, ProofNet# n=31; switched-
+  from-first 1.6%/0.0%). The model wins late by executing one of its already-tried ~2 approaches correctly,
+  essentially never by discovering a new one. → collapse is symptomatic of the F2/F3 capability floor, not
+  the lever. **Predicts Step C (diversity injection) will NULL.** Reframes C as the decisive causal-vs-
+  symptomatic confirmation (measure diversity-moved AND solves; a null only counts if diversity provably
+  rose). Caveat: correlational, observes only natural sampling — C still needed to test FORCED diversity.
+- Pushed Step A (3 commits) to origin/main before any sweep (hygiene). NEXT: decide whether to run C to
+  confirm-null vs treat pre-flight as sufficient; start Step B's DeepSeek Lean-pin setup in parallel
+  (independent of C).

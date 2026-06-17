@@ -34,6 +34,20 @@ def _cell(name, attempts):
     return {"theorem_name": name, "attempts": attempts, "stop_reason": "x"}
 
 
+def test_late_solve_approach_detects_new_vs_reused():
+    def at(tac, ok=False):
+        return {"proof": f"theorem t := by {tac}", "reason": "ok" if ok else "compile_error",
+                "feedback": "" if ok else "Failed at step 1 (`x`): unsolved goals", "kind": "propose"}
+    # late solve via a NEW opening tactic (tried simp x3, won with linarith at index 3)
+    new = {"theorem_name": "A__x", "attempts": [at("simp"), at("simp"), at("simp"), at("linarith", ok=True)]}
+    # late solve REUSING the dominant opening (simp throughout, simp eventually verifies at index 3)
+    reused = {"theorem_name": "A__y", "attempts": [at("simp"), at("simp"), at("simp"), at("simp", ok=True)]}
+    r = am.late_solve_approach([new, reused])
+    assert r["late_w3plus"]["n"] == 2
+    assert r["late_w3plus"]["pct_new_approach"] == 50.0  # one new, one reused
+    assert r["late_w3plus"]["pct_switched_from_first"] == 50.0
+
+
 def test_analyze_end_to_end(tmp_path):
     run = tmp_path / "run"
     asd = run / "agent_states"
@@ -70,6 +84,10 @@ def test_analyze_end_to_end(tmp_path):
     # A2: taxonomy buckets both unsolved cells
     tax = res["A2_taxonomy"]["cell_pct"]
     assert "reasoning_shallow" in tax and "knowledge_hallucinated_lemma" in tax
+
+    # A5: late solve via an untried opening tactic registers as new-approach
+    a5 = res["A5_late_solve_approach"]
+    assert a5["late_w3plus"]["n"] == 0  # no w>=3 solves in this tiny fixture
 
     # A4: two subfields present
     strat = res["A4_stratify"]
