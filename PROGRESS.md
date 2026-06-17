@@ -1021,3 +1021,33 @@ Newest entries at the bottom. Never delete history.
 - HOLD: not sbatch'd. Remaining pre-launch gate = `make smoke` (GPU/Lean) then launch with B. NEXT: B —
   DeepSeek-Prover-V2-7B Lean-pin setup + core replication (weights already cached at .hf_cache; prior
   theorem-proving-research/deepseek_prover_eval env + mathlib cache to mine → setup cheaper than feared).
+
+### 2026-06-17 (Phase 2 Step B recon) — DeepSeek pin found; old repo is a NO-MATCH (don't reuse)
+Zero-GPU recon for the DeepSeek-Prover-V2-7B replication. Success bar = "intact AND matches DeepSeek's
+authoritative pin", sourced from DeepSeek, not the old project.
+- AUTHORITATIVE PIN: paper (ar5iv 2504.21801) states verbatim **"All experimental results of
+  DeepSeek-Prover-V2 are conducted with Lean 4.9.0"**. NO mathlib commit published (checked GitHub README,
+  HF card, paper). Repo ships only the PDF + minif2f-solutions.zip + figures — no Lean project / toolchain
+  / manifest. Verification tool unspecified (REPL fine — kernel is kernel). → faithful pin = Lean v4.9.0 +
+  STANDARD mathlib at a v4.9.0-compatible commit, disambiguated by requiring DeepSeek's OWN published
+  miniF2F proofs (minif2f-solutions.zip, 217 test/221 valid solved, `import Mathlib`) to verify against it.
+  KEY: v4.9.0 ≈ Goedel's v4.9.0-rc1 → the atp Lean layer transfers with minimal change; ONLY mathlib
+  differs (DeepSeek standard mathlib vs Goedel's xinhjBrant fork @2f65ba7).
+- OLD-REPO MATCH = **NO. Do not reuse for reported numbers.** theorem-proving-research Lean envs are
+  v4.6.0 (miniF2F proj, mathlib e3e4eeab), v4.22.0 (Putnam), v4.29.0 (lean_env, mathlib 8a178386) — none
+  is v4.9.0 (the v4.29.0 stack is exactly the API-drift trap). It also verified via `lake env lean`, not a
+  REPL, so the harness isn't reusable either. Earlier "265cb026 mathlib" read was WRONG — that's the old
+  repo's own git HEAD (git walked up to the parent repo; .xdg_cache/mathlib is just an ltar cache). Mine
+  the old repo ONLY for benchmark statement files, not the env.
+- PORT INTERSECTION: paper evaluates DeepSeek-V2 natively on BOTH miniF2F-test (244) AND ProofNet-test
+  (186) — the SAME two benchmarks we use → B can do cross-model on BOTH (not just miniF2F). Intersection ≈
+  full canonical sets; exact size pending validate_statements.py gate against the DeepSeek standard-mathlib
+  pin (statements audited on the Goedel fork may differ). Report cross-model on the compile-on-BOTH-pins
+  intersection only (so a gap is model, not port).
+- VERDICT: B is the BUILD path (authoritative fetch), not reuse — but cheap-ish: atp Lean layer is one rc
+  off (v4.9.0-rc1→v4.9.0), point at standard mathlib @v4.9.0 (try `lake exe cache get`), rebuild REPL,
+  gate-validate miniF2F+ProofNet# statements, green contract tests INCL sorry/admit/native_decide rejection
+  (a soundness contribution — must hold in env #2). Protocol-invariance for B: hold benchmarks
+  (intersection), budget schedule, 3 seeds, minimal-baseline agent, metrics, fixed-verifier handling
+  constant; only model + its matched Lean env (+ matched statement files) change. Recon artifacts in
+  scratch/phase2/deepseek_recon/ (gitignored). ZERO GPU until contract tests green.
