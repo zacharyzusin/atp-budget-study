@@ -571,3 +571,29 @@ Elevate the verifier-soundness bug to a methodological contribution. NOT doing: 
 more OFAT. Thesis: "compute budget, not agentic scaffolding, is the lever for whole-proof proving at this
 scale; here is where/why it saturates, across two models, with a soundness caveat for how to evaluate."
 Source of this redirection: external review (pasted by user 2026-06-17).
+
+## 2026-06-17 — Phase 2 Step C built (held for launch) + PRE-REGISTERED prediction
+Decision: RUN C (do not skip on F5 alone). F5 is correlational and survivor-/distribution-conditioned —
+it observes only solved problems and only the model's NATURAL ~2-approach sampling; it structurally
+cannot observe the perturbed regime where we FORCE off-distribution approaches. C closes that genuine
+inferential gap (selection gap + off-distribution gap), so it is decisive, not a checkbox. Cost is small
+(trapped cells only, 8k/32k), so there is no resource case to skip.
+Sequencing: build now at zero GPU (DONE), HOLD launch, then launch scoped as part of the coordinated B
+campaign so C runs on BOTH provers (Goedel + DeepSeek-Prover-V2-7B) in one spend. Defer B's diversity
+arm until C resolves (generalize the lever if positive, the floor if null).
+Design: approach-conditioning (component `diversity_injection`, propose-only) over raw temperature —
+temperature raises token entropy but yields noisier versions of the SAME approach and revives the
+truncation/false-solve pathology the verifier fix guards against. Scope = trapped core (problems unsolved
+by all seeds @128k: ProofNet# 150/186, miniF2F 55/244; lists in scratch/phase2/trapped_*.txt) at budgets
+8k+32k. Measure the full 2x2 + texture, not just solve rate:
+  (a) MANIPULATION CHECK — did mean_distinct_first_tactics actually rise vs baseline (analyze_mechanism
+      A1)? A null is uninterpretable without this.
+  (b) solve rate vs baseline @8k/32k on the trapped names (analyze_results compare + paired flips).
+  (c) failure texture of the forced-new approaches (analyze_mechanism A2): do they still die at
+      reasoning/goal-closing? watch syntax/truncation rate does NOT creep (run on fixed verifier).
+PRE-REGISTERED PREDICTION (record before running): **diversity RISES ∧ solves stay FLAT ∧ the
+forced-new approaches fail at elaboration/goal-closing at least as often as baseline** — i.e. handing the
+model new approaches doesn't help because the bottleneck is within-approach execution (F2/F3 floor), not
+approach discovery. That outcome = clean interventional confirmation the collapse is symptomatic; a
+positive (solves rise) would instead make diversity-injection the capstone lever. Build artifacts:
+src/atp/agents/components/diversity.py, config.DiversityCfg, configs/diversity_{proofnet,minif2f}.yaml.

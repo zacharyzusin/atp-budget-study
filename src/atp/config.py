@@ -111,11 +111,22 @@ class SkeletonsCfg(_Strict):
     schedule: str = "default"
 
 
+class DiversityCfg(_Strict):
+    # Phase 2 Step C: approach-conditioned diversity injection. On each *fresh* proposal, list the
+    # opening tactics already tried on this problem and instruct a fundamentally different approach —
+    # targeting the approach-level collapse located in MECHANISM.md F1. The decisive interventional
+    # test of causal-vs-symptomatic (F5 predicts a null: diversity rises, solves stay flat).
+    enabled: bool = False
+    # How many distinct prior opening tactics to list back to the model (cap to keep the prompt tight).
+    max_listed: int = Field(6, ge=1)
+
+
 class ComponentsCfg(_Strict):
     memory: MemoryCfg = Field(default_factory=MemoryCfg)
     reviewer: ReviewerCfg = Field(default_factory=ReviewerCfg)
     retrieval: RetrievalCfg = Field(default_factory=RetrievalCfg)
     tactic_skeletons: SkeletonsCfg = Field(default_factory=SkeletonsCfg)
+    diversity: DiversityCfg = Field(default_factory=DiversityCfg)
 
 
 class AgentCfg(_Strict):

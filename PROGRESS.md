@@ -998,3 +998,26 @@ Newest entries at the bottom. Never delete history.
 - Pushed Step A (3 commits) to origin/main before any sweep (hygiene). NEXT: decide whether to run C to
   confirm-null vs treat pre-flight as sufficient; start Step B's DeepSeek Lean-pin setup in parallel
   (independent of C).
+
+### 2026-06-17 (Phase 2 Step C) — built + held for launch; pre-registered the null prediction
+- DECISION (full reasoning + pre-registration in DECISIONS.md): RUN C, not skip — F5 is correlational &
+  conditions on survivors + the model's natural sampling, so it can't observe the FORCED off-distribution
+  regime. C closes that gap; it's decisive. Build now, hold launch, run on BOTH provers in the B campaign.
+- BUILT (zero GPU, test-first): `diversity_injection` component (src/atp/agents/components/diversity.py) —
+  approach-conditioning, propose-only: lists the distinct opening tactics already tried on a problem and
+  instructs a fundamentally different approach; first proposal is a no-op; refine untouched. config.
+  DiversityCfg (off by default) + wired into build_components. Tests: tests/test_diversity_component.py
+  (6) + trapped_problems in test_analyze_mechanism (11 total); full fast suite 250 pass; no config-hash
+  breakage (default-off).
+- SCOPING: scripts/analyze_mechanism.py trapped_problems() → problems unsolved by ALL seeds @128k:
+  ProofNet# 150/186, miniF2F 55/244 (scratch/phase2/trapped_{proofnet,minif2f}.txt). Configs
+  configs/diversity_{proofnet,minif2f}.yaml (defaults: proofnet_baseline / phase0_baseline) override
+  budgets [8k,32k] + restrict to the trapped subset via split=test+use_novel_split (NOT split=novel,
+  which forces base=valid — caught + fixed in config-load validation). Validated: both load, restrict to
+  exactly the trapped set (150/55), diversity ON.
+- READOUT pre-registered: (a) manipulation check distinct-first-tactics↑ (analyze_mechanism A1), (b) solves
+  vs baseline @8k/32k + paired flips, (c) failure texture (A2), watch syntax/truncation. PREDICTION:
+  diversity↑ ∧ solves-flat ∧ new approaches still die at goal-closing = symptomatic confirmed.
+- HOLD: not sbatch'd. Remaining pre-launch gate = `make smoke` (GPU/Lean) then launch with B. NEXT: B —
+  DeepSeek-Prover-V2-7B Lean-pin setup + core replication (weights already cached at .hf_cache; prior
+  theorem-proving-research/deepseek_prover_eval env + mathlib cache to mine → setup cheaper than feared).

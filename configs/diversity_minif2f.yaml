@@ -1,0 +1,20 @@
+# configs/diversity_minif2f.yaml — Phase 2 Step C on the miniF2F trapped core (Goedel-Prover-V2-8B).
+# Companion to configs/diversity_proofnet.yaml: same interventional test on the 55 miniF2F problems
+# unsolved by ALL seeds at 128k in results/baseline (scratch/phase2/trapped_minif2f.txt). Running C on
+# both benchmarks shows whether forced diversity behaves the same on the in-distribution trapped set as
+# on the OOD one — MECHANISM.md F1 found the ~2-approach collapse identical across benchmarks, so the
+# prediction (diversity↑, solves-flat) should hold here too. See diversity_proofnet.yaml for the readout.
+defaults: phase0_baseline
+
+budget:
+  values: [8000, 32000]
+
+data:
+  # Restrict the TEST split to the trapped names (keep split=test; split=novel forces base=valid).
+  split: test
+  use_novel_split: true
+  novel_names_file: scratch/phase2/trapped_minif2f.txt   # 55 problems unsolved by all seeds @128k
+
+agent:
+  components:
+    diversity: { enabled: true, max_listed: 6 }

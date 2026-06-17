@@ -200,6 +200,15 @@ def late_solve_approach(cells: list[dict]) -> dict:
             "late_w3plus": bucket(3, 10**9)}
 
 
+def trapped_problems(cells: list[dict]) -> list[str]:
+    """Problem names unsolved by EVERY seed at the run's ceiling — the fully-stuck core that is the
+    population for Step C (a problem any seed already solves is not 'trapped'). Sorted, de-duped."""
+    by_problem: dict[str, list[bool]] = defaultdict(list)
+    for c in cells:
+        by_problem[c["name"]].append(c["solved"])
+    return sorted(name for name, solves in by_problem.items() if not any(solves))
+
+
 def stratify(cells: list[dict]) -> dict:
     by = defaultdict(lambda: [0, 0])
     for c in cells:

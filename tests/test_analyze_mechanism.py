@@ -89,6 +89,10 @@ def test_analyze_end_to_end(tmp_path):
     a5 = res["A5_late_solve_approach"]
     assert a5["late_w3plus"]["n"] == 0  # no w>=3 solves in this tiny fixture
 
+    # trapped_problems: ex1 solved by its seed, ex2/Topology unsolved -> trapped = the two unsolved
+    cells = am.load_cells(str(run))
+    assert am.trapped_problems(cells) == ["Algebra__ex2", "Topology__ex1"]
+
     # A4: two subfields present
     strat = res["A4_stratify"]
     assert set(strat) == {"Algebra", "Topology"}

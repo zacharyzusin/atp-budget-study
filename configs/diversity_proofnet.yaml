@@ -1,0 +1,36 @@
+# configs/diversity_proofnet.yaml — Phase 2 Step C: approach-conditioned diversity injection on the
+# ProofNet# trapped core (Goedel-Prover-V2-8B). DECISIVE interventional test of MECHANISM.md F5.
+#
+# F5 (correlational) showed natural late-solves never come from a newly-explored approach -> predicts
+# this run NULLS: forcing new opening approaches raises approach-diversity but NOT solve rate, because
+# the bottleneck is within-approach execution (the F2/F3 reasoning floor), not approach discovery.
+# Pre-registered prediction (DECISIONS 2026-06-17): diversity-rises ∧ solves-flat ∧ forced-new
+# approaches fail at elaboration/goal-closing at least as often as baseline.
+#
+# Scope: the 150 ProofNet# problems unsolved by ALL seeds at 128k in results/proofnet_baseline
+# (scratch/phase2/trapped_proofnet.txt, written by scripts/analyze_mechanism.py:trapped_problems), at
+# the two budgets where saturation bites (8k/32k — each cell runs to 32k, yielding both points).
+#
+# READOUT (the 2x2 + texture):
+#   manipulation check: scripts/analyze_mechanism.py A1 on results/diversity_proofnet vs baseline —
+#                       did mean_distinct_first_tactics actually rise? (a null is UNINTERPRETABLE if not)
+#   solves: analyze_results.py compare results/proofnet_baseline results/diversity_proofnet @8k/32k
+#           (restricted to the trapped names) + paired flips
+#   failure texture: analyze_mechanism.py A2 on this run — do the forced-new approaches still die at
+#                    reasoning/goal-closing (>=95%, as baseline)?
+#   watch: syntax/truncation rate must NOT creep up (verifier-soundness guard); run on the fixed verifier.
+defaults: proofnet_baseline
+
+budget:
+  values: [8000, 32000]
+
+data:
+  # Restrict the TEST split to the trapped names via the novel-subset filter. NB: keep split=test —
+  # split=novel is a virtual split that forces the base load to `valid`; we want the test subset.
+  split: test
+  use_novel_split: true
+  novel_names_file: scratch/phase2/trapped_proofnet.txt   # 150 problems unsolved by all seeds @128k
+
+agent:
+  components:
+    diversity: { enabled: true, max_listed: 6 }   # all other components stay OFF (inherited)

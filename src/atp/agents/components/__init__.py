@@ -17,6 +17,7 @@ from atp.agents.components.base import (
     PromptContext,
     ReviewVerdict,
 )
+from atp.agents.components.diversity import DiversityInjection
 from atp.agents.components.memory import Memory
 from atp.agents.components.retrieval import Retrieval
 from atp.agents.components.reviewer import Reviewer
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Component",
     "ComponentPipeline",
+    "DiversityInjection",
     "Memory",
     "PromptContext",
     "ReviewVerdict",
@@ -57,6 +59,11 @@ def build_components(config: ExperimentConfig) -> ComponentPipeline:
         components.append(Memory.from_config(cc.memory))
     if cc.tactic_skeletons.enabled:
         components.append(TacticSkeletons.from_config(cc.tactic_skeletons))
+    # Phase 2 Step C: diversity injection sits last among prompt-decorators so it sees (and lists
+    # back) the approaches any other decorator might have suggested. Mutually exclusive with skeletons
+    # in practice (skeletons pushes a fixed schedule; diversity pushes *away* from what was tried).
+    if cc.diversity.enabled:
+        components.append(DiversityInjection.from_config(cc.diversity))
     if cc.reviewer.enabled:
         components.append(Reviewer.from_config(cc.reviewer))
 
