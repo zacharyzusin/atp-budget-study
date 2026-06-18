@@ -146,8 +146,10 @@ else
     echo "[sweep] staging Lean env (shard ${SHARD_ID}) -> $STAGE, atomic-publish -> $LOCAL_ENV (cp $N_GPFS oleans, ~3-20min off GPFS)..."
     rm -rf "$STAGE"; mkdir -p "$STAGE"
     t0=$SECONDS
-    cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
-          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$STAGE/" \
+    # Copy the WHOLE env dir (.lake + lakefile + manifest + toolchain + the package lib dir, whatever
+    # its name) so this works for any pin — the Goedel env's lib is AtpLeanEnv/, the DeepSeek env's is
+    # DeepseekLeanEnv/; enumerating a hardcoded lib name broke the DeepSeek stage.
+    cp -a "$GPFS_ENV/." "$STAGE/" \
         || { echo "FATAL: staging copy to $STAGE failed"; rm -rf "$STAGE"; flock -u 9; exit 1; }
     [ -x "$STAGE/$REPL_REL" ] \
         || { echo "FATAL: staged env missing repl exe at $STAGE/$REPL_REL"; rm -rf "$STAGE"; flock -u 9; exit 1; }
