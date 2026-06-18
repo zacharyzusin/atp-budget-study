@@ -1102,3 +1102,19 @@ open-storm otherwise) — slurm/gate_deepseek.sh + a G1 rerun.
 - LAUNCHING DeepSeek baselines (sharded, port base 8200, deepseek env): miniF2F 244×3 then ProofNet#
   186×3, full [2k/8k/32k/128k]. Submit env: ATP_HF_HOME=~/.hf_cache, ATP_LEAN_ENV_NAME=deepseek-lean-env,
   ELAN_HOME=scratch/elan-deepseek, ATP_VLLM_PORT=8200.
+
+### 2026-06-18 (Phase 2 Step B) — DeepSeek baselines launched; 3 scale-up infra fixes
+Smoke green → launched both DeepSeek baselines. First attempt surfaced scale-only failures (smoke can't);
+fixed three:
+1. ENDPOINT-FILE COLLISION: per-shard _vllm_endpoint.sN.txt keyed only by task-id → two concurrent
+   arrays (miniF2F + ProofNet#) with overlapping task-ids clobber each other → eval talks to wrong vLLM.
+   FIX: key by SLURM_ARRAY_JOB_ID too + distinct ATP_VLLM_PORT bases per array (miniF2F 8200, ProofNet# 8300).
+2. NVML THUNDERING HERD: many co-located shards init CUDA/NVML at once → NVMLError_Unknown → "Engine core
+   init failed" → vLLM dies at startup (15/16 ProofNet# shards died launching the 16-way atop miniF2F).
+   FIX: stagger vLLM start by (task_id%8)*25s. Helped miniF2F (healthy) but NOT ProofNet#.
+3. FLAKY NODE ins082: ALL 14 remaining ProofNet# NVMLError deaths were on ins082 (bad A6000s); Slurm kept
+   reassigning it. FIX: resubmit ProofNet# with --exclude=ins082. (Healthy nodes: ins086/087/092/093.)
+STATE: miniF2F baseline 10676442 (8-way, base 8200) HEALTHY — 121/732 cells, 7 running. ProofNet#
+baseline 10677640 (0-15%8, base 8300, --exclude=ins082) ramping. Submit env: ATP_HF_HOME=~/.hf_cache,
+ATP_LEAN_ENV_NAME=deepseek-lean-env, ELAN_HOME=scratch/elan-deepseek. Confirmed DeepSeek serves with its
+CORRECT chat template (<｜begin▁of▁sentence｜><｜User｜>). Multi-day grind; monitor + babysit node flakiness.
