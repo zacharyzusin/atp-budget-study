@@ -202,6 +202,13 @@ REVISION="$(python -c "from atp.config import load_config; print(load_config('$C
 MAX_MODEL_LEN="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.max_model_len)")"
 echo "[sweep] serving $HF_REPO (as $SERVED_NAME) @ revision=$REVISION max_model_len=$MAX_MODEL_LEN"
 
+# Stagger vLLM startup across co-located shards: when many shards on one node init CUDA/NVML at the
+# same instant, nvmlDeviceGetHandleByIndex throws NVMLError_Unknown -> "Engine core init failed" ->
+# vLLM dies during startup (a thundering herd; 15/16 ProofNet# shards died this way 2026-06-18 when the
+# 16-way array launched on top of the running miniF2F array). Spread the inits by shard id (up to 8/node).
+STAGGER=$(( (${SLURM_ARRAY_TASK_ID:-0} % 8) * 25 ))
+[ "$STAGGER" -gt 0 ] && { echo "[sweep] staggering vLLM start by ${STAGGER}s (anti-NVML-herd)"; sleep "$STAGGER"; }
+
 # Start vLLM in the background on this node's GPU.
 HOST_IP="$(hostname -i | awk '{print $1}')"
 echo "http://$HOST_IP:$PORT/v1" > "$ENDPOINT_FILE"
