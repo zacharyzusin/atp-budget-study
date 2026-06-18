@@ -1065,3 +1065,26 @@ authoritative pin", sourced from DeepSeek, not the old project.
   proofs → verification fraction; (2) validate_statements.py miniF2F+ProofNet# on this pin → compile-on
   -both-pins intersection size; (3) contract tests incl sorry/admit/native_decide rejection in env #2.
   REPORT-BACK checkpoint = {commit (have), fraction, intersection} before first GPU.
+
+### 2026-06-17 (Phase 2 Step B) — DeepSeek env BUILT + all pre-GPU gates GREEN (checkpoint)
+Env built (job 10671645): Lean v4.9.0 + standard mathlib4 @ f0957a7 + repl@bump_to_v4.9.0. NOTE: `lake
+exe cache get` only PARTIALLY hit the year-old commit (3483/4737 oleans) → ~45min from-source build for
+the rest; so env #2 cost ~ the Goedel fork build, not the minutes I'd hoped. HOME quota was exhausted by
+OTHER projects' toolchains (~8G in ~/.elan) → relocated DeepSeek toolchains to scratch via ELAN_HOME (did
+NOT delete others' caches). Gates run on a compute node with the env staged to /dev/shm (GPFS olean
+open-storm otherwise) — slurm/gate_deepseek.sh + a G1 rerun.
+- **G3 soundness (contract tests -m lean vs env #2): PASS** — env-backed verify-accept + sorry/loophole
+  rejection hold in the second env (the 1 skip is the model-dependent agent test, not soundness).
+- **G2 intersection (validate_statements on this pin): miniF2F 244/244 (100%) + ProofNet# 186/186 (100%)
+  elaborate.** Both also compile on the Goedel fork (baselines ran) → compile-on-both-pins intersection =
+  the FULL sets (430 problems); a cross-model gap can't be a port artifact. (results/{minif2f,
+  proofnet_sharp}/statement_validation.json)
+- **G1 pin confirmation (verify DeepSeek's OWN 438 published miniF2F proofs): 435/438 = 99.3% VERIFY.**
+  Faithful pin confirmed. The 3 misses: aime_1984_p7 (54KB) + imo_1992_p1 (27KB) hit my 300s/file cap
+  (timeout artifact, not API drift); imo_1977_p5 (1KB) is a lone candidate-genuine miss. True faithful
+  fraction is ≥99.3% (≈100% sans the timeout cap). (results/phase2/deepseek_proof_verification.txt)
+- Fixed: recon files were one dir up (zwz2000/scratch vs repo scratch) — moved into repo scratch.
+- CHECKPOINT COMPLETE (all zero-GPU): {pin = v4.9.0 + mathlib f0957a7 ✓, verification 99.3%, intersection
+  244+186=430 ✓, soundness ✓}. CLEARED for B's GPU work. NEXT: build B's eval plumbing (DeepSeek model
+  config + sweep env-staging for deepseek-lean-env + ELAN_HOME), then run baseline pass@B + the F1/F2
+  mining on DeepSeek, and the Step C diversity arm on both provers. STILL NO GPU touched.
