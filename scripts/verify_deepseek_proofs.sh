@@ -14,7 +14,8 @@ set -uo pipefail
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
 
 PROJ="/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
-ENV_DIR="$PROJ/scratch/lean-cache/deepseek-lean-env"
+# Honor a staged (node-local /dev/shm) env to dodge the GPFS olean open-storm; default to GPFS copy.
+ENV_DIR="${ATP_LEAN_ENV_DIR:-$PROJ/scratch/lean-cache/deepseek-lean-env}"
 SOLS="$PROJ/scratch/phase2/deepseek_recon/sols"
 N_SAMPLE="${1:-60}"
 PAR="${2:-8}"
