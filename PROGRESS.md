@@ -1088,3 +1088,17 @@ open-storm otherwise) — slurm/gate_deepseek.sh + a G1 rerun.
   244+186=430 ✓, soundness ✓}. CLEARED for B's GPU work. NEXT: build B's eval plumbing (DeepSeek model
   config + sweep env-staging for deepseek-lean-env + ELAN_HOME), then run baseline pass@B + the F1/F2
   mining on DeepSeek, and the Step C diversity arm on both provers. STILL NO GPU touched.
+
+### 2026-06-18 (Phase 2 Step B) — DeepSeek GPU plumbing built + smoke GREEN; baselines launching
+- Parameterized slurm/sweep_array.sh (model from config hf_repo/name; ATP_HF_HOME/ATP_LEAN_ENV_NAME/
+  ELAN_HOME env overrides; Goedel defaults unchanged) so ONE script serves both provers. DeepSeek
+  baselines inherit the Goedel baselines (phase0_baseline/proofnet_baseline) → protocol-invariant (only
+  model + matched Lean env change). DeepSeek's official prompt == WholeProofTemplate (inference-matched).
+- SMOKE caught 3 real bugs before scale (the gate working): (1) staging cp enumerated hardcoded
+  AtpLeanEnv lib → stage whole env dir (DeepSeek lib is DeepseekLeanEnv); (2,3) orphaned vLLM from prior
+  runs squats port 8000 on some nodes + the wait-loop hung instead of failing fast → run DeepSeek on
+  ATP_VLLM_PORT=8200 base. SMOKE PASS (job 10675775): vLLM serves DeepSeek-V2-7B, Lean probe OK on env #2,
+  pass@2000=0.500 (1/2) on miniF2F, verified clean.
+- LAUNCHING DeepSeek baselines (sharded, port base 8200, deepseek env): miniF2F 244×3 then ProofNet#
+  186×3, full [2k/8k/32k/128k]. Submit env: ATP_HF_HOME=~/.hf_cache, ATP_LEAN_ENV_NAME=deepseek-lean-env,
+  ELAN_HOME=scratch/elan-deepseek, ATP_VLLM_PORT=8200.
