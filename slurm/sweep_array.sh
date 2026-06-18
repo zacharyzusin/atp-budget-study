@@ -37,8 +37,11 @@ PORT=$(( ${ATP_VLLM_PORT:-8000} + ${SLURM_ARRAY_TASK_ID:-0} ))
 # Per-shard endpoint file + the env override the eval honors (resolve_endpoint_file, eval/run.py:96).
 # A SHARED _vllm_endpoint.txt is clobbered by every shard (last writer wins) -> co-located shards talk
 # to the wrong shard's vLLM and cross-node shards read another node's IP -> APIConnectionError. Unique
-# per shard, and export ATP_VLLM_ENDPOINT_FILE so the eval reads THIS shard's endpoint, not the race.
-ENDPOINT_FILE="$PROJ/results/_vllm_endpoint.s${SLURM_ARRAY_TASK_ID:-0}.txt"
+# per shard AND per array job (SLURM_ARRAY_JOB_ID) so TWO concurrent arrays (e.g. DeepSeek miniF2F +
+# ProofNet#, or the two provers' Step C) with overlapping task-ids don't clobber each other's endpoint.
+# Pair this with a distinct ATP_VLLM_PORT base per concurrent array so co-located shards don't bind the
+# same port. Export ATP_VLLM_ENDPOINT_FILE so the eval reads THIS shard's endpoint, not the race.
+ENDPOINT_FILE="$PROJ/results/_vllm_endpoint.j${SLURM_ARRAY_JOB_ID:-x}.s${SLURM_ARRAY_TASK_ID:-0}.txt"
 export ATP_VLLM_ENDPOINT_FILE="$ENDPOINT_FILE"
 
 # Insomnia proxy trap: Slurm jobs inherit a per-session SSH proxy that breaks ALL downloads
