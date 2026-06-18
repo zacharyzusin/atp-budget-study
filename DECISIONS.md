@@ -597,3 +597,20 @@ model new approaches doesn't help because the bottleneck is within-approach exec
 approach discovery. That outcome = clean interventional confirmation the collapse is symptomatic; a
 positive (solves rise) would instead make diversity-injection the capstone lever. Build artifacts:
 src/atp/agents/components/diversity.py, config.DiversityCfg, configs/diversity_{proofnet,minif2f}.yaml.
+
+## 2026-06-17 — Phase 2 Step B: DeepSeek pin CHOSEN (self-decided by the v4.9.0-final window)
+Authoritative pin = Lean v4.9.0 (paper) + STANDARD mathlib4 @ f0957a7575317490107578ebaee9efaf8e62a4ab.
+Decision method (the one the data makes for us): the v4.9.0-FINAL toolchain window in mathlib4 history
+collapses to a SINGLE commit — f0957a7 ("bump toolchain to v4.9.0", 2024-07-01) is the sole mathlib4
+commit on v4.9.0-final; the very next commit (f5c3f06, same day) bumped to v4.10.0-rc1. No multi-commit
+bisection needed; confirm by max-verification of DeepSeek's published miniF2F proofs (438 files,
+minif2f-solutions.zip) against it — fraction to be reported. REPL = leanprover-community/repl @
+bump_to_v4.9.0 (its lean-toolchain == leanprover/lean4:v4.9.0, confirmed; canonical not fork). This is
+distinct from Goedel (v4.9.0-rc1 + xinhjBrant fork @2f65ba7) — same Lean line, different mathlib, so the
+atp Lean layer transfers but it is a genuine separate env. Cost note: STANDARD mathlib oleans are hosted →
+`lake exe cache get` should HIT (minutes), unlike the Goedel fork's from-source build. Env scaffolded at
+scratch/lean-cache/deepseek-lean-env; build = slurm/build_deepseek_lean.sh (job 10671073). Gates remaining
+before any GPU: max-verify DeepSeek proofs (pin confirm + fraction), validate_statements.py on miniF2F +
+ProofNet# against this pin → compile-on-both-pins intersection, contract tests incl sorry/admit/
+native_decide rejection. Report checkpoint = {chosen commit (done), verification fraction, intersection
+size} before the first GPU sweep.

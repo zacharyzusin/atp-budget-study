@@ -1051,3 +1051,17 @@ authoritative pin", sourced from DeepSeek, not the old project.
   (intersection), budget schedule, 3 seeds, minimal-baseline agent, metrics, fixed-verifier handling
   constant; only model + its matched Lean env (+ matched statement files) change. Recon artifacts in
   scratch/phase2/deepseek_recon/ (gitignored). ZERO GPU until contract tests green.
+
+### 2026-06-17 (Phase 2 Step B) — DeepSeek pin chosen + env build launched (job 10671073)
+- PIN (self-decided): Lean v4.9.0 + STANDARD mathlib4 @ f0957a7575317490107578ebaee9efaf8e62a4ab. The
+  v4.9.0-final window collapses to ONE commit (f0957a7 is the sole mathlib4 commit on v4.9.0-final; next
+  commit bumped to v4.10.0-rc1) → no bisection, just max-verify DeepSeek's 438 published proofs against it.
+  REPL = leanprover-community/repl @ bump_to_v4.9.0 (toolchain == v4.9.0, confirmed; canonical, not fork).
+- SCAFFOLD: scratch/lean-cache/deepseek-lean-env/{lean-toolchain,lakefile.lean,DeepseekLeanEnv/Probe.lean}.
+  Build job slurm/build_deepseek_lean.sh (10671073, short partition, 16cpu/96G/6h, CPU-only, proxy unset).
+  STANDARD mathlib → `lake exe cache get` expected HIT (minutes); from-source fallback in-script if MISS.
+- NOTE: /insomnia001 at 99% (97G free) — enough for one env but tight (shared FS).
+- NEXT (all zero-GPU, gated before any sweep): (1) confirm env ready + max-verify the 438 DeepSeek miniF2F
+  proofs → verification fraction; (2) validate_statements.py miniF2F+ProofNet# on this pin → compile-on
+  -both-pins intersection size; (3) contract tests incl sorry/admit/native_decide rejection in env #2.
+  REPORT-BACK checkpoint = {commit (have), fraction, intersection} before first GPU.
