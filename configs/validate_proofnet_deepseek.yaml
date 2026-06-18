@@ -1,0 +1,15 @@
+# Phase 2 Step B gate: do ProofNet#-test statement HEADS elaborate against DeepSeek-Prover-V2's pin?
+# Same statements as the Goedel ProofNet# baseline (inherited from proofnet_baseline), env = DeepSeek
+# pin (Lean v4.9.0 + STANDARD mathlib @ f0957a7). NB: our ProofNet# statements were audited against the
+# Goedel xinhjBrant FORK; this gate checks how many also elaborate on STANDARD mathlib — the difference
+# is the port coverage gap. Run:
+#   ATP_LEAN_ENV_DIR=scratch/lean-cache/deepseek-lean-env python scripts/validate_statements.py \
+#       --config configs/validate_proofnet_deepseek.yaml
+# Output -> results/proofnet_sharp/statement_validation.json. Cross-model ProofNet# comparison restricts
+# to the compile-on-both-pins intersection.
+defaults: proofnet_baseline
+
+lean:
+  toolchain: leanprover/lean4:v4.9.0
+  mathlib_repo: https://github.com/leanprover-community/mathlib4.git
+  mathlib_commit: f0957a7575317490107578ebaee9efaf8e62a4ab

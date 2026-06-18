@@ -21,8 +21,13 @@ unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
 
 PROJ="/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
 ENV_DIR="$PROJ/scratch/lean-cache/deepseek-lean-env"
+# $HOME quota is exhausted (other projects' toolchains fill ~/.elan). Relocate THIS env's toolchains to
+# project scratch so we don't touch ~/.elan (Goedel env) or other projects. The elan SHIM binaries stay
+# on $HOME/.elan/bin (PATH); ELAN_HOME only moves where toolchains/settings live. Any DeepSeek-env op
+# (verify, validate, contract tests, the eventual sweep) MUST export this same ELAN_HOME.
 export PATH="$HOME/.elan/bin:$PATH"
-export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
+export ELAN_HOME="$PROJ/scratch/elan-deepseek"
+mkdir -p "$ELAN_HOME"
 
 echo "[ds_build] $(date) host=$(hostname) job=${SLURM_JOB_ID:-none} cpus=${SLURM_CPUS_PER_TASK:-?}"
 cd "$ENV_DIR" || { echo "FATAL: $ENV_DIR missing"; exit 1; }

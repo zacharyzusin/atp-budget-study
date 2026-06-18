@@ -59,9 +59,15 @@ def main() -> int:
 
     # Import the real Lean backend lazily so the unit test (which injects a ScriptedBackend) needs
     # no Lean. Done here, not at module top, to keep `_run` pure.
+    import os
+
     from atp.lean import ReplBackend
 
-    backend = ReplBackend(config)
+    # ATP_LEAN_ENV_DIR points the backend at any built lake env (mirrors the contract test) — used to
+    # gate a benchmark's statements against a SECOND pin (e.g. the DeepSeek v4.9.0 env) without
+    # touching the hardcoded cache_dir/atp-lean-env (the Goedel env).
+    env_dir = os.environ.get("ATP_LEAN_ENV_DIR")
+    backend = ReplBackend(config, project_path=env_dir) if env_dir else ReplBackend(config)
     t0 = time.time()
     records = _run(problems, backend)
     elapsed = time.time() - t0

@@ -1,0 +1,14 @@
+# Phase 2 Step B gate: do miniF2F-test statement HEADS elaborate against DeepSeek-Prover-V2's pin?
+# Same statements as the Goedel miniF2F baseline (inherited from phase0_baseline), but the Lean env is
+# the DeepSeek pin (Lean v4.9.0 + STANDARD mathlib @ f0957a7). Run with
+#   ATP_LEAN_ENV_DIR=scratch/lean-cache/deepseek-lean-env python scripts/validate_statements.py \
+#       --config configs/validate_minif2f_deepseek.yaml
+# The env is selected by ATP_LEAN_ENV_DIR; the lean: fields here only set the report metadata.
+# Output -> results/minif2f/statement_validation.json; the compile-on-both-pins intersection is the
+# clean cross-model problem set (a model gap then can't be a port artifact).
+defaults: phase0_baseline
+
+lean:
+  toolchain: leanprover/lean4:v4.9.0
+  mathlib_repo: https://github.com/leanprover-community/mathlib4.git
+  mathlib_commit: f0957a7575317490107578ebaee9efaf8e62a4ab
