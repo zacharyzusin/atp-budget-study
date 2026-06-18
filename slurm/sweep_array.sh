@@ -80,9 +80,13 @@ if [ "$ok" != 1 ]; then
     exit 1
 fi
 echo "[sweep] env OK: python=$(command -v python)"
-export HF_HOME="$PROJ/scratch/hf-cache"
+# HF_HOME holds the model weights. Default = repo scratch (Goedel); a second model (DeepSeek, cached
+# under ~/.hf_cache) overrides via ATP_HF_HOME so vLLM finds it without re-download.
+export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
 # elan/Lean on PATH so the ReplBackend verifier can launch the repl + resolve the toolchain sysroot.
 export PATH="$HOME/.elan/bin:$PATH"
+# ELAN_HOME = where Lean toolchains live. Default ~/.elan (Goedel); the DeepSeek env's toolchain was
+# relocated to scratch (HOME quota), so a DeepSeek run sets ELAN_HOME to scratch/elan-deepseek.
 export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
 # One-time cold `import Mathlib` reads ~4.7k oleans off GPFS; under contention this measured 869s on
 # 2026-06-05, so give a generous ceiling (it's paid once per sweep; per-proof timeout is separate).
@@ -115,12 +119,15 @@ fi
 #   /local, never /dev/shm, so a co-located shard's exit can't wipe a running shard's env. Per-shard
 #   dirs retained. Cost: 4.2G RAM/shard (<=8 -> ~34G/node of 1TB, and counts within the 64G --mem);
 #   GPFS->shm is one sequential 4.2G cp/shard/wall (cheap vs the random olean opens we were avoiding).
-GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
+# Lean env to stage. Default atp-lean-env (Goedel pin); a DeepSeek run sets ATP_LEAN_ENV_NAME=
+# deepseek-lean-env (Lean v4.9.0 + standard mathlib). The local staged dir name follows it.
+LEAN_ENV_NAME="${ATP_LEAN_ENV_NAME:-atp-lean-env}"
+GPFS_ENV="$PROJ/scratch/lean-cache/$LEAN_ENV_NAME"
 # /dev/shm is NOT epilog-wiped (unlike /local); fall back to /local then /tmp if shm is absent.
 LOCAL_BASE="${ATP_LOCAL_BASE:-/dev/shm/$USER}"
 [ -d /dev/shm ] || LOCAL_BASE="/local/$USER"; [ -d /local ] || [ -d /dev/shm ] || LOCAL_BASE="/tmp/$USER"
 SHARD_ID="${SLURM_ARRAY_TASK_ID:-0}"
-LOCAL_ENV="$LOCAL_BASE/atp-lean-env-s${SHARD_ID}"   # PER-SHARD: never shared, never raced
+LOCAL_ENV="$LOCAL_BASE/${LEAN_ENV_NAME}-s${SHARD_ID}"   # PER-SHARD: never shared, never raced
 mkdir -p "$LOCAL_BASE"
 N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
 REPL_REL=".lake/packages/REPL/.lake/build/bin/repl"   # the exe _env_built() requires (repl.py:258)
@@ -182,16 +189,20 @@ print("[sweep] Lean probe OK (true + norm_num accepted, false rejected)")
 PY
 
 # Pin the served weights to the exact reviewed revision (reproducibility rule 4).
+# Model identity is fully config-driven (hf_repo/name/revision) so a second prover (DeepSeek) serves
+# from the same script — only the config + the ATP_* env (HF_HOME, lean env, ELAN_HOME) change.
+HF_REPO="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.hf_repo)")"
+SERVED_NAME="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.name)")"
 REVISION="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.revision)")"
 MAX_MODEL_LEN="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.max_model_len)")"
-echo "[sweep] serving Goedel-Prover-V2-8B @ revision=$REVISION max_model_len=$MAX_MODEL_LEN"
+echo "[sweep] serving $HF_REPO (as $SERVED_NAME) @ revision=$REVISION max_model_len=$MAX_MODEL_LEN"
 
 # Start vLLM in the background on this node's GPU.
 HOST_IP="$(hostname -i | awk '{print $1}')"
 echo "http://$HOST_IP:$PORT/v1" > "$ENDPOINT_FILE"
 python -m vllm.entrypoints.openai.api_server \
-    --model "Goedel-LM/Goedel-Prover-V2-8B" --revision "$REVISION" \
-    --served-model-name "goedel-prover-v2-8b" \
+    --model "$HF_REPO" --revision "$REVISION" \
+    --served-model-name "$SERVED_NAME" \
     --host 0.0.0.0 --port "$PORT" --max-model-len "$MAX_MODEL_LEN" --gpu-memory-utilization 0.90 \
     > "logs/vllm-inproc-${SLURM_JOB_ID:-local}.out" 2>&1 &
 VLLM_PID=$!

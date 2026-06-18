@@ -1,0 +1,17 @@
+# Phase 2 Step B — DeepSeek-Prover-V2-7B baseline pass@B on ProofNet#-test (generality arm).
+# PROTOCOL-INVARIANT with the Goedel ProofNet# baseline (proofnet_baseline): same benchmark, budget
+# [2k/8k/32k/128k], 3 seeds, minimal agent, metrics, verifier. Only model + matched Lean env change.
+# Run via the parameterized sweep with ATP_HF_HOME / ATP_LEAN_ENV_NAME=deepseek-lean-env / ELAN_HOME
+# (see configs/deepseek_minif2f_baseline.yaml header).
+defaults: proofnet_baseline
+
+model:
+  name: deepseek-prover-v2-7b
+  hf_repo: deepseek-ai/DeepSeek-Prover-V2-7B
+  revision: a8d9e14432b2e8dd9df2a4d4e70f1ba9bc8d9b7b
+  max_model_len: 32768
+
+lean:
+  toolchain: leanprover/lean4:v4.9.0
+  mathlib_repo: https://github.com/leanprover-community/mathlib4.git
+  mathlib_commit: f0957a7575317490107578ebaee9efaf8e62a4ab

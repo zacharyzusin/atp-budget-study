@@ -1,0 +1,23 @@
+# Phase 2 Step B — DeepSeek-Prover-V2-7B baseline pass@B on miniF2F-test (the generality arm).
+# PROTOCOL-INVARIANT with the Goedel miniF2F baseline (phase0_baseline): inherits the SAME benchmark,
+# budget schedule, 3 seeds, minimal-baseline agent, metrics, and fixed-verifier handling. ONLY the model
+# and its matched Lean env change (and, necessarily, the env is the DeepSeek pin). DeepSeek-Prover-V2's
+# official prompt is textually identical to WholeProofTemplate ("Complete the following Lean 4 code:" +
+# proof-plan suffix, via apply_chat_template) → same prompt_template/chat_completions, inference-matched.
+# Run via the parameterized sweep:
+#   ATP_HF_HOME=/insomnia001/depts/edu/COMS-E6998-012/zwz2000/.hf_cache \
+#   ATP_LEAN_ENV_NAME=deepseek-lean-env \
+#   ELAN_HOME=$PWD/scratch/elan-deepseek \
+#   sbatch --array=0-N%N slurm/sweep_array.sh configs/deepseek_minif2f_baseline.yaml deepseek_minif2f_baseline
+defaults: phase0_baseline
+
+model:
+  name: deepseek-prover-v2-7b
+  hf_repo: deepseek-ai/DeepSeek-Prover-V2-7B
+  revision: a8d9e14432b2e8dd9df2a4d4e70f1ba9bc8d9b7b
+  max_model_len: 32768          # DeepSeek-Prover-V2-7B context is 32K (Goedel used 40960)
+
+lean:
+  toolchain: leanprover/lean4:v4.9.0
+  mathlib_repo: https://github.com/leanprover-community/mathlib4.git
+  mathlib_commit: f0957a7575317490107578ebaee9efaf8e62a4ab
