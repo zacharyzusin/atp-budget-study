@@ -1207,3 +1207,10 @@ Per-attempt proxy DOES show injection working (0.348 vs 0.108 distinct/attempt, 
 check is baseline TRUNCATED to 32k vs diversity@32k — implement once for all 4 arms at completion.
 Other 3 arms running clean (0 failures all): Goedel ProofNet# 87/450, DeepSeek miniF2F 74/183,
 DeepSeek ProofNet# 25/420 (long pole). All --exclude=ins082,ins087, ports 8300/8400/8500.
+
+## 2026-06-18e — Step C arm 2/4 done (DeepSeek miniF2F): EXACT null
+DeepSeek miniF2F C COMPLETE 183/183, aggregated. pass@8k=0.0%±0.0, pass@32k=0.0%±0.0 on the 61 trapped
+problems — diversity injection solved ZERO (vs Goedel miniF2F's 1-2 cell blip 0.6/1.2%). Both miniF2F
+arms confirm the pre-registered prediction (solves flat/null on trapped) ACROSS BOTH PROVERS.
+ProofNet# arms still running clean (0 failures): Goedel 182/450, DeepSeek 123/420.
+Budget-matched A1 manipulation check still pending (run once all 4 done).
