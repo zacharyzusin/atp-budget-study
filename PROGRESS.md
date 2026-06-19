@@ -1118,3 +1118,39 @@ STATE: miniF2F baseline 10676442 (8-way, base 8200) HEALTHY — 121/732 cells, 7
 baseline 10677640 (0-15%8, base 8300, --exclude=ins082) ramping. Submit env: ATP_HF_HOME=~/.hf_cache,
 ATP_LEAN_ENV_NAME=deepseek-lean-env, ELAN_HOME=scratch/elan-deepseek. Confirmed DeepSeek serves with its
 CORRECT chat template (<｜begin▁of▁sentence｜><｜User｜>). Multi-day grind; monitor + babysit node flakiness.
+
+## 2026-06-18 — DeepSeek-Prover-V2-7B BASELINES COMPLETE (both benchmarks, 3 seeds)
+Both DeepSeek baselines finished and aggregated to metrics.json. Cross-model pass@B (mean±seed-std):
+
+  miniF2F (in-distribution):           DeepSeek-V2-7B    Goedel-V2-8B
+    pass@2k    27.9±2.1    29.6
+    pass@8k    57.9±1.7    60.1
+    pass@32k   67.1±0.9    69.5
+    pass@128k  72.0±0.5    74.9
+  ProofNet# (OOD undergrad):           DeepSeek-V2-7B    Goedel-V2-8B
+    pass@2k     5.4±0.5     4.8
+    pass@8k    13.1±0.8     9.3
+    pass@32k   18.3±1.6    12.0
+    pass@128k  22.2±1.7    14.3
+
+FINDINGS:
+1. CORE THESIS REPLICATES on a 2nd independent prover: same curve shape both models — steep 2k->8k,
+   sharp flatten to ~72-75% ceiling on miniF2F, much flatter & still-climbing-at-128k on ProofNet#.
+   Budget-is-the-lever + saturation-asymmetry is NOT a Goedel artifact.
+2. MODEL DICHOTOMY: Goedel edges DeepSeek on miniF2F (-2 to -3pp), but DeepSeek BEATS Goedel on the
+   harder OOD ProofNet# at every budget, gap WIDENS with budget (+8pp at 128k: 22.2 vs 14.3). On OOD
+   math the 7B model both scores higher and extracts more from extra compute.
+
+INFRA POSTMORTEM (this campaign):
+- ins082 AND ins087 are both bad-A6000 nodes (all their shards die at vLLM startup). Standing rule:
+  --exclude=ins082,ins087.
+- RESUME BUG (cost 2 wasted submissions 10687932/10687933): sweep_array.sh derives NSHARDS from
+  SLURM_ARRAY_TASK_COUNT, so you CANNOT resume a sparse array subset (--array=7 or --array=3,6,9,...)
+  -> "bad shard N/M" exit 2 / wrong-width partition. ALWAYS relaunch the full original contiguous range
+  (--array=0-7%8 / --array=0-15%4..8); --resume is filename-keyed so done cells skip-complete in <1min.
+- Final good jobs: miniF2F 10702125 (0-7%8 base8200), ProofNet# 10702126 (0-15, throttle bumped 4->8,
+  base8300), both --exclude=ins082,ins087.
+
+NEXT: F1/F2 mechanism mining (analyze_mechanism.py) on DeepSeek agent_states -> cross-model on the
+430-problem (244 miniF2F + 186 ProofNet#) compile-on-both-pins intersection -> Step C diversity arm on
+BOTH provers (Goedel C built/held in configs/diversity_*.yaml; DeepSeek C needs its trapped cells computed).
