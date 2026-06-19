@@ -1196,3 +1196,14 @@ the manipulation check (A1 rose) passes. Cheaper than baselines (32k not 128k ce
 READOUT when done: (1) A1 manipulation check on each diversity run vs its baseline; (2) 2x2 solves —
 analyze_results compare baseline vs diversity @8k/32k restricted to trapped names + paired flips;
 (3) A2 failure texture; (4) verifier-soundness guard (syntax/truncation must NOT creep up).
+
+## 2026-06-18d — Step C arm 1/4 done (Goedel miniF2F); others running clean
+Goedel miniF2F C COMPLETE 165/165, aggregated. pass@8k=0.6%±1.0, pass@32k=1.2%±2.1 on the 55 trapped
+problems (baseline=0% on these BY CONSTRUCTION: trapped = unsolved by all seeds @128k, budget monotonic).
+=> near-null with a 1-2 cell positive blip (within seed-std). Consistent with pre-registered prediction.
+METHOD NOTE for the full readout: the A1 manipulation check MUST be budget-matched. Raw distinct-first-
+tactic counts are confounded by attempt count (baseline 18.1 attempts @128k vs diversity 4.9 @32k).
+Per-attempt proxy DOES show injection working (0.348 vs 0.108 distinct/attempt, ~3x), but the clean
+check is baseline TRUNCATED to 32k vs diversity@32k — implement once for all 4 arms at completion.
+Other 3 arms running clean (0 failures all): Goedel ProofNet# 87/450, DeepSeek miniF2F 74/183,
+DeepSeek ProofNet# 25/420 (long pole). All --exclude=ins082,ins087, ports 8300/8400/8500.
