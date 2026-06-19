@@ -1154,3 +1154,28 @@ INFRA POSTMORTEM (this campaign):
 NEXT: F1/F2 mechanism mining (analyze_mechanism.py) on DeepSeek agent_states -> cross-model on the
 430-problem (244 miniF2F + 186 ProofNet#) compile-on-both-pins intersection -> Step C diversity arm on
 BOTH provers (Goedel C built/held in configs/diversity_*.yaml; DeepSeek C needs its trapped cells computed).
+
+## 2026-06-18b — DeepSeek mechanism mining (F1-F5) REPLICATES Goedel; Step C arms prepped
+Ran scripts/analyze_mechanism.py on both DeepSeek baselines -> results/phase2/deepseek/mechanism.json.
+All five mechanism findings replicate on the 2nd prover:
+- F1 diversity-collapse: unsolved cells try only ~1.8 distinct opening tactics over 22-33 attempts
+  (miniF2F 1.76/22.2, ProofNet# 1.86/32.5) — same ~2-approach collapse as Goedel.
+- F2 taxonomy (GPU-spend gate): unsolved = 100% reasoning_deep (miniF2F) / 94% reasoning + 3% shallow
+  + 3% syntax (ProofNet#), ~0% knowledge/hallucinated-lemma -> retrieval/ReProver stays KILLED on the
+  2nd model; bottleneck is deep reasoning, not missing lemmas.
+- F3 floor: unsolved reach median deepest step 53/26, frac_never_past_step1 ~0 -> real progress, can't close.
+- F4 no-easy-subfield: ProofNet# subfields all 21-33% (Artin .33 ... Axler .21); miniF2F mathd .92 easy.
+- F5 (Step C pre-flight): late-solves (w3+) show 0.0% new-approach on BOTH benchmarks -> predicts the
+  diversity-injection intervention NULLS (late wins are more samples of the same approach).
+
+STEP C PREPARED (interventional test of F5 on BOTH provers):
+- DeepSeek trapped cores computed: 61 miniF2F (>55 Goedel), 140 ProofNet# (<150 Goedel) — consistent
+  with DeepSeek slightly worse in-dist, better OOD. Files scratch/phase2/trapped_{minif2f,proofnet}_deepseek.txt
+  (regen: analyze_mechanism.trapped_problems on the baselines).
+- New configs: configs/diversity_{minif2f,proofnet}_deepseek.yaml (defaults deepseek_*_baseline,
+  budgets [8k,32k], diversity enabled, trapped subset). Validated: load resolves model=deepseek-prover-v2-7b
+  + subset loads 61/61 & 140/140 names, 0 unmatched. Fast suite 51/51 pass (diversity+analyzer+components).
+- Goedel C configs already built/held: configs/diversity_{minif2f,proofnet}.yaml (55/150 trapped).
+- Smoke 10726039 (diversity_smoke_deepseek: 2 trapped probs, seed0, 8k) submitted before the 4-arm launch.
+NEXT: smoke pass -> launch all 4 C arms (2 Goedel + 2 DeepSeek) on trapped cores @8k/32k -> readout =
+manipulation check (A1 diversity rose?) + 2x2 solves vs baseline + A2 failure texture.

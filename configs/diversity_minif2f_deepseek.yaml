@@ -1,0 +1,20 @@
+# configs/diversity_minif2f_deepseek.yaml — Phase 2 Step C on the miniF2F trapped core for
+# DeepSeek-Prover-V2-7B. Companion to configs/diversity_proofnet_deepseek.yaml: same interventional test
+# on the 61 miniF2F problems unsolved by ALL seeds at 128k in results/deepseek_minif2f_baseline
+# (scratch/phase2/trapped_minif2f_deepseek.txt). Running C on both benchmarks AND both provers shows
+# whether forced diversity behaves the same in-distribution as OOD — DeepSeek F1 found the same
+# ~2-approach collapse, so the prediction (diversity↑, solves-flat) should hold. See
+# diversity_proofnet_deepseek.yaml for the readout.
+defaults: deepseek_minif2f_baseline
+
+budget:
+  values: [8000, 32000]
+
+data:
+  split: test
+  use_novel_split: true
+  novel_names_file: scratch/phase2/trapped_minif2f_deepseek.txt   # 61 problems unsolved by all seeds @128k
+
+agent:
+  components:
+    diversity: { enabled: true, max_listed: 6 }

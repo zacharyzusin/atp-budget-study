@@ -1,0 +1,32 @@
+# configs/diversity_proofnet_deepseek.yaml — Phase 2 Step C on the ProofNet# trapped core for
+# DeepSeek-Prover-V2-7B. Second-prover replication of the DECISIVE interventional test of MECHANISM.md F5.
+#
+# DeepSeek F5 (results/phase2/deepseek/mechanism.json) replicated Goedel: natural late-solves (w3+) show
+# 0.0% new-approach -> predicts this run NULLS too (approach-diversity rises, solve rate flat; the
+# bottleneck is within-approach execution / the F2/F3 reasoning floor, not approach discovery).
+# Pre-registered prediction: diversity-rises ∧ solves-flat ∧ forced-new approaches still die at
+# reasoning/goal-closing (>=94%, as the DeepSeek baseline taxonomy).
+#
+# Scope: the 140 ProofNet# problems unsolved by ALL seeds at 128k in results/deepseek_proofnet_baseline
+# (scratch/phase2/trapped_proofnet_deepseek.txt), at the two budgets where saturation bites (8k/32k).
+#
+# READOUT (the 2x2 + texture):
+#   manipulation check: analyze_mechanism.py A1 on results/diversity_proofnet_deepseek vs baseline —
+#                       did mean_distinct_first_tactics rise? (a null is UNINTERPRETABLE if not)
+#   solves: analyze_results.py compare results/deepseek_proofnet_baseline results/diversity_proofnet_deepseek
+#           @8k/32k (restricted to trapped names) + paired flips
+#   failure texture: analyze_mechanism.py A2 — do forced-new approaches still die at reasoning/goal-closing?
+#   watch: syntax/truncation rate must NOT creep up (verifier-soundness guard).
+defaults: deepseek_proofnet_baseline
+
+budget:
+  values: [8000, 32000]
+
+data:
+  split: test
+  use_novel_split: true
+  novel_names_file: scratch/phase2/trapped_proofnet_deepseek.txt   # 140 problems unsolved by all seeds @128k
+
+agent:
+  components:
+    diversity: { enabled: true, max_listed: 6 }   # all other components stay OFF (inherited)

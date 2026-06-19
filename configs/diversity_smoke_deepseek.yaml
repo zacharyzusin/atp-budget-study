@@ -1,0 +1,13 @@
+# configs/diversity_smoke_deepseek.yaml — tiny smoke for the Phase 2 Step C diversity arm on DeepSeek.
+# 2 trapped problems, 1 seed, single 8k budget: exercises the DiversityInjection component in the real
+# solve loop + DeepSeek serving + the trapped-subset (novel_names_file) filter before the full launch.
+defaults: diversity_minif2f_deepseek
+
+data:
+  limit: 2
+
+budget:
+  values: [8000]
+
+eval:
+  seeds: [0]
