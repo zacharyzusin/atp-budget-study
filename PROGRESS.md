@@ -1179,3 +1179,20 @@ STEP C PREPARED (interventional test of F5 on BOTH provers):
 - Smoke 10726039 (diversity_smoke_deepseek: 2 trapped probs, seed0, 8k) submitted before the 4-arm launch.
 NEXT: smoke pass -> launch all 4 C arms (2 Goedel + 2 DeepSeek) on trapped cores @8k/32k -> readout =
 manipulation check (A1 diversity rose?) + 2x2 solves vs baseline + A2 failure texture.
+
+## 2026-06-18c — STEP C diversity arms LAUNCHED on both provers (interventional test of F5)
+Smoke 10726039 (diversity_smoke_deepseek, 2 trapped probs @8k) PASSED clean (exit 0, 9:52): the
+DiversityInjection component runs end-to-end in the real loop with DeepSeek serving + trapped subset.
+Launched all 4 Step C arms on the trapped cores @8k/32k (each cell runs to 32k -> both budget points),
+3 seeds, all --exclude=ins082,ins087, distinct vLLM ports (100-spaced, unique endpoint files/job):
+  - Goedel  miniF2F  C: job 10726054 (configs/diversity_minif2f.yaml,          55 trapped, 0-7%8,  8200)
+  - Goedel  ProofNet# C: job 10726055 (configs/diversity_proofnet.yaml,        150 trapped, 0-15%8, 8300)
+  - DeepSeek miniF2F  C: job 10726056 (configs/diversity_minif2f_deepseek.yaml, 61 trapped, 0-7%8,  8400)
+  - DeepSeek ProofNet# C: job 10726057 (configs/diversity_proofnet_deepseek.yaml,140 trapped,0-15%8, 8500)
+PRE-REGISTERED PREDICTION (both provers): diversity injection raises approach-diversity (A1
+mean_distinct_first_tactics up) but leaves solve rate FLAT vs baseline @8k/32k on the trapped names;
+forced-new approaches still die at reasoning/goal-closing (A2 >=94-95%). A null is only interpretable if
+the manipulation check (A1 rose) passes. Cheaper than baselines (32k not 128k ceiling).
+READOUT when done: (1) A1 manipulation check on each diversity run vs its baseline; (2) 2x2 solves —
+analyze_results compare baseline vs diversity @8k/32k restricted to trapped names + paired flips;
+(3) A2 failure texture; (4) verifier-soundness guard (syntax/truncation must NOT creep up).
