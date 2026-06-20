@@ -1264,3 +1264,18 @@ name-resolution gaps, so a targeted premise/name-resolution method is NOT ruled 
 future work)." Core thesis (budget is the dominant lever; tested components don't help; F1/F3/F5/F6; dichotomy)
 is UNAFFECTED. TODO at doc-rewrite: fix F2 in MECHANISM.md + SYNTHESIS.md accordingly; soften F3 (R2); add
 infra category to analyze_mechanism._classify.
+
+## 2026-06-20 — Phase 3 H4: OOD dichotomy = deeper EXECUTION, not more diversity (unifies the thesis)
+Decomposed DeepSeek's ProofNet# advantage (46 vs 36 problems solved on the shared 186) via F1/F3
+(scripts/h4_decompose.py). Two independent views agree:
+- WIN ATTRIBUTION (14 DeepSeek-only wins): 100% EXECUTION / 0% APPROACH — in all 14, Goedel TRIED the
+  same opening tactic DeepSeek won with but failed to close it. (Caveat: first-tactic `have` is ubiquitous
+  so this is a coarse upper bound on execution-wins.)
+- MATCHED-DIFFICULTY (136 problems BOTH models fail, removes survivorship): DeepSeek explores FEWER
+  distinct openings (3.08 vs Goedel 4.07) yet reaches DEEPER (median deepest-step 29 vs 24).
+=> DeepSeek's OOD edge is DEEPER WITHIN-APPROACH EXECUTION, not more approach diversity. It uses the same
+approaches, diversifies LESS, but closes goals Goedel stalls on. UNIFIES the thesis: search-time scaffolding
+(Phase 1 null + F6 Step C forced-diversity null) cannot move the execution floor, but the prover's TRAINING
+can, substantially, on OOD. The real OOD lever is the MODEL (training-distribution/recipe, R1 — NOT size),
+not search-time scaffolding. Also internally consistent: Goedel diversifies MORE yet solves FEWER (more
+openings != more solves), echoing F1 + the Step C null.
