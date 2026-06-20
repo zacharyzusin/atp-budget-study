@@ -286,3 +286,85 @@ def test_cv_auc_separable_is_high_degenerate_is_nan():
     Xf, yf, gf, _ = rows_to_xy(flat, 2000)
     a2, _ = cv_auc(Xf, yf, gf, gbt_factory, n_splits=5)
     assert a2 != a2  # nan
+
+
+# ---- efficiency frontier (Task 4.3-4.4) ----------------------------------------------------------
+
+from atp.alloc.frontier import (  # noqa: E402
+    capture_of_oracle,
+    cell_outcome,
+    min_compute_for_solves,
+    oracle_point,
+    realizable_point,
+    uniform_point,
+)
+
+INF = math.inf
+
+
+def test_cell_outcome_branches():
+    # solved before c: spent = cost, solved (keep flag irrelevant)
+    assert cell_outcome(500, 2000, kept=False) == (500, True)
+    # unsolved at c, kept, solvable within bmax: runs to cost
+    assert cell_outcome(50_000, 2000, kept=True) == (50_000, True)
+    # unsolved at c, kept, never solvable: runs to bmax, no solve
+    assert cell_outcome(INF, 2000, kept=True) == (float(BMAX), False)
+    # unsolved at c, abandoned: stops at c, no solve
+    assert cell_outcome(50_000, 2000, kept=False) == (2000.0, False)
+
+
+def test_realizable_tau0_equals_uniform_max():
+    # keep everything (tau=0) at checkpoint c == uniform at b=bmax: same compute and solves.
+    costs = [500.0, 9000.0, 60_000.0, INF, INF]
+    scores = [INF, 0.3, 0.3, 0.3, 0.3]  # cost<=c scored inf; others arbitrary (all kept at tau=0)
+    c = 2000
+    r_comp, r_solv = realizable_point(costs, scores, c, tau=0.0)
+    u_comp, u_solv = uniform_point(costs, BMAX)
+    assert (r_comp, r_solv) == (u_comp, u_solv)
+
+
+def test_realizable_tau_high_abandons_all_unsolved():
+    # tau just above every score -> abandon every not-solved-by-c cell at c; only c-solves remain.
+    costs = [500.0, 9000.0, 60_000.0, INF]
+    scores = [INF, 0.4, 0.4, 0.4]
+    c = 2000
+    comp, solv = realizable_point(costs, scores, c, tau=0.5)
+    assert solv == 1                       # only the 500-cost cell solved by c
+    assert comp == 500 + 2000 + 2000 + 2000  # the rest ran to c then stopped
+
+
+def test_oracle_le_realizable_le_uniform_compute_at_matched_accuracy():
+    # at matched max accuracy, oracle compute <= realizable <= uniform.
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, INF, INF, INF]
+    n_solved = sum(1 for c in costs if c <= BMAX)  # 4
+    c = 2000
+    # a useful predictor: high score for the (cost>c) winnable cells, low for trapped
+    scores = []
+    for cost in costs:
+        if cost <= c:
+            scores.append(INF)
+        elif cost <= BMAX:
+            scores.append(0.9)   # winnable, predicted keep
+        else:
+            scores.append(0.1)   # trapped, predicted abandon
+    # realizable: keep winnable (>=0.5), abandon trapped -> solves all n_solved cheaply
+    r_comp, r_solv = realizable_point(costs, scores, c, tau=0.5)
+    assert r_solv == n_solved
+    u_comp, _ = uniform_point(costs, BMAX)
+    o_comp, o_solv = oracle_point(costs, sum(sorted(x for x in costs if x <= BMAX)))
+    assert o_solv == n_solved
+    assert o_comp <= r_comp <= u_comp
+    # capture is in (0,1]: better than uniform, no better than oracle
+    cap = capture_of_oracle(u_comp, r_comp, o_comp)
+    assert 0.0 < cap <= 1.0
+
+
+def test_min_compute_for_solves_and_capture_edges():
+    curve = [(0.1, 100.0, 1), (0.2, 250.0, 3), (0.3, 400.0, 3)]
+    assert min_compute_for_solves(curve, 3) == 250.0   # cheapest point reaching >=3
+    assert min_compute_for_solves(curve, 5) == math.inf
+    # full capture (realizable == oracle) -> 1.0; none (== uniform) -> 0.0
+    assert capture_of_oracle(1000, 200, 200) == 1.0
+    assert capture_of_oracle(1000, 1000, 200) == 0.0
+    # no headroom (uniform == oracle) -> nan
+    assert math.isnan(capture_of_oracle(1000, 800, 1000))

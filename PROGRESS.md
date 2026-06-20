@@ -1420,3 +1420,20 @@ under the <2pp NO-GO threshold. Hammer thread CLOSED: scaffolding/automation nul
 reviewer's "did you try a real hammer + premise selection" challenge. Decisive artifacts:
 arm_b_duper_FULL_0of119.json + arm_b_auto_FULL.json. Negative thesis ("Budget, Not Scaffolding") stands;
 the positive contribution is Phase 4 (compute-optimal allocation).
+
+## 2026-06-20 — Phase 4 Task 4.3-4.4: efficiency frontier = POSITIVE on ProofNet# (STRONG on Goedel)
+Built src/atp/alloc/frontier.py (uniform/oracle/realizable curves on one compute-vs-solves axis; OOF
+predictions, no leakage) + scripts/phase4_frontier.py -> frontier.json + 4 PNGs + results/phase4/
+ALLOCATION.md. 25 alloc tests, fast suite 303 green, ruff clean.
+KEY RESULT (realizable = abandon predictor-flagged-trapped at c*=argmax-AUC, reallocate; honest OOF):
+  goedel  ProofNet#: save +15%@80acc, +30%@90, +24%@95, -2%@100  -> STRONG (≥30% @90%)
+  deepseek ProofNet#: -16/+10/+1/+14  -> POSITIVE (noisier, AUC 0.72)
+  miniF2F both: NEGATIVE (contrast; ~75% solve rate => little wasted compute to reclaim, as preregistered)
+TWO honest caveats baked into the writeup: (1) win is at FRACTIONAL accuracy (90-95%), ~0 at 100% — the
+hardest winnable cells cost ≈128k = indistinguishable from trapped (recall wall, not a tuning failure);
+(2) efficiency is the robust axis (accuracy-at-fixed-compute only +0.2-0.5pp) because the single
+checkpoint imposes a compute floor c*·N blocking the cheap regime. Realizable captures ~1/3 of the
+oracle's ~98% ceiling on Goedel ProofNet#@90%. predictor.json AUC moderate 0.65-0.75 peak mid-run;
+top feature tokens_so_far (survival signal), plateau depth_growth top-3 at c=16k, F1 never ranks;
+logistic>GBT. Frontier PNG shows realizable above uniform through the 5-35M-token band. NEXT (optional):
+successive-halving (lower floor) to lift DeepSeek + loose targets; small live confirming run (Task 4.4).
