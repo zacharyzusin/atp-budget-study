@@ -632,3 +632,25 @@ Decision: scientific arc is COMPLETE; do NOT run new GPU sweeps. Before locking 
 - Output: TMLR paper "Budget, Not Scaffolding: A Mechanistic, Two-Model Study..."; workshop short version
   (MATH-AI / AI-for-Math) in parallel; arXiv + full artifact release. Soundness-creep = dedicated section.
 Full plan: PHASE3_PLAN.md. Exec order H1→H4→H3→H2→reframe→write. Lock once H1–H4 pass.
+
+## 2026-06-20 — Phase 3 Hammer/SMT leaf-closing probe: PRE-REGISTERED thresholds + compat path
+Go/no-go gate for the neuro-symbolic positive direction (neural skeleton + symbolic leaf). Strongly
+motivated by H4 (OOD floor = within-approach EXECUTION/leaf-closing, not approach discovery). Three arms
+on the trapped cores (unsolved by all seeds @128k): Arm0 = tactic portfolio on ORIGINAL goal (control for
+"model didn't invoke available automation"); ArmB = hammer/SMT on ORIGINAL statement (symbolic floor);
+ArmA = hammer/SMT on the model's DEEPEST STUCK GOAL (the lever). SYNERGY SET = closed by ArmA but NOT
+Arm0/ArmB alone = the positive result. Per-goal wall cap 90s; every closure re-verified by the fixed
+verifier (reject sorry/admit/native_decide; assert 0 false-solves).
+PRE-REGISTERED decision (anchored on Δ ProofNet# pass@B; ~160 trapped, so 10%≈16 probs≈+8-9pp):
+  STRONG GO (build full neuro-symbolic prover): synergy >= +10pp ProofNet# pass@B OR ArmA >> Arm0,ArmB.
+  GO (weaker, "add a hammer"): synergy +5-10pp, OR meaningful total closure dominated by ArmB.
+  NO-GO: closure < ~2pp across all arms -> STRENGTHENS the negative thesis (floor resists symbolic
+         automation), pre-empts the reviewer objection; ship negative result or pivot to systems-level
+         fallback (cross-problem budget allocation / learned early-abandonment).
+COMPAT path (the main risk — pin is Lean v4.9.0, mid-2024): Arm0 portfolio on-pin first (nlinarith/omega/
+aesop/simp/norm_num are in pinned mathlib; grind is Lean>=4.14 so NOT on-pin; duper is external). Lean-SMT
+(cvc5) + LeanHammer target newer Lean -> if they don't build on v4.9.0, run OFF-PIN feasibility pre-check
+for a closable-fraction estimate, then port before any reported number (nothing off-pin enters results/).
+Cheapest-falsification-first (validate-premise memory): smoke Arm0 + an easy hammer on ~20-30 trapped
+stuck-goals; if ~0 close, fast NO-GO without building the full LeanHammer stack. Deliverable:
+results/phase3/HAMMER_PROBE.md. Check in at smoke (step 3) and go/no-go (step 6).
