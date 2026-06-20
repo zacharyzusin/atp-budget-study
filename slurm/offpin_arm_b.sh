@@ -9,16 +9,17 @@
 #SBATCH --output=logs/offpin_armB-%j.out
 #SBATCH --error=logs/offpin_armB-%j.err
 #
-# Off-pin Arm B: a REAL hammer (duper@v4.29.0, version-matched to the env) on trapped ProofNet#
-# STATEMENTS. Stages the sibling v4.29.0 lean_env to an ISOLATED node-local copy (does NOT touch the
-# shared GPFS env), adds + builds Duper there, then runs the Pantograph Arm-B runner under the sibling
-# venv. This is the decisive real-hammer test the reviewer required before locking NO-GO.
+# Off-pin Arm B: REAL hammer (duper@v4.29.0) on trapped ProofNet# STATEMENTS. Stages the ISOLATED
+# duper-enabled env copy (scratch/lean-cache/lean_env_duper, already `lake update`d on login so duper+
+# auto sources are present — batteries matches the env exactly so mathlib is NOT rebuilt) to node-local
+# SSD, runs `lake build Duper` offline (no network on compute), computes LEAN_PATH from the filesystem,
+# then runs the Pantograph Arm-B runner under the sibling venv. Does NOT touch the shared lean_env.
 set -uo pipefail
-unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+# NB: do NOT unset proxy here — but no network is needed (deps pre-cloned on login); lake build is offline.
 
 SIB="/insomnia001/depts/edu/COMS-E6998-012/$USER/theorem-proving-research"
 ATP="/insomnia001/depts/edu/COMS-E6998-012/$USER/atp-budget-study"
-GPFS_ENV="$SIB/lean_env"
+ISO="$ATP/scratch/lean-cache/lean_env_duper"
 LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
 ENV="$LOCAL_BASE/lean_env_duper"
 mkdir -p "$LOCAL_BASE"
@@ -26,28 +27,27 @@ export XDG_CACHE_HOME="$SIB/.xdg_cache"
 export ELAN_NO_AUTO_INSTALL=1
 export PATH="$HOME/.elan/bin:$PATH"
 
-# --- stage isolated copy ---
-echo "[armB] staging isolated lean_env copy -> $ENV ..."
+[ -d "$ISO/.lake/packages/duper" ] || { echo "FATAL: $ISO has no duper package — run the login lake-update step first"; exit 1; }
+
+echo "[armB] staging isolated duper env -> $ENV ..."
 rm -rf "$ENV"; mkdir -p "$ENV"; t0=$SECONDS
-cp -a "$GPFS_ENV/." "$ENV/" || { echo "FATAL: staging cp failed"; exit 1; }
-echo "[armB] staged in $((SECONDS-t0))s ($(find "$ENV/.lake" -name '*.olean'|wc -l) oleans)."
+cp -a "$ISO/." "$ENV/" || { echo "FATAL staging"; exit 1; }
+echo "[armB] staged in $((SECONDS-t0))s."
 
-# --- add + build Duper (version-matched v4.29.0) ---
 cd "$ENV"
-if ! grep -q "Duper" lakefile.lean; then
-  cat >> lakefile.lean <<'LK'
+echo "[armB] lake build Duper (offline; deps pre-cloned; batteries/mathlib reused)..."
+lake build Duper 2>&1 | tail -20
+echo "[armB] duper oleans: $(find .lake/packages/duper -name '*.olean' 2>/dev/null | wc -l) ; auto oleans: $(find .lake/packages/auto -name '*.olean' 2>/dev/null | wc -l)"
 
-require Duper from git
-  "https://github.com/leanprover-community/duper.git" @ "v4.29.0"
-LK
-fi
-echo "[armB] lake update Duper (network; clones duper)..."
-lake update Duper 2>&1 | tail -8
-echo "[armB] lake build Duper (deps prebuilt; duper compiles)..."
-lake build Duper 2>&1 | tail -15
-echo "[armB] Duper build rc=$?; duper oleans: $(find .lake/packages/duper -name '*.olean' 2>/dev/null | wc -l)"
+# --- compute LEAN_PATH from filesystem (toolchain stdlib + every package lib + project lib) ---
+TC="$(cat lean-toolchain | tr '/:' '--' | sed 's/--lean4/--lean4--/' )"  # leanprover/lean4:v4.29.0 -> leanprover--lean4---v4.29.0
+TCDIR="$HOME/.elan/toolchains/$(cat lean-toolchain | sed 's#/#--#; s#:#---#')/lib/lean"
+LP="$TCDIR"
+for p in "$ENV"/.lake/packages/*/.lake/build/lib/lean; do [ -d "$p" ] && LP="$LP:$p"; done
+[ -d "$ENV/.lake/build/lib/lean" ] && LP="$LP:$ENV/.lake/build/lib/lean"
+export LEAN_PATH="$LP"
+echo "[armB] LEAN_PATH set (${LEAN_PATH:0:120}...) ; entries=$(echo $LEAN_PATH | tr ':' '\n' | wc -l)"
 
-# --- sorry-rejection / sanity: confirm duper is importable + closes a trivial goal ---
 echo "[armB] running Arm-B Pantograph runner under sibling venv..."
 source "$SIB/venv/bin/activate"
 cd "$ATP"

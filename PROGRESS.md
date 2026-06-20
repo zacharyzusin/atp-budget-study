@@ -1331,3 +1331,18 @@ Arm B is VIABLE. The real Arm-B run (Pantograph, per-statement) elaborates each 
 count falls out of the run (no batch-file collisions). NEXT (Gate 2): stand up a real hammer (duper, pure-
 Lean) on an ISOLATED copy of theorem-proving-research/lean_env, then run Arm B via PyPantograph on the
 elaborating trapped statements (60-90s/goal). NO-GO stays UNLOCKED until a real hammer runs (reviewer point).
+
+## 2026-06-20 — Off-pin Arm-B build: isolated path (in progress; smoke failed on proxy+LEAN_PATH, fixed)
+First Arm-B smoke (10759553) failed: (A) `lake update Duper` git clone -> code 128 (compute node can't use
+the login per-session proxy; direct git blocked); (B) Pantograph couldn't find Mathlib (raw Server needs
+LEAN_PATH; sibling client computes it). Diagnosed + de-risked:
+- duper v4.29.0 deps = lean-auto@v4.29.0-hammer + batteries@v4.29.0; batteries v4.29.0 == env's 756e3321
+  EXACTLY -> adding duper does NOT rebuild mathlib. Disk fine (620T free; earlier 99% was transient).
+- Classifier (correctly) blocked modifying the SHARED sibling lean_env in place -> using an ISOLATED COPY
+  (scratch/lean-cache/lean_env_duper, copying now ~7.3G).
+PLAN: (1) copy done -> add duper require to the COPY's lakefile; (2) `lake update Duper` on LOGIN (network
+works there; clones duper+auto into the copy; verify batteries unchanged); (3) sbatch slurm/offpin_arm_b.sh
+(staging copy->/local, `lake build Duper` OFFLINE on compute, export LEAN_PATH from filesystem, run
+scripts/hammer_arm_b_pantograph.py). Smoke ARM_B_LIMIT=8 first, then full 150. NO-GO stays UNLOCKED until
+the real-hammer (duper) number lands. NB the off-pin Arm-B build is more involved than the reviewer's
+"few hours" estimate (compute-node proxy + duper's lean-auto transitive dep + isolation), but feasible.
