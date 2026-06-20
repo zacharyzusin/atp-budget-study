@@ -1354,3 +1354,13 @@ found Mathlib+Duper). Of 8 trapped Goedel ProofNet# statements: 7 elaborated, du
 are genuine 'Duper failed to prove'/'Duper encountered' = real superposition attempts at 90s, not infra).
 => the REAL-hammer pipeline the reviewer required now WORKS. Launching FULL 150 for the decisive number.
 Pipeline cost note: ~13min/job (382s stage + fast offline build + 8 stmts); full 150 ~2-3h.
+
+## 2026-06-20 — Off-pin Arm B DECISIVE: duper (real superposition prover) closes 0/119 trapped
+Crash-robust rerun (job 10762328) COMPLETE: 150/150 processed, 34 server restarts (survived the duper OOMs
+that killed the prior run at stmt 48). ELABORATED 119/150, duper CLOSED 0/119. Failures genuine ('Duper
+failed to prove' = saturated search; few 90s timeouts). So a real superposition prover on the full
+elaborable trapped statement set (<=90s each) closes ZERO. With Arm0=0/30 (portfolio bare) + ArmA-lite=0/40
+(portfolio at leaf): Δ ProofNet# pass@B = 0pp, far below the <2pp NO-GO threshold.
+NUANCE (being fair to the reviewer's premise-selection point): bare `duper` = the superposition PROVER;
+the full hammer adds mathlib-wide PREMISE SELECTION (lean-auto). Checking if lean-auto's premise-selection
+tactic is runnable as a final fairness variant before locking NO-GO.
