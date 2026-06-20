@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""Task 4.1 check-in: tokens_to_solve distribution + the oracle headroom ceiling, all four baselines.
+"""Task 4.1 check-in: tokens_to_solve distribution + oracle headroom ceiling, all four baselines.
 
 CPU-only, offline. For each (model, benchmark) baseline run it reports:
   - the solve-cost distribution among solved cells (where the reclaimable budget lives),
   - uniform pass@b on the grid (sanity vs logged metrics),
-  - EFFICIENCY ceiling: oracle's min total budget to match uniform's max-budget solve rate -> % compute
-    the oracle could save at equal accuracy,
-  - ACCURACY ceiling: at each fixed total budget T=N*b, oracle solves vs uniform solves (extra solves
-    and Δpp) -> the upside the oracle could buy at equal compute.
+  - EFFICIENCY ceiling: oracle's min total budget to match uniform's max-budget solve rate -> %
+    compute the oracle could save at equal accuracy,
+  - ACCURACY ceiling: at each fixed total budget T=N*b, oracle solves vs uniform solves (extra
+    solves and Δpp) -> the upside the oracle could buy at equal compute.
 
-The oracle is the unrealizable upper bound; this only tells us whether there is headroom worth chasing
-with the realizable policies (Tasks 4.2-4.3). Writes results/phase4/ceiling.json.
+The oracle is the unrealizable upper bound; this only tells us whether there is headroom worth
+chasing with the realizable policies (Tasks 4.2-4.3). Writes results/phase4/ceiling.json.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import statistics as st
 from pathlib import Path
 
@@ -92,7 +91,8 @@ def main() -> None:
               f"({e['n_cells']} cells, solved {e['n_solved']} = {100*e['solve_rate']:.1f}%) ===")
         if e["n_solved"]:
             print(f"  solve-cost tokens: min {d['min']:.0f}  p25 {d['p25']:.0f}  "
-                  f"med {d['median']:.0f}  p75 {d['p75']:.0f}  p90 {d['p90']:.0f}  max {d['max']:.0f}")
+                  f"med {d['median']:.0f}  p75 {d['p75']:.0f}  p90 {d['p90']:.0f}  "
+                  f"max {d['max']:.0f}")
         ec = e["efficiency_ceiling"]
         print(f"  EFFICIENCY ceiling: oracle matches uniform@128k using "
               f"{ec['oracle_T_to_match']/1e6:.2f}M vs {ec['uniform_T_at_128k']/1e6:.1f}M tokens "

@@ -654,3 +654,15 @@ for a closable-fraction estimate, then port before any reported number (nothing 
 Cheapest-falsification-first (validate-premise memory): smoke Arm0 + an easy hammer on ~20-30 trapped
 stuck-goals; if ~0 close, fast NO-GO without building the full LeanHammer stack. Deliverable:
 results/phase3/HAMMER_PROBE.md. Check in at smoke (step 3) and go/no-go (step 6).
+
+## 2026-06-20 — Phase 4 feature/model choices
+- DEP: added scikit-learn 1.9.0 (+joblib/threadpoolctl) to scratch/conda-envs/atp for the difficulty
+  predictor. numpy/scipy already present. Login-node install needs the proxy KEPT (the per-session
+  proxy that Slurm jobs must UNSET is what gives the login node internet); compute-node rule unchanged.
+- F3 depth: use the verifier's logged "Failed at step N" as the real deepest-step feature (97.8%
+  coverage), NOT a proof-length proxy and NOT a separate error-locus parser — the parse is already done
+  upstream and stored. Staged plan (cheap-first) therefore needs no escalation: best_depth IS true F3.
+- Model: logistic regression (StandardScaler + class_weight=balanced) over GBT as the realizable
+  predictor — GBT overfits the small positive class (AUC_LR > AUC_GBT at nearly every checkpoint).
+- Decision population = cells NOT solved by checkpoint c; label = eventual_solve; problem-grouped CV
+  (GroupKFold) so no problem appears in both train and test (asserted in test_alloc).

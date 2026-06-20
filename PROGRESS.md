@@ -1385,3 +1385,28 @@ at 128k/cell (oracle can't solve unsolvable cells; the upside is a CONSTRAINED-b
 efficiency win — same final accuracy for ~2-5% of compute — is the robust headline). GATE = GO:
 proceed to Task 4.2/4.3 realizable policies (successive-halving + learned difficulty predictor) — the
 real question is now how much of this ceiling a policy using only during-run F1/F3 signals can capture.
+
+## 2026-06-20 — Phase 4 Task 4.3 check-in: predictability AUC-vs-checkpoint (MODERATE, peaks mid-run)
+Built src/atp/alloc/features.py (leakage-free checkpoint features) + predict.py (grouped-CV AUC).
+KEY DATA WIN: the whole-proof verifier already logs "Failed at step N" (97.8% of ProofNet# failures,
+100% have completion_tokens) → real F3 step-depth is FREE, no error-locus parse and no length-proxy
+needed; the staged plan collapsed to "cheap == faithful". Feature set: tokens_so_far, n_attempts,
+best_depth, last_depth, depth_growth, stalled_attempts (plateau), distinct_openings (F1), compiled_
+past_step1. 20 alloc tests incl causality (only attempts finished by c) + no-leakage + grouped-CV
+no-problem-in-both. Added scikit-learn 1.9.0 to the atp env (login-node pip WITH proxy; compute-node
+unset still applies).
+
+scripts/phase4_predictor.py (predict eventual-solve among still-RUNNING cells, problem-grouped 5-fold
+CV) -> results/phase4/predictor.json. ProofNet# (EV) AUC_logistic by checkpoint:
+  goedel   ProofNet#: 2k .64 | 4k .71 | 8k .75 | 16k .72 | 32k .46(13 pos, noise)
+  deepseek ProofNet#: 2k .47 | 4k .65 | 8k .67 | 16k .72 | 32k .62
+  miniF2F both: rises to .73-.75 by 32k.
+FINDINGS: (1) MODERATE predictability ~0.65-0.75, peaks MID-run (c≈8-16k). (2) Logistic > GBT almost
+everywhere (GBT overfits the tiny positive class) → logistic is the realizable model. (3) Top feature
+is consistently tokens_so_far = elapsed-spend-without-success (a survival/hazard signal); depth_growth
+(the plateau/stuck signal) becomes a top-3 feature at c=16k as predicted; best_depth/last_depth carry
+the early checkpoints. So the cheap feature set works; error-locus F3 NOT needed (best_depth already IS
+real depth). IMPLICATION for capture: moderate AUC means EFFICIENCY capture can still be high (only need
+to confidently abandon obviously-trapped cells, high-precision/low-recall), but ACCURACY capture (needs
+good ranking) will be more limited. Next: simulate the realizable policy (successive-halving + predictor
+abandonment) to measure ACTUAL capture vs the oracle frontier — that's the headline number.
