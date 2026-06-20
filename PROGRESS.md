@@ -1309,3 +1309,14 @@ invokes nlinarith/simp/omega inline (per H2), and basic automation on the bare s
 tactic with the portfolio combinator in-context, verify (no new infra, sound — verifier gates). If that
 closes >0, justifies proofState extraction + duper; if 0 (with Arm0=0), strong NO-GO that strengthens the
 negative thesis. DO NOT port duper until Arm-A-lite shows life (validate-premise-before-building).
+
+## 2026-06-20 — Hammer probe Arm-A-lite = 0/40; go/no-go = NO-GO (portfolio level)
+Arm-A-lite (swap model's failing tactic -> portfolio combinator in-context), 40 Goedel ProofNet# trapped:
+0/40 closed (job 10753705; all 40 located+probed). With Arm0=0/30 + positive-control PASS, the on-pin
+portfolio gives ZERO leaf-closing synergy. CALL: NO-GO on current evidence — do NOT port duper. Caveats:
+(1) portfolio != hammer (a real superposition/SMT closer reasons beyond it; not tested — needs v4.9.0 port
++ proofState extraction); (2) recall-lossy (0/40 is a lower bound; nested failures = broken swaps). EV of
+the duper build is low given converging negatives (Arm0=0, ArmA-lite=0, H4 execution-floor, Step C null,
+nested-degenerate proofs). Fold into the negative thesis as a strengthening result + reviewer-objection
+pre-empt. Decisive follow-up if wanted: proofState extraction + duper@v4.9.0 (~1-2 days). Full writeup:
+results/phase3/HAMMER_PROBE.md.
