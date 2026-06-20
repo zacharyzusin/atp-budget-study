@@ -42,6 +42,21 @@ def main() -> int:
     env_dir = os.environ.get("ATP_LEAN_PROJECT") or os.environ.get("ATP_LEAN_ENV_DIR")
     backend = ReplBackend(config, project_path=env_dir) if env_dir else ReplBackend(config)
 
+    if os.environ.get("HAMMER_SELFTEST"):
+        # positive control: portfolio MUST close these trivial goals, else the probe is silently broken
+        from atp.lean import Theorem
+        ctrl = [("ctl_normnum", "theorem ctl_normnum : (2 : ℕ) + 2 = 4", "norm_num"),
+                ("ctl_simp", "theorem ctl_simp (n : ℕ) : n + 0 = n", "simp"),
+                ("ctl_omega", "theorem ctl_omega (n : ℕ) : n ≤ n + 1", "omega"),
+                ("ctl_port", "theorem ctl_port : (3 : ℤ) < 5", PORTFOLIO[-1])]
+        allok = True
+        for nm, stmt, c in ctrl:
+            rv = backend.verify(Theorem(name=nm, statement=stmt), f"{stmt} := by {c}")
+            print(f"[selftest] {nm} `{c}`: {'PASS' if rv.success else 'FAIL — '+rv.output[:120]}")
+            allok = allok and rv.success
+        print(f"[selftest] {'ALL PASS — probe fires correctly' if allok else 'BROKEN'}")
+        return 0 if allok else 3
+
     results = []; n_closed = 0
     for i, p in enumerate(probs):
         thm = p.to_theorem()

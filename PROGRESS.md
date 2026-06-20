@@ -1297,3 +1297,15 @@ failure mix shifts to compile-errors). What IS robustly supported and citable:
 So scope the H3 claim to (1)+(2)+(3), NOT a blanket "all scaffolding inflates unsoundness."
 ALL FOUR HARDENING CHECKS DONE (H1 pass, H2 revise F2, H4 unify, H3 scope). Next: apply reframes to docs
 (F2 attempt-level + knowledge~13% OOD; R1 training-not-size; R2 soften F3; add infra category) then write.
+
+## 2026-06-20 — Hammer probe Arm 0 = 0/30 (CONFIRMED): the floor is not an automation gap
+Arm 0 (on-pin portfolio omega/nlinarith/norm_num/simp_all/decide/aesop on ORIGINAL trapped statements),
+30 Goedel ProofNet# trapped problems: 0/30 closed (job 10752062). Positive control (job 10752946):
+portfolio closes 4 synthetic trivial goals incl the `first|...` combinator (ALL PASS) -> the 0/30 is real,
+not a silent bug. CONCLUSION: the trapped floor is NOT an automation-invocation gap — the model already
+invokes nlinarith/simp/omega inline (per H2), and basic automation on the bare statement closes nothing.
+=> Arm B (hammer on bare statement) is unlikely to help on hard OOD theorems; the value (if any) is Arm A
+(symbolic closer at the model's STUCK LEAF). Next: cheapest Arm-A-lite = replace the model's single failing
+tactic with the portfolio combinator in-context, verify (no new infra, sound — verifier gates). If that
+closes >0, justifies proofState extraction + duper; if 0 (with Arm0=0), strong NO-GO that strengthens the
+negative thesis. DO NOT port duper until Arm-A-lite shows life (validate-premise-before-building).

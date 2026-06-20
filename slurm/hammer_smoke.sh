@@ -6,8 +6,8 @@
 #SBATCH --mem=24G
 #SBATCH --time=01:30:00
 #SBATCH --requeue
-#SBATCH --output=logs/validate-%j.out
-#SBATCH --error=logs/validate-%j.err
+#SBATCH --output=logs/hammer-%j.out
+#SBATCH --error=logs/hammer-%j.err
 #
 # Compile-gate a benchmark's statement HEADS against the pinned mathlib — NO GPU, NO model. Stages
 # the Lean env to node-local SSD (same hardening as ablation.sh: import Mathlib off GPFS times out)
@@ -77,12 +77,10 @@ fi
 flock -u 9; exec 9>&-
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
-echo "[hammer] running compile-gate on $CONFIG $EXTRA_ARGS"
-# shellcheck disable=SC2086
-
-# Arm 0 smoke: portfolio on ORIGINAL trapped statements (on-pin). Args: <config> <trapped_file> <out> [--limit N]
-CFG="${1:?config}"; TRAP="${2:?trapped_file}"; OUT="${3:?out}"; shift 3 || true
-echo "[hammer] Arm0 portfolio probe: cfg=$CFG trapped=$TRAP out=$OUT $*"
+# NB: the inherited top already did CONFIG="$1"; shift — so $CONFIG is the config and the remaining
+# positionals are <trapped_file> <out> [extra]. Parse from there.
+CFG="$CONFIG"; TRAP="${1:?trapped_file}"; OUT="${2:?out}"; shift 2 || true
+echo "[hammer] Arm0 portfolio probe: cfg=$CFG trapped=$TRAP out=$OUT extra=$*"
 python scripts/hammer_arm0.py --config "$CFG" --trapped "$TRAP" --out "$OUT" "$@"
 rc=$?
 echo "[hammer] done (rc=$rc)"
