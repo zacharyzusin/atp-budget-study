@@ -614,3 +614,21 @@ before any GPU: max-verify DeepSeek proofs (pin confirm + fraction), validate_st
 ProofNet# against this pin → compile-on-both-pins intersection, contract tests incl sorry/admit/
 native_decide rejection. Report checkpoint = {chosen commit (done), verification fraction, intersection
 size} before the first GPU sweep.
+
+## 2026-06-20 — Phase 3: harden then write (external review of completed Phase 2 arc)
+Decision: scientific arc is COMPLETE; do NOT run new GPU sweeps. Before locking the negative thesis, run
+4 CPU-only hardening checks (ordered by falsification payoff) + 2 reframings, then write for TMLR.
+- H1 (gate): recompute the cross-model dichotomy on the compile-on-both-pins INTERSECTION, not native
+  ports (Goedel=mathlib fork, DeepSeek=standard mathlib → different statement sets; the 22.2-vs-14.3 gap
+  could be a coverage artifact). Does the gap survive on the intersection?
+- H2 (could overturn retrieval-kill): human-validate the regex failure taxonomy on 50–100 unsolved
+  attempts/prover (read raw Lean feedback, compare to auto-label). The ~0%-knowledge claim kills retrieval.
+- H3: quantify soundness-creep across ALL scaffolding components (not just Step C) from existing logs →
+  "scaffolding systematically shifts output toward less-sound regions; naive pipelines inflate pass rates."
+- H4: decompose the OOD dichotomy via our F1/F3 lens (less collapse vs deeper execution?) — CPU on existing
+  traces; unifies spine: scaffolding can't move the execution floor but TRAINING can (the real OOD lever).
+- R1: frame dichotomy as TRAINING-DISTRIBUTION/RECIPE not model size (1B diff can't carry it; controlled
+  model-zoo = future work). R2: soften F3 to "attempts elaborate substantially before failing".
+- Output: TMLR paper "Budget, Not Scaffolding: A Mechanistic, Two-Model Study..."; workshop short version
+  (MATH-AI / AI-for-Math) in parallel; arXiv + full artifact release. Soundness-creep = dedicated section.
+Full plan: PHASE3_PLAN.md. Exec order H1→H4→H3→H2→reframe→write. Lock once H1–H4 pass.
