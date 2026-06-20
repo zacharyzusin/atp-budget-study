@@ -31,33 +31,54 @@ def main():
     stmts = json.load(open(a.statements))
     items = list(stmts.items())[: a.limit] if a.limit else list(stmts.items())
 
+    def start():
+        t0 = time.time()
+        s = Server(imports=["Mathlib", "Duper"], project_path=a.project, timeout=a.timeout)
+        print(f"[armB] server (re)started in {time.time()-t0:.0f}s", flush=True)
+        return s
+
     print(f"[armB] starting Pantograph: project={a.project} imports=Mathlib,Duper timeout={a.timeout}", flush=True)
-    t0 = time.time()
-    server = Server(imports=["Mathlib", "Duper"], project_path=a.project, timeout=a.timeout)
-    print(f"[armB] server ready in {time.time()-t0:.0f}s", flush=True)
+    server = start()
 
     results = []; n_elab = 0; n_closed = 0
     for i, (name, stmt) in enumerate(items):
         src = f"open {OPENS} in\n{stmt} := by sorry"
         rec = {"name": name, "elaborated": False, "closed": False, "err": ""}
-        try:
-            units = server.load_sorry(src)
-            states = [u.goal_state for u in units if getattr(u, "goal_state", None)] if units else []
-            if not states:
-                rec["err"] = "no_goal_state"
-            else:
-                rec["elaborated"] = True; n_elab += 1
+        # up to 2 attempts: a duper call can crash the Lean server, after which load_sorry asserts.
+        # Restart the server and retry THIS statement once; if it crashes again, record + move on.
+        for attempt in (1, 2):
+            try:
+                units = server.load_sorry(src)
+                states = [u.goal_state for u in units if getattr(u, "goal_state", None)] if units else []
+                if not states:
+                    rec["err"] = "no_goal_state"; break
+                rec["elaborated"] = True
                 st = states[0]
                 try:
                     t1 = time.time()
                     new = server.goal_tactic(st, a.tactic)
-                    if getattr(new, "goals", None) is not None and len(new.goals) == 0:
-                        rec["closed"] = True; n_closed += 1
                     rec["tac_s"] = round(time.time() - t1, 1)
+                    if getattr(new, "goals", None) is not None and len(new.goals) == 0:
+                        rec["closed"] = True
                 except Exception as e:
-                    rec["err"] = f"tactic:{type(e).__name__}:{str(e)[:80]}"
-        except Exception as e:
-            rec["err"] = f"elab:{type(e).__name__}:{str(e)[:80]}"
+                    rec["err"] = f"tactic:{type(e).__name__}:{str(e)[:70]}"
+                    # a tactic that crashed the server (not a clean TacticFailure) -> restart for next stmt
+                    if "TacticFailure" not in type(e).__name__:
+                        try: server.close()
+                        except Exception: pass
+                        server = start()
+                break  # got a verdict (elaborated, closed-or-not)
+            except Exception as e:
+                rec["err"] = f"elab:{type(e).__name__}:{str(e)[:70]}"
+                # server likely dead -> restart and retry once
+                if attempt == 1:
+                    rec["elaborated"] = False
+                    try: server.close()
+                    except Exception: pass
+                    server = start()
+                    continue
+                break
+        n_elab += rec["elaborated"]; n_closed += rec["closed"]
         results.append(rec)
         print(f"[{i+1}/{len(items)}] {name}: elab={rec['elaborated']} closed={rec['closed']} {rec['err'][:50]}", flush=True)
 
