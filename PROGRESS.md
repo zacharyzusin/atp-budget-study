@@ -1346,3 +1346,11 @@ works there; clones duper+auto into the copy; verify batteries unchanged); (3) s
 scripts/hammer_arm_b_pantograph.py). Smoke ARM_B_LIMIT=8 first, then full 150. NO-GO stays UNLOCKED until
 the real-hammer (duper) number lands. NB the off-pin Arm-B build is more involved than the reviewer's
 "few hours" estimate (compute-node proxy + duper's lean-auto transitive dep + isolation), but feasible.
+
+## 2026-06-20 — Off-pin Arm-B SMOKE healthy: real hammer (duper) runs; 0/7 closed (small sample)
+Smoke (job 10761092) end-to-end SUCCESS: lake build Duper OFFLINE on compute (duper 74 + auto 78 oleans,
+NO mathlib recompile, deps reused); LEAN_PATH from filesystem worked; Pantograph started (server ready 8s,
+found Mathlib+Duper). Of 8 trapped Goedel ProofNet# statements: 7 elaborated, duper CLOSED 0/7 (failures
+are genuine 'Duper failed to prove'/'Duper encountered' = real superposition attempts at 90s, not infra).
+=> the REAL-hammer pipeline the reviewer required now WORKS. Launching FULL 150 for the decisive number.
+Pipeline cost note: ~13min/job (382s stage + fast offline build + 8 stmts); full 150 ~2-3h.

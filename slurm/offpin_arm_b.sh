@@ -27,7 +27,7 @@ export XDG_CACHE_HOME="$SIB/.xdg_cache"
 export ELAN_NO_AUTO_INSTALL=1
 export PATH="$HOME/.elan/bin:$PATH"
 
-[ -d "$ISO/.lake/packages/duper" ] || { echo "FATAL: $ISO has no duper package — run the login lake-update step first"; exit 1; }
+[ -d "$ISO/.lake/packages/Duper" ] || { echo "FATAL: $ISO has no duper package — run the login lake-update step first"; exit 1; }
 
 echo "[armB] staging isolated duper env -> $ENV ..."
 rm -rf "$ENV"; mkdir -p "$ENV"; t0=$SECONDS
@@ -37,7 +37,7 @@ echo "[armB] staged in $((SECONDS-t0))s."
 cd "$ENV"
 echo "[armB] lake build Duper (offline; deps pre-cloned; batteries/mathlib reused)..."
 lake build Duper 2>&1 | tail -20
-echo "[armB] duper oleans: $(find .lake/packages/duper -name '*.olean' 2>/dev/null | wc -l) ; auto oleans: $(find .lake/packages/auto -name '*.olean' 2>/dev/null | wc -l)"
+echo "[armB] duper oleans: $(find .lake/packages/Duper -name '*.olean' 2>/dev/null | wc -l) ; auto oleans: $(find .lake/packages/auto -name '*.olean' 2>/dev/null | wc -l)"
 
 # --- compute LEAN_PATH from filesystem (toolchain stdlib + every package lib + project lib) ---
 TC="$(cat lean-toolchain | tr '/:' '--' | sed 's/--lean4/--lean4--/' )"  # leanprover/lean4:v4.29.0 -> leanprover--lean4---v4.29.0
