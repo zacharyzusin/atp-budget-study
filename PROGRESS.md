@@ -1410,3 +1410,13 @@ real depth). IMPLICATION for capture: moderate AUC means EFFICIENCY capture can 
 to confidently abandon obviously-trapped cells, high-precision/low-recall), but ACCURACY capture (needs
 good ranking) will be more limited. Next: simulate the realizable policy (successive-halving + predictor
 abandonment) to measure ACTUAL capture vs the oracle frontier — that's the headline number.
+
+## 2026-06-20 — Phase 3 hammer NO-GO fully LOCKED: lean-auto full = 0/119 (matches duper)
+Full lean-auto premise-selection run (job 10772318, ARM_B_TIMEOUT=180 after 10771425 died on a <90s
+Pantograph server-startup timeout — pure infra, not a result): elaborated 119/150, CLOSED 0/119, same
+as duper full (0/119). So on the full elaborable trapped ProofNet# set, BOTH a real superposition prover
+(duper) AND mathlib-wide premise selection (lean-auto `auto`) close ZERO. Δ ProofNet# pass@B = 0pp, far
+under the <2pp NO-GO threshold. Hammer thread CLOSED: scaffolding/automation null is robust to the
+reviewer's "did you try a real hammer + premise selection" challenge. Decisive artifacts:
+arm_b_duper_FULL_0of119.json + arm_b_auto_FULL.json. Negative thesis ("Budget, Not Scaffolding") stands;
+the positive contribution is Phase 4 (compute-optimal allocation).

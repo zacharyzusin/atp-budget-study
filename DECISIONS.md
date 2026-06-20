@@ -666,3 +666,9 @@ results/phase3/HAMMER_PROBE.md. Check in at smoke (step 3) and go/no-go (step 6)
   predictor — GBT overfits the small positive class (AUC_LR > AUC_GBT at nearly every checkpoint).
 - Decision population = cells NOT solved by checkpoint c; label = eventual_solve; problem-grouped CV
   (GroupKFold) so no problem appears in both train and test (asserted in test_alloc).
+
+## 2026-06-20 — Hammer NO-GO locked (both prover and premise-selection)
+Arm B decisive on the FULL trapped set: duper (superposition) 0/119 AND lean-auto premise-selection
+0/119. The reviewer's premise-selection caveat is now answered on the full set, not just an 8-sample.
+NO-GO on adding a hammer component is final. Pantograph server startup can exceed 90s on loaded nodes →
+use ARM_B_TIMEOUT=180 for any Arm-B reruns (the 90s default conflates startup + per-tactic cap).
