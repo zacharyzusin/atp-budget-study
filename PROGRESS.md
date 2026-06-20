@@ -1234,3 +1234,33 @@ across 2 models, with the verifier-soundness caveat. Phase 1 OFAT-null + Phase 2
 F5 correlational + F6/Step C interventional all converge. New artifact: scripts/stepc_readout.py.
 NEXT: consolidate the paper-shaped writeup (SYNTHESIS.md) tying Phase 1 + Phase 2 (F1-F6) across both
 provers + the soundness thread; figures (pass@B both models both benchmarks; manip-check vs solves bar).
+
+## 2026-06-20 — Phase 3 H1 (PASS) + H2 (taxonomy correction — revises F2's retrieval justification)
+
+H1 — dichotomy on the compile-on-both-pins INTERSECTION. PASS, gap is REAL.
+- Both models attempted IDENTICAL statement sets (244 miniF2F, 186 ProofNet#; 0 disjoint names).
+- Statement elaboration on BOTH pins = 100%: Goedel v4.9.0-rc1/mathlib 2f65ba7 244/244 + 186/186 (jobs
+  10750335/6); DeepSeek v4.9.0/mathlib f0957a7 244/244 + 186/186 (build gate). 0 failures either pin.
+- => intersection = full set; native pass@B == intersection pass@B for all 4 arms (scripts/h1_intersection.py,
+  which reproduces metrics.json exactly). The cross-model dichotomy (DeepSeek 22.2 vs Goedel 14.3 @128k
+  ProofNet#, gap widens with budget) is NOT a port/coverage artifact. Lean on it (with R1 training-not-size).
+
+H2 — human-validated the failure taxonomy. The original "F2: ~0% knowledge / 94-100% reasoning_deep" is an
+ARTIFACT of A2's CELL-level most-advanced labeling (reasoning_deep outranks knowledge in priority, so any
+cell with >=1 deep attempt is tagged reasoning_deep, masking its knowledge-failure attempts). Corrected,
+ATTEMPT-level taxonomy (scripts/h2_taxonomy_audit.py), with REPL-infra crashes + markdown-prose split out:
+  miniF2F (in-dist): reasoning_deep 78.9%/82.1% (Goedel/DeepSeek), KNOWLEDGE 1.7%/1.8% — original claim HOLDS.
+  ProofNet# (OOD): Goedel  reasoning_deep 38.9%, syntax 16.2%, INFRA-crash 14.6%, KNOWLEDGE 13.3%, shallow
+                   8.0%, markdown 6.8%, loophole 2.1%.
+                   DeepSeek reasoning_deep 58.4%, syntax 18.1%, KNOWLEDGE 12.6%, shallow 6.5%, markdown 2.3%.
+TWO corrections: (a) KNOWLEDGE/missing-identifier is ~13% on OOD, NOT ~0% — read the unknown ids: a mix of
+real-concept-wrong-name (Finrank->finrank, Open->IsOpen, Compact->IsCompact, IsGroupHomomorphism->IsGroupHom)
+which ARE retrievable in principle, plus invented composites (Submodule.map_sum, exists_normal_Sylow).
+(b) ~14.6% of Goedel ProofNet# attempts are REPL-infra crashes mislabeled reasoning_shallow (infra noise).
+CONSEQUENCE: the retrieval-kill CONCLUSION still holds EMPIRICALLY (Phase 1: BM25 retrieval HURT -36 net on
+ProofNet#), but its MECHANISTIC justification must change from "nothing to retrieve (~0% knowledge)" to "BM25
+premise selection injects distractors rather than the needed identifier; ~13% of OOD failures ARE knowledge/
+name-resolution gaps, so a targeted premise/name-resolution method is NOT ruled out by the mechanism (untested,
+future work)." Core thesis (budget is the dominant lever; tested components don't help; F1/F3/F5/F6; dichotomy)
+is UNAFFECTED. TODO at doc-rewrite: fix F2 in MECHANISM.md + SYNTHESIS.md accordingly; soften F3 (R2); add
+infra category to analyze_mechanism._classify.
