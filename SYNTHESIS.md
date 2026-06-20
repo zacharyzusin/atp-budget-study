@@ -37,8 +37,19 @@ whole-proof sampling at a given budget? And if not — **why** does budget satur
   saturates; OOD stays budget-hungry) is not a Goedel artifact — it replicates on an independent prover.
 - **A cross-model dichotomy.** Goedel slightly edges DeepSeek in-distribution (−2 to −3pp on miniF2F), but
   **DeepSeek clearly beats Goedel on the harder OOD ProofNet# at every budget, and the gap widens with
-  budget** (+8pp at 128k: 22.2 vs 14.3). On out-of-distribution math the smaller 7B model both scores
-  higher and extracts *more* from extra compute.
+  budget** (+8pp at 128k: 22.2 vs 14.3). This is a *training-distribution / recipe* difference, not a
+  model-size effect — an 8B-vs-7B gap cannot carry it (the models differ in data, RL recipe, base model,
+  and mathlib); isolating the cause needs a controlled model-zoo study (future work).
+  - *Not a port artifact (H1).* Both provers attempted the identical canonical statement sets (244 miniF2F,
+    186 ProofNet#; 0 disjoint names), and every statement elaborates on **both** Lean pins (Goedel
+    v4.9.0-rc1/mathlib `2f65ba7` and DeepSeek v4.9.0/mathlib `f0957a7`: 244/244 and 186/186 each). So the
+    compile-on-both-pins intersection is the full set, and pass@B on the intersection is identical to the
+    native-port numbers — the gap is real, not a coverage difference.
+  - *Mechanism (H4).* The OOD advantage is **deeper within-approach execution, not more approach diversity**:
+    every DeepSeek-only ProofNet# win is on an opening Goedel also tried but couldn't close, and on the
+    problems both models miss DeepSeek diversifies *less* (3.08 vs 4.07 distinct openings) yet elaborates
+    *deeper* (median deepest step 29 vs 24). Search-time scaffolding can't move the execution floor (Phase 1
+    null + Step C); the prover's training can. **The real OOD lever is the model, not scaffolding.**
 
 Both baselines are the **no-frills config**: whole_proof + refinement (max_iters 4, alloc_split 0.5),
 all Phase 1 components OFF. DeepSeek inherits Goedel's protocol exactly (only model + Lean pin change).
