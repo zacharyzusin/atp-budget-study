@@ -54,8 +54,8 @@ cd "$ATP"
 python scripts/hammer_arm_b_pantograph.py \
   --statements scratch/phase3/trapped_proofnet_statements.json \
   --project "$ENV" \
-  --out results/phase3/arm_b_duper_goedel_proofnet.json \
-  --tactic duper --timeout 90 ${ARM_B_LIMIT:+--limit $ARM_B_LIMIT}
+  --out "${ARM_B_OUT:-results/phase3/arm_b_duper_goedel_proofnet.json}" \
+  --tactic "${ARM_B_TACTIC:-duper}" --timeout "${ARM_B_TIMEOUT:-90}" ${ARM_B_LIMIT:+--limit $ARM_B_LIMIT}
 rc=$?
 echo "[armB] done (rc=$rc)"
 exit $rc
