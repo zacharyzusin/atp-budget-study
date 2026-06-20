@@ -77,11 +77,17 @@ fi
 flock -u 9; exec 9>&-
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
-# NB: the inherited top already did CONFIG="$1"; shift — so $CONFIG is the config and the remaining
-# positionals are <trapped_file> <out> [extra]. Parse from there.
-CFG="$CONFIG"; TRAP="${1:?trapped_file}"; OUT="${2:?out}"; shift 2 || true
-echo "[hammer] Arm0 portfolio probe: cfg=$CFG trapped=$TRAP out=$OUT extra=$*"
-python scripts/hammer_arm0.py --config "$CFG" --trapped "$TRAP" --out "$OUT" "$@"
-rc=$?
+# Generic dispatch: if HAMMER_RUN is set, eval it (env staged, ATP_LEAN_PROJECT exported); else default
+# to the Arm-0 runner with the inherited positional args ($CONFIG from the top; then <trapped> <out>).
+if [ -n "${HAMMER_RUN:-}" ]; then
+    echo "[hammer] dispatch: $HAMMER_RUN"
+    eval "$HAMMER_RUN"
+    rc=$?
+else
+    CFG="$CONFIG"; TRAP="${1:?trapped_file}"; OUT="${2:?out}"; shift 2 || true
+    echo "[hammer] Arm0 portfolio probe: cfg=$CFG trapped=$TRAP out=$OUT extra=$*"
+    python scripts/hammer_arm0.py --config "$CFG" --trapped "$TRAP" --out "$OUT" "$@"
+    rc=$?
+fi
 echo "[hammer] done (rc=$rc)"
 exit $rc
