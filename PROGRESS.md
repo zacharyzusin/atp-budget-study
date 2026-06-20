@@ -1279,3 +1279,21 @@ approaches, diversifies LESS, but closes goals Goedel stalls on. UNIFIES the the
 can, substantially, on OOD. The real OOD lever is the MODEL (training-distribution/recipe, R1 — NOT size),
 not search-time scaffolding. Also internally consistent: Goedel diversifies MORE yet solves FEWER (more
 openings != more solves), echoing F1 + the Step C null.
+
+## 2026-06-20 — Phase 3 H3: soundness-creep across components — PARTIAL (scope the claim honestly)
+scripts/h3_soundness.py: per-failed-attempt "unsound surface" = loophole(sorry) + truncation(no_goal) =
+the would-be-false-positive modes a NAIVE verifier would accept. Per component vs its matched baseline:
+  miniF2F (base surface 18.8%): retrieval +3.1, budget_alloc__0 +3.3, budget_alloc__2 +1.8 (inflate);
+    memory +0.2, reviewer +0.4, tactic_skeletons -1.0 (flat); diversity(Step C) +6.6 vs its baseline.
+  ProofNet# (base surface 16.2%): ALL Phase 1 components DECREASE the surface (retrieval -11.8, budget_alloc__0
+    -5.7, ...) — they trade sorry-loopholes for honest compile_errors; diversity(Step C) +3.3 vs its baseline.
+VERDICT: the strong generalization "scaffolding SYSTEMATICALLY shifts output toward less-sound regions" is
+NOT supported — it's mixed (inflates on miniF2F for retrieval/budget_alloc; reduces on ProofNet# as the
+failure mix shifts to compile-errors). What IS robustly supported and citable:
+  (1) the BASELINE would-be-false-positive surface is LARGE (~16-19% of failed attempts carry sorry/no-goal,
+      3-19% across runs) — verifier hardening is NON-OPTIONAL independent of scaffolding;
+  (2) FORCED-DIVERSITY (Step C) reliably inflates the surface (+3 to +7pp on both benchmarks);
+  (3) throughout, the FIXED verifier caught everything — 0 false accepts (soundness of results intact).
+So scope the H3 claim to (1)+(2)+(3), NOT a blanket "all scaffolding inflates unsoundness."
+ALL FOUR HARDENING CHECKS DONE (H1 pass, H2 revise F2, H4 unify, H3 scope). Next: apply reframes to docs
+(F2 attempt-level + knowledge~13% OOD; R1 training-not-size; R2 soften F3; add infra category) then write.
