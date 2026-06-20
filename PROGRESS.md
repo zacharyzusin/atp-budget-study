@@ -1214,3 +1214,23 @@ problems — diversity injection solved ZERO (vs Goedel miniF2F's 1-2 cell blip 
 arms confirm the pre-registered prediction (solves flat/null on trapped) ACROSS BOTH PROVERS.
 ProofNet# arms still running clean (0 failures): Goedel 182/450, DeepSeek 123/420.
 Budget-matched A1 manipulation check still pending (run once all 4 done).
+
+## 2026-06-18f — STEP C COMPLETE (all 4 arms): F5 confirmed interventionally, both provers
+All 4 diversity arms done + aggregated. FULL readout via scripts/stepc_readout.py (budget-matched).
+VERDICT: pre-registered prediction CONFIRMED on Goedel+DeepSeek × miniF2F+ProofNet#.
+- MANIPULATION CHECK PASSED (budget-matched @32k, attempts matched): diversity raised distinct openings
+  per attempt +44/42/68/70% (abs distinct-first-tactic ~1.0-1.3 -> ~1.7-1.8). Intervention fired => null
+  is interpretable.
+- SOLVES NULL: trapped pass@8k/32k = Goedel miniF2F 0.6/1.2, Goedel ProofNet# 0/0.7, DeepSeek miniF2F 0/0,
+  DeepSeek ProofNet# 0/0 (%). Exactly 5 genuine verified flips total (2 Goedel miniF2F, 3 Goedel ProofNet#,
+  0 DeepSeek), all within seed-std. Approach discovery is NOT the bottleneck; within-approach execution
+  (F2/F3 reasoning floor) is. Closes F5's correlational gap interventionally on 2 provers.
+- SECONDARY: diversity DEGRADES quality — last-attempt failures shift reasoning_deep(38-88%)->~0, become
+  majority formalization_syntax(62-74%)+loophole_sorry(23-36%); soundness rates creep up (loophole ~3x:
+  1-3%->4-10%; syntax 1.5-2x). ALL caught by the fixed verifier (0 false solves) => result soundness
+  intact; forced-diversity scaffolding is mildly COUNTERPRODUCTIVE not neutral. Reinforces soundness contribution.
+BOTTOM LINE: compute budget, not agentic scaffolding, is the lever for whole-proof proving at this scale,
+across 2 models, with the verifier-soundness caveat. Phase 1 OFAT-null + Phase 2 mechanism (F1-F4) +
+F5 correlational + F6/Step C interventional all converge. New artifact: scripts/stepc_readout.py.
+NEXT: consolidate the paper-shaped writeup (SYNTHESIS.md) tying Phase 1 + Phase 2 (F1-F6) across both
+provers + the soundness thread; figures (pass@B both models both benchmarks; manip-check vs solves bar).
