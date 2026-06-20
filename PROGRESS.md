@@ -1320,3 +1320,14 @@ the duper build is low given converging negatives (Arm0=0, ArmA-lite=0, H4 execu
 nested-degenerate proofs). Fold into the negative thesis as a strengthening result + reviewer-objection
 pre-empt. Decisive follow-up if wanted: proofState extraction + duper@v4.9.0 (~1-2 days). Full writeup:
 results/phase3/HAMMER_PROBE.md.
+
+## 2026-06-20 — Off-pin Arm-B elaboration gate PASSED (≥71%); proceeding to real-hammer build
+Gate 1 (do trapped ProofNet# statements elaborate in sibling v4.29.0 mathlib): 106/150 (71%) elaborate
+(job 10757662; after two probe-bug fixes — missing `open` preamble, then the count grep wanted v4.29's
+backtick `declaration uses \`sorry\`` not single-quotes). The ~44 non-elaborating are MOSTLY shallow
+missing-opens (Tendsto/limsup/𝓝→open Filter; Icc/Ioi→Set; IsTopologicalBasis/MetrizableSpace→Topology;
+sqrt/sin→Real; End/finrank/ker→Module), not deep drift — true rate is higher with full opens. Off-pin
+Arm B is VIABLE. The real Arm-B run (Pantograph, per-statement) elaborates each goal individually so the
+count falls out of the run (no batch-file collisions). NEXT (Gate 2): stand up a real hammer (duper, pure-
+Lean) on an ISOLATED copy of theorem-proving-research/lean_env, then run Arm B via PyPantograph on the
+elaborating trapped statements (60-90s/goal). NO-GO stays UNLOCKED until a real hammer runs (reviewer point).
