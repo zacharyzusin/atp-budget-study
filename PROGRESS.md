@@ -1364,3 +1364,24 @@ elaborable trapped statement set (<=90s each) closes ZERO. With Arm0=0/30 (portf
 NUANCE (being fair to the reviewer's premise-selection point): bare `duper` = the superposition PROVER;
 the full hammer adds mathlib-wide PREMISE SELECTION (lean-auto). Checking if lean-auto's premise-selection
 tactic is runnable as a final fairness variant before locking NO-GO.
+
+## 2026-06-20 — Phase 4 Task 4.1: oracle ceiling = MASSIVE headroom (proceed to realizable policies)
+Pivot to the POSITIVE result (compute-optimal budget allocation; see memory atp-phase4-plan). Built
+src/atp/alloc/ (extract + policies: solve_cost/uniform/oracle/oracle_min_T) on the §0 identity
+solved(cell,b)==(tokens_to_solve<=b), 10 tests incl real-cell identity + uniform-reproduces-logged-
+pass@B (exact) + oracle≥uniform. Fast suite 288 green, ruff clean. scripts/phase4_ceiling.py over all
+4 budget-independent baselines -> results/phase4/ceiling.json:
+  EFFICIENCY ceiling (oracle matches uniform@128k solve rate for far less compute):
+    goedel  miniF2F   95.2% saved (4.53M vs 93.7M tok)   |  goedel  ProofNet# 98.1% (1.35M vs 71.4M)
+    deepseek miniF2F  95.1% saved (4.58M vs 93.7M tok)   |  deepseek ProofNet# 96.9% (2.22M vs 71.4M)
+  ACCURACY ceiling (oracle vs uniform at EQUAL total compute T=N×b), headline mid-budgets:
+    goedel ProofNet#:  +9.1pp @2k, +5.0pp @8k, +2.3pp @32k, 0 @128k
+    deepseek ProofNet#:+14.5pp @2k, +9.1pp @8k, +3.9pp @32k, 0 @128k
+    miniF2F (both):    ~+35pp @2k, ~+14.8pp @8k (huge low-budget upside)
+Solve-cost distn is heavy-tailed (ProofNet# Goedel: med 3855, p90 61613, max 124116) -> over-funding
+reclaim is real AND the trapped ~80% (cost=inf, never funded) is the big efficiency source. Ceiling
+clears the STRONG threshold (≥30% saved OR ≥+5pp) by a wide margin on every cell. NB accuracy delta=0
+at 128k/cell (oracle can't solve unsolvable cells; the upside is a CONSTRAINED-budget phenomenon; the
+efficiency win — same final accuracy for ~2-5% of compute — is the robust headline). GATE = GO:
+proceed to Task 4.2/4.3 realizable policies (successive-halving + learned difficulty predictor) — the
+real question is now how much of this ceiling a policy using only during-run F1/F3 signals can capture.
