@@ -1482,3 +1482,22 @@ DECISION: single-checkpoint is the best realizable policy of the three; POLICY-D
 NEXT: live confirming run (Task 4.4, GPU, l40s) on the single-checkpoint headline policy → convert
 "simulated 30% saved" into "measured" → lock ALLOCATION.md → fold positive(allocation)+negatives
 (scaffolding/hammer/SH/MRT) into the paper spine.
+
+## 2026-06-20 — Phase 4 LOCKED: per-seed robustness + budget-independence (no GPU); one-model-robust
+WHAT (per user check-in, both CPU/analytical): (1) added scripts/phase4_perseed.py — saved@90% within
+each logged seed (same global c*, OOF predictor) as sample-generalization from data in hand. (2) Resolved
+the budget-independence assumption by construction (code-verified), not a GPU run.
+RESULT:
+  - goedel ProofNet# +25/+18/+34% = +26%±7% per-seed -> STRONG is ROBUST across 3 independent draws.
+  - deepseek ProofNet# +5/+9/-51% -> DOWNGRADED POSITIVE->WEAK/fragile (pooled +10% < 15% bar; seed-2
+    collapse from ~40 solved/seed + high c*=16k misranking high-tts winnable). Positive contribution is
+    now ONE-MODEL-ROBUST, not two-model. (Negatives stay two-model.)
+  - Budget-independence: policy = early-stopping of budget-independent 128k runs; max_refine fixed,
+    alloc_split unused, meter clamp only truncates a boundary attempt's max length (token prefix
+    identical; solve/tokens_to_solve unaffected). realized = simulated EXACTLY -> "simulation artifact"
+    answered analytically, NO GPU. perseed.json written; ruff clean.
+DELIVERABLE: ALLOCATION.md updated (§1 per-seed column, §5 deepseek downgrade + realizability-by-
+construction para, header one-model-robust); DECISIONS.md entry appended.
+DECISION: Phase 4 analysis COMPLETE and LOCKED. NEXT = paper spine: positive (one-model-robust
+mechanism-informed allocation, goedel ProofNet# +26%±7%) + negatives (scaffolding null, hammer NO-GO,
+SH + MRT falsified — all two-model). No further tuning, no GPU.

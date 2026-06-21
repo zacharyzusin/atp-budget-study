@@ -749,3 +749,29 @@ VERDICT: among {single-checkpoint, fixed-fraction SH, multi-round threshold}, si
 (the one cheap check is done; stop tuning). The writeup can now state "the scheduling policies we tested
 do not improve the headline; it is ranking-limited" as a MEASURED fact, pre-empting "did you try
 threshold-based multi-round?". NEXT: live confirming run (Task 4.4, GPU) on single-checkpoint -> lock -> paper.
+
+## 2026-06-20 — Per-seed robustness + budget-independence: lock the positive as ONE-model-robust
+Two checks closed the positive result (per user check-in), both CPU/analytical (no GPU):
+1) PER-SEED CONSISTENCY (scripts/phase4_perseed.py): recomputed saved@90% WITHIN each logged seed
+   (same global c*, same OOF predictor) as sample-generalization evidence from data in hand.
+   - goedel ProofNet#: +25/+18/+34% -> +26% ± 7%. ROBUST across all 3 independent temp-1.0 draws.
+     Strengthens the STRONG headline (problem-generalization already shown by OOF grouped-CV;
+     sample-generalization now shown per-seed; no distribution shift = same temp-1.0 process).
+   - deepseek ProofNet#: +5/+9/-51% -> high variance, seed-2 COLLAPSE. DOWNGRADED from "POSITIVE" to
+     WEAK/fragile: pooled +10% is BELOW the registered 15% POSITIVE bar, and it does not survive per-seed.
+     Cause: ~40 solved cells/seed + high c*=16k -> decision pop = high-tts winnable the pooled predictor
+     misranks on seed 2 -> retaining 90% forces low τ -> keeps trapped -> -51%. This was the cross-seed-
+     variance risk flagged in the Phase 4 plan. CONSEQUENCE: positive contribution is ONE-model-robust
+     (goedel), not two-model. (Negatives — scaffolding/hammer/SH/MRT — remain two-model.)
+2) BUDGET-INDEPENDENCE (by construction, code-verified): the realizable policy is EARLY-STOPPING of the
+   budget-independent 128k runs, not a re-paced re-run. The agent's trajectory depends only on
+   seed/model/verifier: max_refine is a FIXED count (4), alloc_split is UNUSED for pacing, and the budget
+   meter's request()=min(want,remaining) clamp only truncates the max length of the single boundary
+   attempt (same prompt+seed => identical token prefix; a completed/solving attempt finishes before the
+   clamp bites, so neither `solved` nor `tokens_to_solve` changes). Kept cell = logged 128k trajectory;
+   abandoned cell = a prefix where the verifier already shows no solve. So realized = simulated EXACTLY.
+   The "simulation artifact" objection is answered analytically (it can't arise); a temp-1.0 re-run can't
+   even confirm it cell-by-cell. No GPU confirming run. (Existing "intermediate-budget" test was
+   identity-on-logs only; the by-construction argument + 3-way identity tests + Phase 0 pass@B suffice.)
+RESULT: Phase 4 analysis DONE. ALLOCATION.md locked as the deliverable. Next = fold positive(one-model-
+robust allocation) + negatives(scaffolding/hammer/SH/MRT, two-model) into the paper spine. STOP tuning.
