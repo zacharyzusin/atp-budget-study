@@ -1437,3 +1437,27 @@ oracle's ~98% ceiling on Goedel ProofNet#@90%. predictor.json AUC moderate 0.65-
 top feature tokens_so_far (survival signal), plateau depth_growth top-3 at c=16k, F1 never ranks;
 logistic>GBT. Frontier PNG shows realizable above uniform through the 5-35M-token band. NEXT (optional):
 successive-halving (lower floor) to lift DeepSeek + loose targets; small live confirming run (Task 4.4).
+
+## 2026-06-20 — Phase 4 Task 4.3 ext: successive-halving built + pre-registered-falsified
+WHAT: built `src/atp/alloc/halving.py` (`successive_halving`, `sh_curve`; rungs [2k,4k,8k,16k,32k,128k],
+constant keep_frac η, cut on OOF P(solve) at each rung's checkpoint) test-first (6 new tests in
+test_alloc.py; bookends: η=1→uniform@bmax, η→0→~rungs[0]·N floor, monotone in η, perfect-predictor helps,
+compute≤uniform). Wired into phase4_frontier.py (per-rung OOF score table; SH line on every frontier PNG;
+SH columns in frontier.json + console). Full fast suite 309 PASS, ruff clean.
+RESULT (vs the pre-registered prediction in DECISIONS.md):
+  - HEADLINE FALSIFIED. SH worse than single-checkpoint on compute-saved-at-accuracy, no two-model STRONG.
+    ProofNet# save@80/90/95: goedel c* +15/+30/+24% vs SH -95/-50/-25%; deepseek c* -16/+10/+1% vs
+    SH -145/-99/-43%.
+  - FLOOR LOWERED only at the cheapest point: @5% compute single-c* solves 0 (floor uncleared), SH solves
+    51/80 (goedel), 54/124 (deepseek), and edges uniform (+1.1pp goedel). Win gone by 10% compute.
+  - SAFETY CLAUSE HELD: SH does not move the 100% target (goedel -2%, deepseek -6%) → recall wall is
+    fundamental, not scheduling. Registered "if 100% moves, diagnosis wrong" did NOT trigger.
+  - WHY: fixed-fraction multiplicative cutting too aggressive for rare (14%) late-solving winnable cells;
+    single-checkpoint THRESHOLD (keep a quality set) beats top-η FRACTION. Multi-round thresholding is the
+    natural follow-up but is a NEW policy beyond the registered prediction — NOT built (flagged, no scope creep).
+DELIVERABLES UPDATED: ALLOCATION.md §6 rewritten from "open lever" → resolved pre-registered negative
+(with the falsification table + 3-clause readout); header status + test count (31) updated; DECISIONS.md
+OUTCOME entry appended.
+DECISION: headline policy STAYS single-checkpoint (goedel ProofNet# STRONG @90% unchanged). Policy is now
+FINAL. NEXT (check-in gate): optional small live confirming run (Task 4.4) on the single-checkpoint policy,
+or chase two-model STRONG via the unregistered multi-round-threshold policy — user's call.

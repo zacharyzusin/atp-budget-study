@@ -672,3 +672,39 @@ Arm B decisive on the FULL trapped set: duper (superposition) 0/119 AND lean-aut
 0/119. The reviewer's premise-selection caveat is now answered on the full set, not just an 8-sample.
 NO-GO on adding a hammer component is final. Pantograph server startup can exceed 90s on loaded nodes →
 use ARM_B_TIMEOUT=180 for any Arm-B reruns (the 90s default conflates startup + per-tactic cap).
+
+## 2026-06-20 — Successive-halving: PRE-REGISTERED prediction (before building)
+The single-checkpoint realizable policy has two distinct limiters: (a) compute FLOOR c*·N (one decision
+point, everyone runs to c* first) — pushes DeepSeek ProofNet#@80% and all miniF2F negative; (b) RECALL
+wall at 100% accuracy (hardest winnable ≈ trapped) — fundamental, no scheduler fixes it.
+Successive-halving (multi-round: cheap first rung 2k, cut weakest by predicted score, promote survivors)
+lowers the floor. PRE-REGISTERED, falsifiable:
+  - SH SHOULD lift the FLOOR-limited cells: DeepSeek ProofNet# loose+mid targets, miniF2F negatives
+    toward >=0, and tighten Goedel ProofNet# loose targets. Goal = two-model STRONG on ProofNet#.
+  - SH should NOT move the 100%-accuracy-retention target on any cell (that's the recall wall).
+If SH lifts the 100% target materially, the floor diagnosis was wrong — investigate, don't celebrate.
+Rung schedule = [2k,4k,8k,16k,32k,128k]; cuts after each non-final rung use OOF P(solve) at that
+checkpoint; sweep keep_frac. SH replaces single-checkpoint as the headline policy iff it dominates.
+
+## 2026-06-20 — Successive-halving: OUTCOME (pre-registered prediction FALSIFIED on the headline)
+Built `src/atp/alloc/halving.py` (6 tests) + wired into `phase4_frontier.py`. Result vs the registered
+prediction above, scored on the same (compute, solves) frontier:
+  - HEADLINE CLAIM FALSIFIED. SH does NOT give two-model STRONG and does not even beat single-checkpoint
+    on compute-saved-at-accuracy — it is substantially WORSE. ProofNet# "saved vs uniform" at 80/90/95%:
+    goedel c* +15/+30/+24% vs SH -95/-50/-25%; deepseek c* -16/+10/+1% vs SH -145/-99/-43%.
+  - MECHANISM PARTLY CONFIRMED (floor lowered, but only at the cheapest operating point). At 5% of
+    uniform's max compute the single-checkpoint policy solves 0 (its c*·N floor isn't even cleared),
+    while SH solves 51/80 (goedel) and 54/124 (deepseek) by letting cheap cells finish in early rungs.
+    SH also edges uniform there (+1.1pp goedel @5%) by reallocating from trapped (cut at 2k) to winnable.
+    But the win evaporates by 10% compute and SH trails uniform at every moderate budget.
+  - SAFETY CLAUSE HELD. SH does NOT move the 100%-accuracy target (goedel -2%, deepseek -6%, ~unchanged
+    from single-checkpoint), confirming the recall wall is fundamental, not a scheduling artifact. (Good:
+    the registered "if SH lifts the 100% target, the floor diagnosis was wrong" did not trigger.)
+DIAGNOSIS: fixed-fraction multiplicative cutting (η per rung over 5 rungs) is too aggressive in the
+rare-winnable regime (ProofNet# ~14% solvable). To retain the rare LATE-solving winnable cells you must
+keep a large fraction every round, which drags trapped cells to late rungs → more compute than the
+single-checkpoint THRESHOLD policy (keep a quality-defined SET, not a top-η fraction). Threshold beats
+fixed-fraction here. The natural follow-up = multi-round THRESHOLDING (abandon below τ at EACH rung), but
+that is a NEW policy beyond the registered SH prediction — not built; flagged for check-in, not scope-crept.
+DECISION: headline policy STAYS single-checkpoint (goedel ProofNet# STRONG @90% unchanged). SH is reported
+as a resolved pre-registered NEGATIVE (a credibility-enhancing falsification + the floor-lowering nuance).

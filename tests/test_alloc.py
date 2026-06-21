@@ -368,3 +368,99 @@ def test_min_compute_for_solves_and_capture_edges():
     assert capture_of_oracle(1000, 1000, 200) == 0.0
     # no headroom (uniform == oracle) -> nan
     assert math.isnan(capture_of_oracle(1000, 800, 1000))
+
+
+# ---- successive-halving (the multi-round realizable policy, Task 4.3 extension) ------------------
+
+from atp.alloc.halving import (  # noqa: E402
+    RUNGS,
+    sh_curve,
+    successive_halving,
+)
+
+
+def _flat_scores(n: int, rungs=RUNGS) -> list[list[float]]:
+    """A score table that promotes nobody preferentially (all equal) — for the bookend tests."""
+    return [[0.5] * n for _ in range(len(rungs) - 1)]
+
+
+def test_sh_keep_all_equals_uniform_max():
+    # keep_frac = 1.0 makes no cut: every cell runs to min(cost, bmax) -> exactly uniform@bmax.
+    costs = [500.0, 9000.0, 60_000.0, 127_000.0, INF, INF]
+    comp, solv = successive_halving(costs, _flat_scores(len(costs)), keep_frac=1.0)
+    u_comp, u_solv = uniform_point(costs, BMAX)
+    assert (comp, solv) == (u_comp, u_solv)
+
+
+def test_sh_compute_never_exceeds_uniform_max():
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, 120_000.0, INF, INF, INF]
+    u_comp, _ = uniform_point(costs, BMAX)
+    for kf in (0.05, 0.2, 0.5, 0.8, 1.0):
+        comp, _ = successive_halving(costs, _flat_scores(len(costs)), keep_frac=kf)
+        assert comp <= u_comp + 1e-9, kf
+
+
+def test_sh_monotone_in_keep_frac():
+    # lower keep_frac drops more cells earlier -> never spends more compute (monotone non-increase).
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, 120_000.0, INF, INF, INF, INF, INF]
+    scores = _flat_scores(len(costs))
+    comps = [successive_halving(costs, scores, keep_frac=kf)[0]
+             for kf in (0.1, 0.3, 0.5, 0.7, 1.0)]
+    assert comps == sorted(comps), comps
+
+
+def test_sh_low_keep_frac_approaches_first_rung_floor():
+    # keep_frac -> 0 promotes a single survivor per cut: everyone pays rung[0], ~one cell continues.
+    # So compute ≈ rungs[0]*N (the floor), well below the single-checkpoint c*=8k or 16k floor.
+    n = 40
+    costs = [INF] * n                       # all trapped: nobody solves, pure scheduling cost
+    comp, solv = successive_halving(costs, _flat_scores(n), keep_frac=0.001)
+    assert solv == 0
+    floor = RUNGS[0] * n                     # 2000 * 40 = 80_000
+    # the lone survivor walks the remaining rungs to bmax; bound the overage generously
+    assert floor <= comp <= floor + BMAX
+    # and it is far below the single-checkpoint floor (c*=8000 -> 320_000)
+    assert comp < 8000 * n
+
+
+def test_sh_perfect_predictor_helps_and_beats_uniform():
+    # A predictor that ranks winnable (cost<=bmax) above trapped (inf) abandons the trapped first,
+    # so vs a flat (uninformative) predictor at the SAME keep_frac it solves at least as many cells
+    # for no more compute -> good ranking is what successive-halving converts into savings. (Pure
+    # fixed-fraction SH can still cut a late-solving winnable cell when survivors co-compete for one
+    # slot, so we do NOT claim it keeps *every* winnable cell — that is what the η sweep is for.)
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, INF, INF, INF, INF, INF, INF]
+    perfect = [[1.0 if c <= BMAX else 0.0 for c in costs] for _ in range(len(RUNGS) - 1)]
+    flat = _flat_scores(len(costs))
+    for kf in (0.3, 0.5, 0.8):
+        p_comp, p_solv = successive_halving(costs, perfect, keep_frac=kf)
+        f_comp, f_solv = successive_halving(costs, flat, keep_frac=kf)
+        assert p_solv >= f_solv, kf          # ranking trapped last never loses a solve
+        assert p_comp <= f_comp + 1e-9, kf   # and never costs more
+    # When winnable cells solve at spread-out rungs (so they don't co-compete for one slot), a
+    # perfect predictor retains every winnable cell while cutting the trapped pool -> all solves for
+    # a fraction of uniform's compute, the headline mechanism. Costs solve at rungs 0..4 in order.
+    costs2 = [1500.0, 3500.0, 7000.0, 15_000.0, 30_000.0] + [INF] * 15
+    n_winnable = 5
+    perfect2 = [[1.0 if c <= BMAX else 0.0 for c in costs2] for _ in range(len(RUNGS) - 1)]
+    p_comp, p_solv = successive_halving(costs2, perfect2, keep_frac=0.5)
+    assert p_solv == n_winnable
+    u_comp, _ = uniform_point(costs2, BMAX)
+    assert p_comp < u_comp                   # same solves as uniform, far less compute
+    # never cheaper than the oracle (which pays only the winnable costs, no rung overhead)
+    o_comp, o_solv = oracle_point(costs2, sum(c for c in costs2 if c <= BMAX))
+    assert o_solv == n_winnable and p_comp >= o_comp
+
+
+def test_sh_curve_endpoints_and_shape():
+    costs = [500.0, 9000.0, 60_000.0, INF, INF]
+    curve = sh_curve(costs, _flat_scores(len(costs)))
+    kfs = [kf for kf, _, _ in curve]
+    assert kfs[0] > 0 and kfs[-1] == 1.0
+    # the keep-all endpoint equals uniform@bmax
+    _, comp_last, solv_last = curve[-1]
+    u_comp, u_solv = uniform_point(costs, BMAX)
+    assert (comp_last, solv_last) == (u_comp, u_solv)
+    # compute increases (weakly) with keep_frac along the swept curve
+    comps = [comp for _, comp, _ in curve]
+    assert comps == sorted(comps)
