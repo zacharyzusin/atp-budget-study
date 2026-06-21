@@ -167,6 +167,72 @@ def test_agent_resume_continues_unsolved_with_carried_budget(tmp_path):
     assert state.budget["spent"] == 40
 
 
+# --------------------------------------------------------------------------------------
+# Phase 5: reclaim-and-reinvest extension (resume a budget-exhausted checkpoint, raise the cap).
+# --------------------------------------------------------------------------------------
+
+def _exhausted_checkpoint(tmp_path, limit=25):
+    """Run an unsolved cell to budget exhaustion and return (state_path, logged_state)."""
+    path = tmp_path / "t.json"
+    agent = _agent(_transport(), BudgetMeter(limit=limit), sample_max_tokens=10)
+    state = agent.prove(THM, state_path=path)
+    assert state.stop_reason == STOP_BUDGET and not state.solved
+    return path, state
+
+
+def test_extend_preserves_prefix_and_solves_in_extension(tmp_path):
+    # an unsolved 25-token checkpoint, then extended to 50 with a model that now solves: the new
+    # solve must spend > old limit (it came from the extension), and the logged prefix is intact.
+    path, before = _exhausted_checkpoint(tmp_path, limit=25)
+    prefix = [(a.kind, a.proof, a.completion_tokens) for a in before.attempts]
+
+    agent = _agent(_transport(always_solve=True), BudgetMeter(limit=25), sample_max_tokens=10)
+    after = agent.extend(THM, path, new_limit=50)
+
+    assert after.solved
+    assert after.budget["spent"] > 25            # the solve was paid for past the old cap
+    assert after.budget["spent"] <= 50           # never overran the new cap
+    # Solves_reinvest ⊇ Solves_uniform by construction: every logged attempt is preserved, in order.
+    assert [(a.kind, a.proof, a.completion_tokens) for a in after.attempts[:len(prefix)]] == prefix
+    assert after.n_attempts > before.n_attempts  # extension only *added* attempts
+
+
+def test_extend_solved_checkpoint_is_unchanged(tmp_path):
+    # a cell solved within the old budget short-circuits: no new generation, identical state.
+    path = tmp_path / "t.json"
+    _agent(_transport(always_solve=True), BudgetMeter(limit=1000)).prove(THM, state_path=path)
+    solved_before = AgentState.load(path)
+
+    transport = _transport(always_solve=True)
+    after = _agent(transport, BudgetMeter(limit=1000)).extend(THM, path, new_limit=500_000)
+    assert after.solved and transport.calls == []          # work not redone
+    assert after.n_attempts == solved_before.n_attempts
+
+
+def test_extend_rejects_lower_budget(tmp_path):
+    path, _ = _exhausted_checkpoint(tmp_path, limit=25)
+    agent = _agent(_transport(), BudgetMeter(limit=25))
+    with pytest.raises(ValueError, match="< checkpoint limit"):
+        agent.extend(THM, path, new_limit=10)
+
+
+def test_extend_missing_checkpoint_raises(tmp_path):
+    agent = _agent(_transport(), BudgetMeter(limit=25))
+    with pytest.raises(FileNotFoundError):
+        agent.extend(THM, tmp_path / "nope.json", new_limit=50)
+
+
+def test_extend_stays_unsolved_when_tail_is_dead(tmp_path):
+    # the saturation case: extending a still-failing cell just spends the extra budget and stops
+    # cleanly at the new cap (a per-cell "no extension solve" — the honest null of the pilot gate).
+    path, _ = _exhausted_checkpoint(tmp_path, limit=25)
+    agent = _agent(_transport(), BudgetMeter(limit=25), sample_max_tokens=10)
+    after = agent.extend(THM, path, new_limit=50)
+    assert not after.solved
+    assert after.stop_reason == STOP_BUDGET
+    assert after.budget["spent"] == 50           # the reclaimed budget was fully spent, no solve
+
+
 def test_from_config_wires_refinement_policy():
     from atp.config import BASE_CONFIG, load_config
 

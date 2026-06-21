@@ -98,6 +98,49 @@ class WholeProofAgent:
             self._finish(state, STOP_BUDGET, state_path)
         return state
 
+    def extend(
+        self, theorem: Theorem, state_path: str | Path, new_limit: int
+    ) -> AgentState:
+        """Resume a budget-exhausted checkpoint with a *raised* per-problem limit (Phase 5).
+
+        The reclaim-and-reinvest mechanism: keep the logged trajectory's first `old_limit` tokens
+        **verbatim** (we never regenerate them) and sample only `(old_limit, new_limit]`, so the
+        result realizes `Solves_reinvest ⊇ Solves_uniform` by construction — an already-solved cell
+        short-circuits unchanged; an unsolved cell can only *gain* extension attempts. This
+        is why extension must resume, not re-run from scratch: vLLM is not bitwise-deterministic
+        across runs, so a fresh run would not reproduce the logged prefix (DECISIONS.md 2026-06-21).
+
+        Requires an existing checkpoint at `state_path`; `new_limit` must exceed the checkpoint's
+        limit. A solved or already-`new_limit`-exhausted checkpoint is returned unchanged.
+        """
+        state = AgentState.load(state_path)
+        if state is None:
+            raise FileNotFoundError(f"no checkpoint to extend at {state_path}")
+        if not state.budget:
+            raise ValueError(f"checkpoint at {state_path} has no budget snapshot to extend")
+
+        meter = BudgetMeter.restore(state.budget)
+        if new_limit < meter.limit:
+            raise ValueError(
+                f"extension budget {new_limit} < checkpoint limit {meter.limit}"
+            )
+        meter.limit = new_limit          # raise the cap; `spent` (the logged prefix) is preserved
+        self.client.meter = meter
+
+        if state.solved or meter.exhausted:
+            return state                 # kept as-is: a solved cell, or nothing left to spend
+
+        # Re-enter the search from the checkpoint: clear the terminal flags so the loop runs, and
+        # continue spending from the carried `spent` toward `new_limit`. New attempts append to the
+        # preserved trajectory; the prefix is never touched.
+        state.done = False
+        state.stop_reason = None
+        try:
+            self._search(theorem, state, state_path)
+        except BudgetExhausted:
+            self._finish(state, STOP_BUDGET, state_path)
+        return state
+
     # -- internals ---------------------------------------------------------------------
     def _resume(self, theorem: Theorem, state_path: str | Path | None) -> AgentState:
         existing = AgentState.load(state_path) if state_path is not None else None
