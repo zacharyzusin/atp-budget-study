@@ -1501,3 +1501,22 @@ construction para, header one-model-robust); DECISIONS.md entry appended.
 DECISION: Phase 4 analysis COMPLETE and LOCKED. NEXT = paper spine: positive (one-model-robust
 mechanism-informed allocation, goedel ProofNet# +26%±7%) + negatives (scaffolding null, hammer NO-GO,
 SH + MRT falsified — all two-model). No further tuning, no GPU.
+
+## 2026-06-21 — Phase 5 Task 5.1 DONE (offline candidate sets); mechanism = RESUME
+WHAT: started Phase 5 (reclaim-and-reinvest: "prove MORE theorems at equal compute"). Built the offline
+candidate-set machinery + tests + driver (no GPU).
+- src/atp/alloc/reinvest.py: partition unsolved-at-128k cells into EXTEND (still progressing) vs ABANDON
+  (confidently trapped, conservative rule: n_attempts≥5 ∧ depth_growth≤0 ∧ stalled≥4, all ≤a-observable);
+  iso-compute reclaim/feasibility arithmetic; stratified pilot sampler.
+- tests/test_reinvest.py (11): partition exhaustive/disjoint/all-unsolved, leakage-free routing,
+  climbing-cell-never-abandoned (the per-seed sign-safety property), feasibility arithmetic. 325 fast
+  tests pass, ruff clean.
+- scripts/phase5_candidates.py → results/phase5/candidates.json.
+NUMBERS (ProofNet#): goedel 478 unsolved → 391 extend / 87 abandon, reclaim 8.7M tok (22 ext@512k);
+deepseek 434 unsolved → 326 extend / 108 abandon, reclaim 10.8M (28 ext@512k). miniF2F = saturated
+contrast (tiny reclaim, pilot infeasible@iso-compute — expect ~0 gain). Extend per-seed balanced.
+DECISION: extension MECHANISM = RESUME (preserve logged 128k prefix verbatim, sample only (128k,E]),
+NOT re-run-from-scratch — vLLM is not bitwise-deterministic cross-run, so re-run would break the
+dominance semantics. See DECISIONS.md 2026-06-21. Per-seed reporting promoted to first-class (§6 amend).
+NEXT: Task 5.2 pilot — build resume-to-extend runner (test-first) + extend ~10 ProofNet# cells/model to
+512k @1 seed; CHECK IN with pilot solve count + per-seed split before the full run.

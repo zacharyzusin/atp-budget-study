@@ -775,3 +775,44 @@ Two checks closed the positive result (per user check-in), both CPU/analytical (
    identity-on-logs only; the by-construction argument + 3-way identity tests + Phase 0 pass@B suffice.)
 RESULT: Phase 4 analysis DONE. ALLOCATION.md locked as the deliverable. Next = fold positive(one-model-
 robust allocation) + negatives(scaffolding/hammer/SH/MRT, two-model) into the paper spine. STOP tuning.
+
+## 2026-06-21 — Phase 5 START: reclaim-and-reinvest ("more theorems at equal compute")
+NEW DIRECTION (user, post Phase-4 lock): upgrade the positive from "save compute at equal accuracy"
+(allocation, one-model-robust, fragile on DeepSeek) to the stronger "prove MORE theorems at equal total
+compute": early-abandon confidently-trapped unsolved cells, spend the reclaim EXTENDING still-
+progressing unsolved cells past the 128k cap (ProofNet# had not saturated at 128k).
+
+WHY THIS IS THE RIGHT SWING (structurally protected): weakly dominant by construction (§1) — Solves_
+reinvest = Solves_uniform ∪ {extension solves} at total compute ≤ T, so Δsolves ≥ 0 EVERY seed
+regardless of predictor quality. The seed-2 collapse that sank DeepSeek allocation (mis-abandoning
+winnable-late cells → −51%) CANNOT happen here: abandon set = unsolved-at-128k (uniform failed them
+anyway, so early-cut loses nothing); winnable-late cells live in the EXTEND set, which we never abandon.
+A mis-routed winnable-late cell still lands in extend and gets budget. So route GENEROUSLY into extend,
+abandon only most-confidently-trapped → margin (not just sign) robust to predictor misrouting.
+
+MECHANISM DECISION — RESUME, not re-run (load-bearing, decided after reading whole_proof.py/client.py):
+client.seed is FIXED per cell and passed on EVERY vLLM call, but vLLM is NOT bitwise-deterministic
+across runs (batching/kv-cache), so a from-scratch re-run at E=512k would NOT reproduce the logged 128k
+prefix → would conflate extension-gain with run-to-run sampling noise and break the dominance semantics.
+RESUME preserves the logged 128k prefix VERBATIM (keep state.attempts + budget.spent=128k, raise
+meter.limit to E, clear done/stop_reason, re-enter _search) and samples ONLY (128k,E] → realizes
+Solves_reinvest ⊇ Solves_uniform exactly. This also makes resume the CORRECT semantics, not just the
+cheaper one (plan §2 "prefer resume" upgraded to "resume required"). Re-run-from-scratch is NOT a valid
+fallback here for the iso-compute/dominance claim. Budget-independence (Phase 4) is a within-single-run
+process property (max_refine fixed, no budget-pacing), NOT a bitwise cross-run reproducibility claim.
+
+AMENDMENT (user, from the Phase-4 lesson): report PER-SEED from the start as a first-class metric (amend
+§6), not just pooled. Sign is guaranteed by construction; per-seed MARGIN is the real empirical question
+— specifically whether DeepSeek's reinvest margin survives per-seed where its allocation margin didn't.
+
+TASK 5.1 DONE (offline, no GPU): src/atp/alloc/reinvest.py (partition unsolved-at-128k into extend vs
+abandon; conservative "confidently_trapped_at" = n_attempts≥5 AND depth_growth≤0 AND stalled≥4, all
+≤a-observable; iso-compute reclaim/feasibility arithmetic; stratified pilot sampler). 11 tests in
+tests/test_reinvest.py (partition exhaustive/disjoint/all-unsolved, leakage-free, climbing-never-
+abandoned sign-safety, feasibility). scripts/phase5_candidates.py → results/phase5/candidates.json.
+NUMBERS (ProofNet#, where the tail lives): goedel 478 unsolved→391 extend/87 abandon, reclaim 8.7M tok
+(funds 22 extensions@512k); deepseek 434 unsolved→326 extend/108 abandon, reclaim 10.8M (28@512k).
+miniF2F (saturated contrast): tiny reclaim, pilot infeasible@iso-compute@512k — expected ~0 gain, the
+contrast. Per-seed extend counts balanced (goedel 122/123/146; deepseek 118/109/99). NEXT = Task 5.2
+pilot gate: build the resume-to-extend runner (test-first) + extend ~10 ProofNet# cells/model to 512k,
+1 seed, then CHECK IN with the pilot solve count + per-seed split before any full spend.
