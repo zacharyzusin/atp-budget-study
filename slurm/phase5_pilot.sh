@@ -77,6 +77,15 @@ export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
 # more reproducible. (Cache must contain the pinned revision, which it does — verified pre-submit.)
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
+# Redirect torch-inductor / triton / vLLM compile caches OFF the tight HOME quota onto scratch (big
+# GPFS quota). The DeepSeek pilot died with `OSError: [Errno 122] Disk quota exceeded` writing the
+# inductor codecache to $HOME/.cache (24G, over quota) while the co-located Goedel compile raced it.
+# Per-model dirs so two co-located pilots never contend on the same cache files.
+export XDG_CACHE_HOME="$PROJ/scratch/cache/xdg-${MODEL}"
+export TORCHINDUCTOR_CACHE_DIR="$PROJ/scratch/cache/torchinductor-${MODEL}"
+export TRITON_CACHE_DIR="$PROJ/scratch/cache/triton-${MODEL}"
+export VLLM_CACHE_ROOT="$PROJ/scratch/cache/vllm-${MODEL}"
+mkdir -p "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" "$VLLM_CACHE_ROOT"
 export PATH="$HOME/.elan/bin:$PATH"
 # ELAN_HOME: default ~/.elan (Goedel); DeepSeek's relocated toolchain sets scratch/elan-deepseek.
 export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
