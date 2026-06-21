@@ -1520,3 +1520,16 @@ NOT re-run-from-scratch — vLLM is not bitwise-deterministic cross-run, so re-r
 dominance semantics. See DECISIONS.md 2026-06-21. Per-seed reporting promoted to first-class (§6 amend).
 NEXT: Task 5.2 pilot — build resume-to-extend runner (test-first) + extend ~10 ProofNet# cells/model to
 512k @1 seed; CHECK IN with pilot solve count + per-seed split before the full run.
+
+## 2026-06-21 — Phase 5 Task 5.2 pilot SUBMITTED (goedel 10782471, deepseek 10782472)
+Built + tested the resume-to-extend mechanism and launched the pilot gate (both ProofNet#, E=512k,
+~10 stratified extend-set cells/model, early-stopping):
+- WholeProofAgent.extend (6 tests) + eval/extend_run.run_extend (5 smoke tests) + scripts/phase5_pilot.py
+  + slurm/phase5_pilot.sh (one parameterized launcher, config-driven model serving like sweep_array.sh).
+- Verified all 20 pilot checkpoints (10/model) are unsolved, budget-exhausted at limit=128000, with
+  attempts+budget snapshots. 335 fast tests pass, ruff clean.
+- BUG caught pre-GPU: run_extend read the SHARED config.model.endpoint_file → two concurrent pilots
+  serving different provers could cross-read endpoints and extend vs the WRONG model. Fixed: resolve via
+  ATP_VLLM_ENDPOINT_FILE + per-model port (goedel 8000 / deepseek 8001) + per-model endpoint file.
+PENDING on resources at submission. AWAITING: pilot solve count + per-seed split (the go/no-go). GATE:
+>=2-3 solve → full run; 0 solve → saturation null, stop. CHECK IN with the user on the count.

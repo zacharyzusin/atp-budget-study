@@ -71,6 +71,12 @@ echo "[pilot] env OK: python=$(command -v python)  model=$MODEL"
 
 # HF weights cache: default repo scratch (Goedel); DeepSeek overrides via ATP_HF_HOME.
 export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
+# Serve OFFLINE from the cache. Both provers' weights are already cached, and some compute nodes can't
+# resolve huggingface.co (ins039 gave NameResolutionError during the first pilot submit, killing vLLM
+# at the revision-check before any GPU work). Offline mode skips that network call entirely → robust +
+# more reproducible. (Cache must contain the pinned revision, which it does — verified pre-submit.)
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
 export PATH="$HOME/.elan/bin:$PATH"
 # ELAN_HOME: default ~/.elan (Goedel); DeepSeek's relocated toolchain sets scratch/elan-deepseek.
 export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
