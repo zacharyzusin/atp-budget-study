@@ -708,3 +708,44 @@ fixed-fraction here. The natural follow-up = multi-round THRESHOLDING (abandon b
 that is a NEW policy beyond the registered SH prediction — not built; flagged for check-in, not scope-crept.
 DECISION: headline policy STAYS single-checkpoint (goedel ProofNet# STRONG @90% unchanged). SH is reported
 as a resolved pre-registered NEGATIVE (a credibility-enhancing falsification + the floor-lowering nuance).
+
+## 2026-06-20 — Multi-round THRESHOLD: PRE-REGISTERED prediction (before building/running)
+Cheap mod of the SH infra (same rungs [2k..128k], same cell_outcome accounting); cut rule = keep every
+still-unsolved cell with OOF score >= tau at that rung's checkpoint (a quality SET), instead of SH's
+top-eta FRACTION. Motivation: it abandons an early-revealing trapped cell at rung 0 (2k) instead of
+waiting for the single c* (8k/16k), so unlike fixed-fraction halving it does NOT shed late-solving
+winnable cells. The one empirical check that closes the load-bearing claim "scheduling can't move the
+recall-limited headline" instead of leaving it as an argument (same discipline as the hammer NO-GO).
+PREDICTION (falsifiable):
+  - NO material headline movement: compute-saved-at-90%-accuracy stays within ~±5pp of single-checkpoint
+    for BOTH models (goedel ~+30%, deepseek ~+10%). Reason: AUC peaks MID-run (8k-16k); the early-rung
+    (2k) predictor is weak-to-random (goedel 0.64, deepseek 0.47 < chance), so thresholding at rung 0
+    cannot abandon trapped confidently without tripping the same recall wall.
+  - POSSIBLE cheap-regime gain: at fixed LOW compute (~5-10% of uniform max) MRT may beat BOTH uniform
+    and SH (keeps all winnable + cuts trapped at rung 0), improving the accuracy-at-fixed-compute axis.
+TRIP-WIRE: if MRT MATERIALLY beats single-checkpoint on the headline (compute-saved-at-90% up >~5pp on
+either model), the ranking-limited diagnosis was INCOMPLETE — the floor was contributing to the headline
+after all. Do NOT celebrate; investigate and update the load-bearing claim in ALLOCATION.md §5/§6.
+This is the LAST policy variant — one check, then stop tuning: live confirming run -> lock -> paper.
+
+## 2026-06-20 — Multi-round THRESHOLD: OUTCOME (prediction CONFIRMED; trip-wire did NOT fire)
+Built `multiround_threshold`/`mrt_curve` in halving.py (5 tests; incl. the defining contrast — on the
+exact costs where fixed-fraction SH shed a late winnable cell, the quality-SET threshold keeps EVERY
+winnable). Wired into phase4_frontier.py. 314 fast tests pass, ruff clean. Result vs the registered
+prediction above:
+  - HEADLINE NOT BEATEN -> load-bearing claim now EMPIRICAL, not argued. MRT save-vs-uniform@90%:
+    goedel -29%, deepseek -47% — WORSE than single-checkpoint (+30%, +10%). The trip-wire ("MRT
+    materially beats single-checkpoint on the headline") did NOT fire. So "no scheduling policy moves
+    the recall/ranking-limited headline" is confirmed across THREE policies (single-c*, SH, MRT).
+  - WHY MRT is worse (not just equal): one τ applied at every rung thresholds at the EARLY rungs
+    (2k/4k) where AUC is weak-to-below-chance (deepseek 2k=0.47), abandoning winnable by mistake unless
+    τ is low enough to keep nearly everyone — exactly the mid-run-AUC-peak reasoning. It cannot shave
+    the floor off the headline.
+  - CHEAP-REGIME gain did NOT materialize for MRT (predicted "possible"): @5% compute MRT ties uniform
+    (+0.0pp) and trails SH (45 vs 51 goedel); @10% MRT -1.4pp. Neither scheduling variant gives a robust
+    cheap-regime win over uniform; SH's only edge is marginal, at the single cheapest point.
+VERDICT: among {single-checkpoint, fixed-fraction SH, multi-round threshold}, single-checkpoint
+(threshold at the best-AUC c*) is the best realizable policy on the headline. POLICY-DESIGN PHASE CLOSED
+(the one cheap check is done; stop tuning). The writeup can now state "the scheduling policies we tested
+do not improve the headline; it is ranking-limited" as a MEASURED fact, pre-empting "did you try
+threshold-based multi-round?". NEXT: live confirming run (Task 4.4, GPU) on single-checkpoint -> lock -> paper.

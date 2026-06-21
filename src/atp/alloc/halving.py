@@ -84,3 +84,51 @@ def sh_curve(costs: Sequence[float], scores_by_rung: Sequence[Sequence[float]],
     if keep_fracs is None:
         keep_fracs = [round(0.05 * i, 2) for i in range(1, 21)]  # 0.05 .. 1.00
     return [(kf, *successive_halving(costs, scores_by_rung, rungs, kf, bmax)) for kf in keep_fracs]
+
+
+def multiround_threshold(costs: Sequence[float], scores_by_rung: Sequence[Sequence[float]],
+                         rungs: Sequence[int] = RUNGS, tau: float = 0.5,
+                         bmax: float = BMAX) -> tuple[float, int]:
+    """Multi-round THRESHOLD policy → (total compute, solves). Same rung ladder and per-cell
+    accounting as `successive_halving`, but at each non-final rung it keeps every still-unsolved
+    cell whose OOF score `>= tau` (a quality *set*) and abandons the rest, not a top-fraction slice.
+
+    Because the kept set is quality-defined, this can abandon an early-revealing trapped cell at
+    rung 0 instead of waiting for a single checkpoint `c*` (lowering the floor) *without* shedding
+    the rare late-solving winnable cells that fixed-fraction halving cuts. It is the natural
+    multi-round generalization of the single-checkpoint threshold policy in `realizable_point`.
+    """
+    n = len(costs)
+    spent = [0.0] * n
+    solved = [False] * n
+    active = list(range(n))
+    last = len(rungs) - 1
+
+    for k, rung in enumerate(rungs):
+        r = min(float(rung), bmax)
+        still: list[int] = []
+        for i in active:
+            cost = costs[i]
+            if cost <= r:
+                spent[i] = cost
+                solved[i] = True
+            else:
+                spent[i] = r
+                still.append(i)
+        active = still
+        if k < last and active:
+            scores = scores_by_rung[k]
+            active = [i for i in active if scores[i] >= tau]  # keep quality set, abandon below τ
+
+    return float(sum(spent)), int(sum(solved))
+
+
+def mrt_curve(costs: Sequence[float], scores_by_rung: Sequence[Sequence[float]],
+              rungs: Sequence[int] = RUNGS, bmax: float = BMAX,
+              taus: Sequence[float] | None = None) -> list[tuple[float, float, int]]:
+    """(tau, compute, solves) over a sweep of quality thresholds — the multi-round-threshold curve.
+    τ = 0 keeps everyone → `uniform@bmax`; τ above every score abandons all unsolved at rung 0 → the
+    `rungs[0]·N` floor point. Not sorted by compute (mirrors `frontier.realizable_curve`)."""
+    if taus is None:
+        taus = [round(0.02 * i, 2) for i in range(0, 51)]  # 0.00 .. 1.00
+    return [(t, *multiround_threshold(costs, scores_by_rung, rungs, t, bmax)) for t in taus]

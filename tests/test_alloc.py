@@ -374,6 +374,8 @@ def test_min_compute_for_solves_and_capture_edges():
 
 from atp.alloc.halving import (  # noqa: E402
     RUNGS,
+    mrt_curve,
+    multiround_threshold,
     sh_curve,
     successive_halving,
 )
@@ -464,3 +466,56 @@ def test_sh_curve_endpoints_and_shape():
     # compute increases (weakly) with keep_frac along the swept curve
     comps = [comp for _, comp, _ in curve]
     assert comps == sorted(comps)
+
+
+# ---- multi-round THRESHOLD (keep score>=τ each rung; quality-set variant of halving) -------------
+
+def test_mrt_tau0_equals_uniform_max():
+    # τ = 0 keeps every cell at every cut -> no abandonment -> exactly uniform@bmax.
+    costs = [500.0, 9000.0, 60_000.0, 127_000.0, INF, INF]
+    comp, solv = multiround_threshold(costs, _flat_scores(len(costs)), tau=0.0)
+    assert (comp, solv) == uniform_point(costs, BMAX)
+
+
+def test_mrt_high_tau_abandons_all_unsolved_at_first_rung():
+    # τ above every score -> every cell unsolved by rung0 is cut there; only rung0-solves remain.
+    costs = [1500.0, 9000.0, 60_000.0, INF]   # only the 1500 cell solves within rungs[0]=2000
+    comp, solv = multiround_threshold(costs, _flat_scores(len(costs)), tau=0.9)
+    assert solv == 1
+    assert comp == 1500 + 2000 + 2000 + 2000   # the rest ran to rung0 then stopped
+
+def test_mrt_monotone_and_bounded_by_uniform():
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, 120_000.0, INF, INF, INF]
+    # scores spread so different τ cut different amounts
+    scores = [[0.2, 0.4, 0.6, 0.8, 0.3, 0.1, 0.5, 0.7] for _ in range(len(RUNGS) - 1)]
+    u_comp, _ = uniform_point(costs, BMAX)
+    comps = [multiround_threshold(costs, scores, tau=t)[0] for t in (0.0, 0.25, 0.5, 0.75, 1.01)]
+    assert comps == sorted(comps, reverse=True)   # higher τ -> more cut -> less compute
+    for c in comps:
+        assert c <= u_comp + 1e-9
+
+
+def test_mrt_keeps_all_winnable_where_sh_sheds_one():
+    # The defining contrast: on the exact costs where fixed-fraction SH shed a late winnable cell,
+    # the quality-SET threshold keeps EVERY winnable (cost<=bmax) and cuts only trapped -> all win.
+    costs = [400.0, 3000.0, 9000.0, 40_000.0, INF, INF, INF, INF, INF, INF]
+    n_winnable = sum(1 for c in costs if c <= BMAX)
+    perfect = [[1.0 if c <= BMAX else 0.0 for c in costs] for _ in range(len(RUNGS) - 1)]
+    m_comp, m_solv = multiround_threshold(costs, perfect, tau=0.5)
+    assert m_solv == n_winnable                 # SH only managed n_winnable-1 here (SH test note)
+    # and it solves them for less than uniform, no cheaper than oracle
+    u_comp, _ = uniform_point(costs, BMAX)
+    o_comp, o_solv = oracle_point(costs, sum(c for c in costs if c <= BMAX))
+    assert o_comp <= m_comp < u_comp and o_solv == n_winnable
+
+
+def test_mrt_curve_endpoints():
+    costs = [500.0, 9000.0, 60_000.0, INF, INF]
+    curve = mrt_curve(costs, _flat_scores(len(costs)))
+    taus = [t for t, _, _ in curve]
+    assert taus[0] == 0.0 and taus[-1] == 1.0
+    # τ=0 endpoint == uniform@bmax; compute is non-increasing as τ rises
+    _, comp0, solv0 = curve[0]
+    assert (comp0, solv0) == uniform_point(costs, BMAX)
+    comps = [comp for _, comp, _ in curve]
+    assert comps == sorted(comps, reverse=True)

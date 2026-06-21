@@ -35,7 +35,7 @@ from atp.alloc.frontier import (
     uniform_curve,
     uniform_point,
 )
-from atp.alloc.halving import RUNGS, sh_curve
+from atp.alloc.halving import RUNGS, mrt_curve, sh_curve
 from atp.alloc.policies import solve_cost
 from atp.alloc.predict import cv_auc, logistic_factory, rows_to_xy
 
@@ -135,6 +135,8 @@ def main() -> None:
         # successive-halving: cut on the OOF score at each rung's checkpoint (lowers the c*·N floor)
         sbr = scores_by_rung_for(tbl.results, oof_by_c)
         sh = sh_curve(costs, sbr, keep_fracs=[round(0.02 * i, 2) for i in range(1, 51)])
+        # multi-round threshold: keep score>=τ at each rung (quality SET, not top-η fraction)
+        mrt = mrt_curve(costs, sbr, taus=[round(0.02 * i, 2) for i in range(0, 51)])
 
         # EFFICIENCY at matched accuracy. The matched-MAX (100%) target is ~0-capturable by
         # construction: to solve every winnable cell you must keep the hardest ones, which are
@@ -147,15 +149,18 @@ def main() -> None:
             o_comp = min_compute_for_solves(ora, target)
             r_comp = min_compute_for_solves(rea, target)
             sh_comp = min_compute_for_solves(sh, target)
+            mrt_comp = min_compute_for_solves(mrt, target)
             eff.append({
                 "accuracy_target_frac": tf, "target_solves": target,
                 "uniform_compute": u_comp, "realizable_compute": r_comp,
-                "sh_compute": sh_comp, "oracle_compute": o_comp,
+                "sh_compute": sh_comp, "mrt_compute": mrt_comp, "oracle_compute": o_comp,
                 "realizable_saved_frac": (1.0 - r_comp / u_comp) if u_comp else float("nan"),
                 "sh_saved_frac": (1.0 - sh_comp / u_comp) if u_comp else float("nan"),
+                "mrt_saved_frac": (1.0 - mrt_comp / u_comp) if u_comp else float("nan"),
                 "oracle_saved_frac": (1.0 - o_comp / u_comp) if u_comp else float("nan"),
                 "capture_of_oracle": capture_of_oracle(u_comp, r_comp, o_comp),
                 "sh_capture_of_oracle": capture_of_oracle(u_comp, sh_comp, o_comp),
+                "mrt_capture_of_oracle": capture_of_oracle(u_comp, mrt_comp, o_comp),
             })
 
         # ACCURACY at matched compute: pick a few total-compute targets (fractions of u_max_comp)
@@ -166,12 +171,14 @@ def main() -> None:
             o_s = max((s for _, comp, s in ora if comp <= T), default=0)
             r_s = max((s for _, comp, s in rea if comp <= T), default=0)
             sh_s = max((s for _, comp, s in sh if comp <= T), default=0)
+            mrt_s = max((s for _, comp, s in mrt if comp <= T), default=0)
             acc.append({
                 "compute_frac": frac, "total_compute": T,
                 "uniform_solved": u_s, "realizable_solved": r_s, "sh_solved": sh_s,
-                "oracle_solved": o_s,
+                "mrt_solved": mrt_s, "oracle_solved": o_s,
                 "realizable_minus_uniform_pp": 100.0 * (r_s - u_s) / n,
                 "sh_minus_uniform_pp": 100.0 * (sh_s - u_s) / n,
+                "mrt_minus_uniform_pp": 100.0 * (mrt_s - u_s) / n,
                 "oracle_minus_realizable_pp": 100.0 * (o_s - r_s) / n,  # the tuning gate
             })
 
@@ -185,7 +192,8 @@ def main() -> None:
         if have_mpl:
             fig, ax = plt.subplots(figsize=(6, 4))
             for curve, lab, style in [(uni, "uniform", "o-"), (rea, "realizable", "s-"),
-                                      (sh, "succ-halving", "^-"), (ora, "oracle", "-")]:
+                                      (sh, "succ-halving", "^-"), (mrt, "multi-thresh", "d-"),
+                                      (ora, "oracle", "-")]:
                 pts = sorted(((comp, s) for _, comp, s in curve))
                 xs = [p[0] / 1e6 for p in pts]
                 ys = [100.0 * p[1] / n for p in pts]
@@ -206,25 +214,26 @@ def main() -> None:
         print(f"\n=== {e['model']:9s} × {e['benchmark']:14s}  "
               f"(c*={e['decision_checkpoint']}, AUC={e['auc_at_cstar']:.2f}, "
               f"solved {e['n_solved']}/{e['n_cells']}) ===")
-        print("  EFFICIENCY (compute to reach X% of solvable; saved vs uniform, single-c* / SH):")
+        print("  EFFICIENCY (saved vs uniform to reach X% of solvable; c* / SH / MRT):")
         for ef in e["efficiency_at_matched_accuracy"]:
             sv = ef["realizable_saved_frac"]
             shv = ef["sh_saved_frac"]
+            mv = ef["mrt_saved_frac"]
             tgt = int(100 * ef["accuracy_target_frac"])
             u_m = ef["uniform_compute"] / 1e6
             r_m = ef["realizable_compute"] / 1e6
-            sh_m = ef["sh_compute"] / 1e6
-            o_m = ef["oracle_compute"] / 1e6
+            mrt_m = ef["mrt_compute"] / 1e6
             print(f"    {tgt:>3}% ({ef['target_solves']:>3}): "
-                  f"uni {u_m:>5.1f}M  c* {r_m:>5.1f}M  SH {sh_m:>5.1f}M  ora {o_m:>5.2f}M "
-                  f"-> saved c* {100*sv:+5.0f}%  SH {100*shv:+5.0f}%")
-        print("  ACCURACY @ matched compute: frac uni c* SH ora (c*-uni / SH-uni / ora-c* pp)")
+                  f"uni {u_m:>5.1f}M  c* {r_m:>5.1f}M  MRT {mrt_m:>5.1f}M "
+                  f"-> saved c* {100*sv:+5.0f}%  SH {100*shv:+5.0f}%  MRT {100*mv:+5.0f}%")
+        print("  ACCURACY @ matched compute: frac uni c* SH MRT ora (c*-uni / SH-uni / MRT-uni pp)")
         for a in e["accuracy_at_matched_compute"]:
             print(f"      {a['compute_frac']:>5.2f}  {a['uniform_solved']:>4d} "
-                  f"{a['realizable_solved']:>4d} {a['sh_solved']:>4d} {a['oracle_solved']:>4d}   "
+                  f"{a['realizable_solved']:>4d} {a['sh_solved']:>4d} {a['mrt_solved']:>4d} "
+                  f"{a['oracle_solved']:>4d}   "
                   f"({a['realizable_minus_uniform_pp']:+.1f} /"
                   f" {a['sh_minus_uniform_pp']:+.1f} /"
-                  f" {a['oracle_minus_realizable_pp']:+.1f})")
+                  f" {a['mrt_minus_uniform_pp']:+.1f})")
     print(f"\nwrote {out}")
 
 

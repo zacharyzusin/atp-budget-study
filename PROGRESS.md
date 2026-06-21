@@ -1461,3 +1461,24 @@ OUTCOME entry appended.
 DECISION: headline policy STAYS single-checkpoint (goedel ProofNet# STRONG @90% unchanged). Policy is now
 FINAL. NEXT (check-in gate): optional small live confirming run (Task 4.4) on the single-checkpoint policy,
 or chase two-model STRONG via the unregistered multi-round-threshold policy — user's call.
+
+## 2026-06-20 — Phase 4: multi-round THRESHOLD built + pre-registered-confirmed (policy phase CLOSED)
+WHAT: per user check-in, ran the one cheap empirical check (same hammer discipline: don't lock a
+load-bearing claim on an argument when the test is near-free). Added multiround_threshold/mrt_curve to
+halving.py (keep score>=τ at each rung = quality SET vs SH's top-η fraction), test-first (+5 tests incl.
+the defining contrast: on the exact costs where SH shed a late winnable cell, MRT keeps EVERY winnable).
+Wired into phase4_frontier.py (MRT column + figure line). 314 fast tests pass, ruff clean.
+RESULT (vs pre-registered prediction): CONFIRMED, trip-wire did NOT fire.
+  - Headline NOT beaten: MRT save@90% goedel -29%, deepseek -47% — WORSE than single-c* (+30%, +10%).
+    "No scheduling policy moves the recall/ranking-limited headline" now MEASURED across 3 policies
+    (single-c*, SH, MRT), not argued. Pre-empts the "did you try threshold-based multi-round?" objection.
+  - WHY worse: one τ at every rung thresholds on early rungs (2k/4k) where AUC weak/below-chance
+    (deepseek 2k=0.47) → abandons winnable by mistake unless τ keeps ~everyone (mid-run-AUC-peak logic).
+  - Cheap-regime gain did NOT materialize: @5% MRT ties uniform (+0.0pp), trails SH (45 vs 51); @10% -1.4pp.
+DELIVERABLES: ALLOCATION.md §6 now reports BOTH variants (table + 3-clause readout) and states the
+ranking-limited claim as a measured fact; header + test count (36) updated; DECISIONS.md pre-registration
++ outcome appended.
+DECISION: single-checkpoint is the best realizable policy of the three; POLICY-DESIGN PHASE CLOSED.
+NEXT: live confirming run (Task 4.4, GPU, l40s) on the single-checkpoint headline policy → convert
+"simulated 30% saved" into "measured" → lock ALLOCATION.md → fold positive(allocation)+negatives
+(scaffolding/hammer/SH/MRT) into the paper spine.
