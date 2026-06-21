@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=p5_pilot_g
+#SBATCH --job-name=p5_pilot
 #SBATCH --account=edu
 #SBATCH --partition=short
 #SBATCH --gres=gpu:l40s:1
@@ -7,21 +7,32 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:55:00
 #SBATCH --requeue
-#SBATCH --output=logs/p5_pilot_goedel-%j.out
-#SBATCH --error=logs/p5_pilot_goedel-%j.err
+#SBATCH --output=logs/p5_pilot-%j.out
+#SBATCH --error=logs/p5_pilot-%j.err
 #
-# Phase 5 Task 5.2 PILOT GATE (Goedel × ProofNet#): resume-extend ~10 still-progressing extend-set
-# cells from their logged 128k checkpoints to E=512k, early-stopping on solve, and count extension
-# solves (per-seed). This is the go/no-go before any full extension run. Reuses sweep.sh's proven
-# Goedel-serving + Goedel-pin Lean staging + soundness probe wholesale; only the trailing command is
-# swapped (atp sweep -> scripts/phase5_pilot.py). Restartable (rule 0.3): finished cells skip on requeue.
+# Phase 5 Task 5.2 PILOT GATE (parameterized for either prover): resume-extend ~10 still-progressing
+# extend-set cells from their logged 128k checkpoints to E (default 512k), early-stopping on solve, and
+# count extension solves (per-seed). The go/no-go before any full extension run.
 #
-# Usage:  sbatch slurm/phase5_pilot_goedel.sh
+# Model identity + Lean env are config/env driven (exactly like sweep_array.sh) so one script serves
+# both provers — only the CONFIG and the ATP_* env (HF_HOME, ELAN_HOME, ATP_LEAN_ENV_NAME) change.
+# Restartable (rule 0.3): finished cells skip on requeue.
+#
+# Usage (Goedel):    ATP_PILOT_MODEL=goedel \
+#   sbatch slurm/phase5_pilot.sh
+# Usage (DeepSeek):  ATP_PILOT_MODEL=deepseek \
+#   ATP_PILOT_CONFIG=configs/deepseek_proofnet_baseline.yaml \
+#   ATP_PILOT_BASELINE=results/deepseek_proofnet_baseline \
+#   ATP_PILOT_NAME=phase5_pilot_deepseek_proofnet \
+#   ATP_HF_HOME="$HOME/.cache/huggingface" ELAN_HOME="$PROJ/scratch/elan-deepseek" \
+#   ATP_LEAN_ENV_NAME=deepseek-lean-env  sbatch slurm/phase5_pilot.sh
 set -uo pipefail
 
 PROJ="/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
+MODEL="${ATP_PILOT_MODEL:-goedel}"
 CONFIG="${ATP_PILOT_CONFIG:-configs/proofnet_baseline.yaml}"
 BASELINE="${ATP_PILOT_BASELINE:-results/proofnet_baseline}"
+BENCHMARK="${ATP_PILOT_BENCHMARK:-proofnet_sharp}"
 NEW_BUDGET="${ATP_PILOT_BUDGET:-512000}"
 RUN_NAME="${ATP_PILOT_NAME:-phase5_pilot_goedel_proofnet}"
 PORT="${ATP_VLLM_PORT:-8000}"
@@ -49,20 +60,18 @@ for attempt in 1 2 3; do
     if activate_env; then ok=1; break; fi
     echo "[pilot] conda activate/import atp failed (attempt $attempt) — retrying in 5s..."; sleep 5
 done
-if [ "$ok" != 1 ]; then
-    echo "FATAL: could not activate $ATP_ENV with importable atp after 3 tries."; exit 1
-fi
-echo "[pilot] env OK: python=$(command -v python)"
-export HF_HOME="$PROJ/scratch/hf-cache"
+[ "$ok" = 1 ] || { echo "FATAL: could not activate $ATP_ENV with importable atp after 3 tries."; exit 1; }
+echo "[pilot] env OK: python=$(command -v python)  model=$MODEL"
+
+# HF weights cache: default repo scratch (Goedel); DeepSeek overrides via ATP_HF_HOME.
+export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
 export PATH="$HOME/.elan/bin:$PATH"
+# ELAN_HOME: default ~/.elan (Goedel); DeepSeek's relocated toolchain sets scratch/elan-deepseek.
 export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
 export ATP_IMPORT_TIMEOUT_S="${ATP_IMPORT_TIMEOUT_S:-2700}"
 cd "$PROJ"
 
-if [ ! -f "$PROJ/results/_lean_env_ready.txt" ]; then
-    echo "FATAL: Goedel-pin Lean env not built (no results/_lean_env_ready.txt). Run slurm/build_lean.sh."
-    exit 1
-fi
+# Prereqs.
 if [ ! -d "$PROJ/$BASELINE/agent_states" ]; then
     echo "FATAL: baseline agent_states dir missing at $PROJ/$BASELINE/agent_states (need 128k checkpoints)."
     exit 1
@@ -72,22 +81,36 @@ if [ ! -f "$PROJ/results/phase5/candidates.json" ]; then
     exit 1
 fi
 
-# --- Stage the Goedel-pin Lean env to node-local SSD (the cold-load fix) --------------------------
-GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
-LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
-LOCAL_ENV="$LOCAL_BASE/atp-lean-env"
+# --- Stage the Lean env to node-local /dev/shm (epilog-safe; not wiped like /local) ---------------
+# Default atp-lean-env (Goedel pin); a DeepSeek run sets ATP_LEAN_ENV_NAME=deepseek-lean-env.
+LEAN_ENV_NAME="${ATP_LEAN_ENV_NAME:-atp-lean-env}"
+GPFS_ENV="$PROJ/scratch/lean-cache/$LEAN_ENV_NAME"
+LOCAL_BASE="${ATP_LOCAL_BASE:-/dev/shm/$USER}"
+[ -d /dev/shm ] || LOCAL_BASE="/local/$USER"; [ -d /local ] || [ -d /dev/shm ] || LOCAL_BASE="/tmp/$USER"
+LOCAL_ENV="$LOCAL_BASE/${LEAN_ENV_NAME}-pilot"
+REPL_REL=".lake/packages/REPL/.lake/build/bin/repl"
+mkdir -p "$LOCAL_BASE"
 N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
 N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ]; then
-    echo "[pilot] Lean env already staged on $(hostname) ($N_LOCAL oleans) — reusing."
+if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ] \
+   && [ -x "$LOCAL_ENV/$REPL_REL" ]; then
+    echo "[pilot] Lean env '$LEAN_ENV_NAME' already staged on $(hostname) ($N_LOCAL oleans + repl) — reusing."
 else
-    echo "[pilot] staging Lean env -> $LOCAL_ENV (cp $N_GPFS oleans, ~10-20min off GPFS)..."
-    rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"
-    cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
-          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$LOCAL_ENV/" \
-        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; exit 1; }
-    touch "$LOCAL_ENV/.staged_ok"
-    echo "[pilot] staged ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
+    STAGE="$LOCAL_BASE/${LEAN_ENV_NAME}.stage.${SLURM_JOB_ID:-x}"
+    echo "[pilot] staging '$LEAN_ENV_NAME' -> $STAGE, atomic-publish -> $LOCAL_ENV (cp $N_GPFS oleans)..."
+    rm -rf "$STAGE"; mkdir -p "$STAGE"
+    # Copy the WHOLE env dir (.lake + lakefile + manifest + toolchain + the package lib dir, whatever
+    # its name — Goedel=AtpLeanEnv/, DeepSeek=DeepseekLeanEnv/) so it works for any pin.
+    cp -a "$GPFS_ENV/." "$STAGE/" \
+        || { echo "FATAL: staging copy to $STAGE failed"; rm -rf "$STAGE"; exit 1; }
+    [ -x "$STAGE/$REPL_REL" ] \
+        || { echo "FATAL: staged env missing repl exe at $STAGE/$REPL_REL"; rm -rf "$STAGE"; exit 1; }
+    touch "$STAGE/.staged_ok"
+    rm -rf "$LOCAL_ENV.old"
+    mv -T "$LOCAL_ENV" "$LOCAL_ENV.old" 2>/dev/null || true
+    mv -T "$STAGE" "$LOCAL_ENV"
+    rm -rf "$LOCAL_ENV.old"
+    echo "[pilot] staged ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans + repl)."
 fi
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
@@ -113,16 +136,19 @@ assert (not bad.ok) and bad.reason == "compile_error", f"false-proof not rejecte
 print("[pilot] Lean probe OK (true + norm_num accepted, false rejected)")
 PY
 
-# Pin the served weights to the exact reviewed revision (reproducibility rule 4).
+# --- Serve the prover (fully config-driven: hf_repo / name / revision / max_model_len) -------------
+HF_REPO="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.hf_repo)")"
+SERVED_NAME="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.name)")"
 REVISION="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.revision)")"
 MAX_MODEL_LEN="$(python -c "from atp.config import load_config; print(load_config('$CONFIG').model.max_model_len)")"
-echo "[pilot] serving Goedel-Prover-V2-8B @ revision=$REVISION max_model_len=$MAX_MODEL_LEN"
+echo "[pilot] serving $HF_REPO (as $SERVED_NAME) @ revision=$REVISION max_model_len=$MAX_MODEL_LEN"
 
 HOST_IP="$(hostname -i | awk '{print $1}')"
 echo "http://$HOST_IP:$PORT/v1" > "$ENDPOINT_FILE"
+REV_ARG=(); [ -n "$REVISION" ] && REV_ARG=(--revision "$REVISION")
 python -m vllm.entrypoints.openai.api_server \
-    --model "Goedel-LM/Goedel-Prover-V2-8B" --revision "$REVISION" \
-    --served-model-name "goedel-prover-v2-8b" \
+    --model "$HF_REPO" "${REV_ARG[@]}" \
+    --served-model-name "$SERVED_NAME" \
     --host 0.0.0.0 --port "$PORT" --max-model-len "$MAX_MODEL_LEN" --gpu-memory-utilization 0.90 \
     > "logs/vllm-pilot-${SLURM_JOB_ID:-local}.out" 2>&1 &
 VLLM_PID=$!
@@ -135,14 +161,14 @@ for _ in $(seq 1 120); do
     kill -0 $VLLM_PID 2>/dev/null || { echo "FATAL: vLLM died during startup"; exit 1; }
 done
 
-echo "[pilot] extend pilot: config=$CONFIG baseline=$BASELINE E=$NEW_BUDGET name=$RUN_NAME"
+echo "[pilot] extend pilot: model=$MODEL config=$CONFIG baseline=$BASELINE E=$NEW_BUDGET name=$RUN_NAME"
 python scripts/phase5_pilot.py \
     --config "$CONFIG" --baseline "$BASELINE" \
-    --model goedel --benchmark proofnet_sharp \
+    --model "$MODEL" --benchmark "$BENCHMARK" \
     --new-budget "$NEW_BUDGET" --name "$RUN_NAME"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    echo "FATAL: pilot exited $rc — see logs/p5_pilot_goedel-${SLURM_JOB_ID:-local}.err"
+    echo "FATAL: pilot exited $rc — see logs/p5_pilot-${SLURM_JOB_ID:-local}.err"
     exit "$rc"
 fi
 if [ ! -f "$PROJ/results/$RUN_NAME/pilot_summary.json" ]; then
