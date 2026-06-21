@@ -35,8 +35,14 @@ BASELINE="${ATP_PILOT_BASELINE:-results/proofnet_baseline}"
 BENCHMARK="${ATP_PILOT_BENCHMARK:-proofnet_sharp}"
 NEW_BUDGET="${ATP_PILOT_BUDGET:-512000}"
 RUN_NAME="${ATP_PILOT_NAME:-phase5_pilot_goedel_proofnet}"
-PORT="${ATP_VLLM_PORT:-8000}"
-ENDPOINT_FILE="$PROJ/results/_vllm_endpoint.txt"
+# PER-MODEL port + endpoint file: the two pilots serve DIFFERENT provers and may run concurrently
+# (possibly co-located), so they must NOT share port 8000 or the endpoint file — else a pilot could
+# read the other model's endpoint and extend cells against the wrong prover. run_extend honors
+# ATP_VLLM_ENDPOINT_FILE via resolve_endpoint_file().
+DEFAULT_PORT=8000; [ "$MODEL" = "deepseek" ] && DEFAULT_PORT=8001
+PORT="${ATP_VLLM_PORT:-$DEFAULT_PORT}"
+ENDPOINT_FILE="$PROJ/results/_vllm_endpoint_pilot_${MODEL}.txt"
+export ATP_VLLM_ENDPOINT_FILE="$ENDPOINT_FILE"
 
 # Insomnia proxy trap: Slurm jobs inherit a per-session SSH proxy that breaks ALL downloads.
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy

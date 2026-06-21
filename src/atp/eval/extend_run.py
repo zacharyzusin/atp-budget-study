@@ -73,8 +73,11 @@ def run_extend(
     by_name = {p.name: p for p in dataset.problems}
 
     if transport is None:
+        # Honor a per-job endpoint file (ATP_VLLM_ENDPOINT_FILE) so two concurrent pilots serving
+        # DIFFERENT provers never cross-read each other's endpoint (the shared-file collision).
+        from atp.eval.run import resolve_endpoint_file
         transport = OpenAITransport.from_endpoint_file(
-            config.model.endpoint_file,
+            resolve_endpoint_file(config),
             timeout_s=config.model.request_timeout_s,
             max_retries=config.model.request_max_retries,
         )
