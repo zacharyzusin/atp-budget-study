@@ -117,6 +117,28 @@ def test_run_extend_stays_unsolved_when_tail_dead(tmp_path, patched_dataset):
     assert not r.solved and r.tokens_spent == 50
 
 
+def test_run_extend_concurrent_processes_all_cells(tmp_path, patched_dataset, monkeypatch):
+    # exercise the real ThreadPoolExecutor path: 4 cells, n_workers=3, per-thread scripted backend.
+    # all must be processed and the per-seed solve tally correct regardless of execution order.
+    base = tmp_path / "baseline"
+    monkeypatch.setattr("atp.eval.extend_run.load_dataset", lambda cfg, **kw: types.SimpleNamespace(
+        problems=[Problem(name=n, statement="theorem t : True", benchmark="proofnet_sharp",
+                          split="test") for n in ("t", "u", "v", "w")]))
+    monkeypatch.setattr("atp.eval.extend_run.load_novel_names", lambda cfg: ["t", "u", "v", "w"])
+    for n in ("t", "u", "v", "w"):
+        _make_baseline_checkpoint(base, n, 0, limit=25)
+    cfg = load_config(BASE_CONFIG)
+
+    out = run_extend(cfg, tmp_path / "pilot", base, [("t", 0), ("u", 0), ("v", 0), ("w", 0)],
+                     new_budget=50, transport=_transport(always_solve=True),
+                     backend_factory=_backend, n_workers=3)
+    assert out["n_workers"] == 3
+    assert out["n_ran"] == 4 and out["n_extension_solves"] == 4
+    assert out["extension_solves_per_seed"] == {0: 4}
+    for n in ("t", "u", "v", "w"):
+        assert (tmp_path / "pilot" / "problems" / f"{n}__seed0.json").exists()
+
+
 def test_load_pilot_cells_reads_candidates(tmp_path):
     import json
     cand = tmp_path / "candidates.json"

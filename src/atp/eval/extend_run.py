@@ -19,6 +19,8 @@ pilot is small, so cells run sequentially over one Lean backend (amortizing its 
 from __future__ import annotations
 
 import shutil
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -54,11 +56,20 @@ def run_extend(
     *,
     transport: Transport | None = None,
     backend: LeanBackend | None = None,
+    backend_factory: Callable[[], LeanBackend] | None = None,
+    n_workers: int | None = None,
 ) -> dict:
     """Extend `cells` (problem_name, seed) from `baseline_dir`'s 128k checkpoints to `new_budget`.
 
     Writes extended agent states under `run_dir/agent_states/` and `ProblemResult`s under
     `run_dir/problems/`. Returns a summary dict (counts + per-seed extension solves).
+
+    Cells run concurrently over `n_workers` threads (default `config.eval.n_workers`): each extends
+    up to `new_budget` tokens, so sequential single-stream throughput (~40 tok/s) would blow the
+    walltime; with workers, vLLM batches the streams and the GPU stays busy while a cell verifies in
+    Lean. Each worker owns its OWN Lean REPL (thread-local, not thread-safe to share), mirroring
+    `eval.run.build_solve_fn`. An *injected* `backend` (tests) forces sequential — it is shared. A
+    per-cell failure is contained (logged, counted) so a requeue retries just that cell (rule 0.3).
     """
     apply_env(config)
     run_dir, baseline_dir = Path(run_dir), Path(baseline_dir)
@@ -82,24 +93,44 @@ def run_extend(
             max_retries=config.model.request_max_retries,
         )
 
-    def backend_factory() -> LeanBackend:
+    # A shared (injected) backend is not REPL-thread-safe -> force sequential; otherwise each worker
+    # thread builds + caches its OWN backend (amortizing its one-time `import Mathlib`), via
+    # `backend_factory` (default: a fresh ReplBackend on the configured Lean env).
+    workers = 1 if backend is not None else (n_workers or config.eval.n_workers)
+    if backend_factory is None:
+        def backend_factory() -> LeanBackend:
+            from atp.lean.repl import ReplBackend
+            return ReplBackend(config)
+    tls = threading.local()
+    created: list[LeanBackend] = []
+    created_lock = threading.Lock()
+
+    def thread_backend() -> LeanBackend:
         if backend is not None:
             return backend
-        from atp.lean.repl import ReplBackend
-        return ReplBackend(config)
+        b = getattr(tls, "backend", None)
+        if b is None:
+            b = backend_factory()
+            tls.backend = b
+            with created_lock:
+                created.append(b)
+        return b
 
     chash = config_hash(config)
-    lean_backend = backend_factory()
-    ran, skipped, solves, ext_solves_per_seed = 0, 0, 0, {}
-    try:
-        for name, seed in cells:
-            result_path = problems_dir / f"{name}__seed{seed}.json"
-            if _cell_finished(result_path, new_budget):
-                skipped += 1
-                continue
-            if name not in by_name:
-                raise KeyError(f"pilot cell {name!r} absent from {config.data.benchmark} split")
+    skipped_lock = threading.Lock()
+    counters = {"skipped": 0}
 
+    def extend_one(cell: tuple[str, int]) -> dict | None:
+        """Extend a single cell; returns {seed, solved} on success, None on skip/failure."""
+        name, seed = cell
+        result_path = problems_dir / f"{name}__seed{seed}.json"
+        if _cell_finished(result_path, new_budget):
+            with skipped_lock:
+                counters["skipped"] += 1
+            return None
+        if name not in by_name:
+            raise KeyError(f"pilot cell {name!r} absent from {config.data.benchmark} split")
+        try:
             dst_state = states_dir / f"{name}__seed{seed}.json"
             if not dst_state.exists():  # first touch: seed the logged 128k prefix (never re-copy)
                 src = src_states / f"{name}__seed{seed}.json"
@@ -110,32 +141,50 @@ def run_extend(
             meter = BudgetMeter(limit=new_budget)
             client = VLLMClient.from_config(config, transport, meter)
             client.seed = seed
-            verifier = Verifier.from_config(config, lean_backend)
+            verifier = Verifier.from_config(config, thread_backend())
             agent = WholeProofAgent.from_config(config, client, verifier)
 
-            theorem = by_name[name].to_theorem()
-            state = agent.extend(theorem, dst_state, new_budget)
+            state = agent.extend(by_name[name].to_theorem(), dst_state, new_budget)
             result = ProblemResult.from_agent_state(
                 state, seed=seed, budget=new_budget,
                 benchmark=config.data.benchmark, split=config.data.split, config_hash=chash,
             )
             result.save(result_path)
-            ran += 1
-            if state.solved:  # every cell was unsolved at 128k -> any solve is an extension solve
-                solves += 1
-                ext_solves_per_seed[seed] = ext_solves_per_seed.get(seed, 0) + 1
-    finally:
-        close = getattr(lean_backend, "close", None)
-        if callable(close):
-            try:
-                close()
-            except Exception:  # noqa: BLE001 - best-effort cleanup
-                pass
+            return {"seed": seed, "solved": state.solved}
+        except (FileNotFoundError, KeyError):
+            raise  # a setup error (missing checkpoint / bad name) is fatal, not a per-cell retry
+        except Exception as exc:  # noqa: BLE001 - contain a per-cell crash so a requeue retries it
+            import traceback
+            print(f"[pilot] CELL FAILED (will retry on resume) {name} seed={seed}: "
+                  f"{type(exc).__name__}: {exc}", flush=True)
+            traceback.print_exc()
+            return None
 
+    try:
+        if workers and workers > 1 and len(cells) > 1:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                outs = [o for o in pool.map(extend_one, cells) if o is not None]
+        else:
+            outs = [o for c in cells if (o := extend_one(c)) is not None]
+    finally:
+        for b in created:
+            close = getattr(b, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:  # noqa: BLE001 - best-effort cleanup
+                    pass
+
+    ext_solves_per_seed: dict[int, int] = {}
+    for o in outs:
+        if o["solved"]:
+            ext_solves_per_seed[o["seed"]] = ext_solves_per_seed.get(o["seed"], 0) + 1
     return {
         "run_dir": str(run_dir), "baseline_dir": str(baseline_dir),
-        "new_budget": new_budget, "n_cells": len(cells),
-        "n_ran": ran, "n_skipped": skipped, "n_extension_solves": solves,
+        "new_budget": new_budget, "n_cells": len(cells), "n_workers": workers,
+        "n_ran": len(outs), "n_skipped": counters["skipped"],
+        "n_extension_solves": sum(1 for o in outs if o["solved"]),
         "extension_solves_per_seed": dict(sorted(ext_solves_per_seed.items())),
     }
 

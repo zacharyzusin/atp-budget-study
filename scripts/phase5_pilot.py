@@ -35,6 +35,8 @@ def main() -> int:
     ap.add_argument("--model", required=True)
     ap.add_argument("--benchmark", required=True)
     ap.add_argument("--new-budget", type=int, default=512_000)
+    ap.add_argument("--n-workers", type=int, default=8,
+                    help="concurrent cells (vLLM batches the streams; each owns a Lean REPL)")
     ap.add_argument("--name", required=True, help="run dir under results/")
     args = ap.parse_args()
 
@@ -42,9 +44,11 @@ def main() -> int:
     cells = load_pilot_cells(args.candidates, args.model, args.benchmark)
     run_dir = Path(cfg.project.root) / cfg.project.results_dir / args.name
     print(f"[pilot] {args.model} x {args.benchmark}: extending {len(cells)} cells "
-          f"{args.baseline} -> E={args.new_budget:,}  (config_hash={config_hash(cfg)})")
+          f"{args.baseline} -> E={args.new_budget:,} (n_workers={args.n_workers}, "
+          f"config_hash={config_hash(cfg)})")
 
-    summary = run_extend(cfg, run_dir, args.baseline, cells, args.new_budget)
+    summary = run_extend(cfg, run_dir, args.baseline, cells, args.new_budget,
+                         n_workers=args.n_workers)
     summary["model"] = args.model
     summary["benchmark"] = args.benchmark
     (run_dir / "pilot_summary.json").write_text(json.dumps(summary, indent=2))
