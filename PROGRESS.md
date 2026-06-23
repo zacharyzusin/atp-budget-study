@@ -1533,3 +1533,438 @@ Built + tested the resume-to-extend mechanism and launched the pilot gate (both 
   ATP_VLLM_ENDPOINT_FILE + per-model port (goedel 8000 / deepseek 8001) + per-model endpoint file.
 PENDING on resources at submission. AWAITING: pilot solve count + per-seed split (the go/no-go). GATE:
 >=2-3 solve → full run; 0 solve → saturation null, stop. CHECK IN with the user on the count.
+
+## 2026-06-21 — Phase 5 pilot: 3 infra bugs fixed on real GPU; resubmitted concurrent (goedel 10782674, deepseek 10782675)
+The extend MECHANISM is PROVEN on real GPU: a Goedel cell reached spent=159984 of a raised limit=512000
+(extended 32k past the preserved 128k prefix), vLLM generating ~40 tok/s. Three infra bugs surfaced and
+were fixed in sequence (each pre-GPU or caught fast):
+1. vLLM died at startup: ins039 couldn't resolve huggingface.co (revision-check network call). FIX:
+   HF_HUB_OFFLINE=1 + TRANSFORMERS_OFFLINE=1 (weights cached); verified both models resolve offline.
+2. DeepSeek HF_HOME was wrong (~/.cache had a 9KB stub); real 13G weights live in project .hf_cache.
+3. DeepSeek vLLM died: OSError [Errno 122] Disk quota exceeded writing torch-inductor codecache to
+   $HOME/.cache (24G, over the tight HOME quota). FIX: redirect XDG_CACHE_HOME/TORCHINDUCTOR_CACHE_DIR/
+   TRITON_CACHE_DIR/VLLM_CACHE_ROOT to per-model scratch dirs.
+4. THROUGHPUT: sequential single-stream ~40 tok/s → 512k/cell × 10 cells blows 4:55h walltime. FIX:
+   concurrent run_extend (worker pool, thread-local Lean REPLs, vLLM batches streams), pilot n_workers=8.
+   Restartable: mid-extension cells resume from checkpoint on requeue, so walltime overrun is safe.
+All test-first: WholeProofAgent.extend (6) + run_extend incl concurrency (6). 341 fast tests, ruff clean.
+AWAITING pilot solve count + per-seed split. Gate: >=2-3 solve → full run; 0 → saturation null.
+
+## 2026-06-21 — Phase 5 pilot RESULT: weak-dominance confirmed, margin one-model/WEAK (CHECK-IN)
+Both pilot jobs ended TIMEOUT @ 4:55:00 (walltime cap, not crash; extends are checkpoint-restartable so
+no work lost). Final tally from results/phase5_pilot_{goedel,deepseek}_proofnet (~10 extend-set
+ProofNet# cells/model, E=512k, resume-to-extend past the logged 128k prefix):
+  - GOEDEL: 1 SOLVED / 9 reached-verdict (1 cell, Rudin_3_2a seed2, cut by timeout @230k, no verdict).
+    The solve = Herstein_3_2_21 seed0 @ tokens_to_solve=171928 — i.e. closed only ~44k PAST the 128k
+    cap. Per-seed: {seed0: 1, seed1: 0, seed2: 0}. Genuine net-new (prefix was unsolved@128k, verified).
+  - DEEPSEEK: 0 SOLVED / 8 reached-verdict (2 cells cut by timeout @233k/238k, no verdict). All-zero
+    per-seed.
+CHARACTERIZATION (scan of agent_states deepest "Failed at step N" + attempt counts): the 16
+budget_exhausted cells CHURN — 43–190 attempts each, almost all compiling past step 1, deepest steps
+5–144 — yet never close the goal out to 512k. This is NOT "still climbing, needs more budget"; it is the
+Phase 2/3 F2/F3 execution floor reasserting: many deep attempts, no closure = saturated/trapped, not
+budget-starved. The lone solve landing at 172k (near the cap, not deep) says the extension tail is THIN
+and FRONT-LOADED — recoverable solves cluster just past 128k, not deep in the extension.
+READOUT vs pre-registration (atp-phase5-plan): WEAK-DOMINANCE EMPIRICALLY CONFIRMED (Δsolves≥0: +1
+net-new goedel solve at iso-compute, sign as guaranteed by construction). But MARGIN is WEAK and
+ONE-MODEL (goedel only; deepseek null), the SAME one-model pattern as the Phase 4 allocation positive —
+NOT the two-model positive Phase 5 was swinging for. Iso-compute math @E=512k: reclaim funds only ~22
+goedel extensions; at the pilot ~1/9 rate that is ~2-3 net-new solves ≈ +1pp on a 14.3% base = WEAK
+(<2pp bar).
+DESIGN INSIGHT (data-driven): the only solve was @172k → E=512k is too generous. At E=256k the SAME
+solve is caught, but reclaim 8.7M tok funds ~68 extensions (vs 22) → ~3x more cells extended at
+iso-compute, with little recall loss since solves cluster near the cap. E=256k iso-compute-dominates
+E=512k. (DeepSeek still showed 0 solves even in the cheap (128k,256k] window across 8 verdicts → likely
+null regardless of E.)
+DECISION PENDING (CHECK-IN with user; pre-reg requires it before any full run): options on the table —
+(A) STOP, write as weak-dominance + saturation null (strengthens "budget saturates OOD" thesis; lowest
+cost, honest); (B) cheap re-pilot at E=256k to sharpen the iso-compute estimate before committing; (C)
+full reinvest run at chosen E, 1→3 seed, to nail per-seed margin (EV low, deepseek null). Also optional:
+resume the 3 timeout-cut cells for clean verdicts. No full run launched. Awaiting user steer.
+
+## 2026-06-21 — Phase 5 E=256k re-pilot (correct the iso-compute-dominated number)
+DECISION (user check-in): report reinvest at E=256k, not the iso-compute-DOMINATED E=512k — the lone
+pilot solve landed @172k, so a lower cap catches near-cap solves while the fixed reclaim funds ~3x more
+extensions (candidates.json: goedel 22@512k->68@256k; deepseek 28->84). Offline re-tally of the 512k
+logs at the 256k cut resolves 17/20 cells (goedel 1 solve@172k survives; all else unsolved); only the 3
+timeout-cut cells (goedel Rudin_3_2a @230k; deepseek Artin_10_6_7 @238k, Rudin_5_17 @233k) needed GPU.
+First resubmit (10784779/80) NO-OPPED: extend() guards `new_limit < checkpoint limit` and those 3 cells
+carried limit=512000 from the first pilot -> ValueError, cells skipped. This is a PILOT-RERUN artifact
+only (the full run resumes from the 128k baseline, limit=128000 < any E, so it never hits this). FIX
+(surgical, no code change): patched the 3 checkpoints' budget.limit 512000->256000 (prefix verbatim —
+ledger shows no clamp below 256k, last attempt ended <235k, so the 128k->235k prefix is identical to a
+native E=256k run) and resubmitted 10784792 (goedel) / 10784793 (deepseek) to sample only (~235k, 256k].
+AWAITING the clean E=256k tally. Expectation unchanged: WEAK/one-model (goedel ~1 solve, deepseek 0).
+
+## 2026-06-21 — Phase 5 E=256k re-pilot RESULT: reinvest CLOSED (weak-dominance, one-model)
+Resubmit 10784792 (goedel)/10784793 (deepseek) finished the 3 patched tail cells to 256k cleanly — all
+3 budget_exhausted, unsolved. FINAL CLEAN E=256k PILOT TALLY (10 cells/model, the iso-compute-correct cap):
+  - GOEDEL: 1 solve / 10 = Herstein_3_2_21 seed0 @172k; per-seed {0:1, 1:0, 2:0}
+  - DEEPSEEK: 0 / 10; per-seed all zero
+Confirms the 512k read at the correct (non-dominated) cap: WEAK-DOMINANCE (Δsolves≥0 by construction,
++1 net-new goedel @iso-compute) but MARGIN WEAK + ONE-MODEL (deepseek null). Even @256k, where the fixed
+reclaim funds ~3x more extensions (goedel 68, deepseek 84), the projected full-run lift is ~+1pp goedel /
+~0 deepseek — below the 2pp POSITIVE bar. PHASE 5 / REINVEST CLOSED: it is the 4th independent
+confirmation of the F2/F3 execution floor (after Phase1 OFAT-null, Phase2/3 mechanism, Phase3 hammer
+NO-GO), folded into the negative spine — NOT the two-model headline positive. No full reinvest run
+(EV below threshold; structurally it could only add the thin near-cap tail). NEXT = Phase 6 (mechanism-
+targeted fine-tuning), starting with the §0 train/test disjointness gate.
+
+## 2026-06-21 — Phase 6 START + §0 disjointness GATE: caught real contamination (CHECK-IN)
+Started Phase 6 (mechanism-targeted execution fine-tuning). §0 = train/test disjointness, the
+non-negotiable gate before any training. Fetched the candidate corpus internlm/Lean-Workbook (140,214
+problems, formal_statement + natural_language_statement) -> scratch/phase6/lean_workbook.json. Built
+src/atp/data/disjointness.py (normalize_formal_statement = name+whitespace-invariant key; exact_overlap)
+test-first (tests/test_disjointness.py, 6 tests) + scripts/phase6_disjointness.py (exact normalized
+overlap + TF-IDF cosine near-dup over formal AND informal text). Fast suite green; ruff clean.
+RESULT (results/phase6/disjointness.json): THE GATE DID ITS JOB — Lean Workbook is NOT cleanly disjoint.
+  - miniF2F-test: **10 EXACT (byte-identical, name-stripped) overlaps** = genuine contamination
+    (imo_1983_p6, amc12a_2021_p25, amc12a_2021_p8, amc12b_2020_p2, algebra_absapb..., each appearing
+    verbatim as a lean_workbook_* problem — competition math sourced from AoPS, exactly the expected
+    leak). Plus broad TF-IDF similarity (206/244 formal flagged≥0.55).
+  - ProofNet#-test: **0 exact overlaps.** The formal cos=1.0 hits are mostly TF-IDF artifacts on SHORT
+    statements (Artin_2_3_2 "conjugate elements" ~ "Group (A≃A)" = different problems sharing tokens),
+    BUT a few high-index workbook entries (~139k-140k) match ProofNet textbook problems on non-trivial
+    statements (Irreducible(X^6-4X^3+1) ~ Dummit-Foote 9.4.2) + informal cos up to 0.93 -> needs manual
+    read; likely a small real near-dup set.
+IMPLICATION: cannot train on raw Lean Workbook. DECISION NEEDED (this is the pre-registered §0 check-in):
+decontaminate = drop workbook problems that are exact-overlap OR above a manually-validated cosine
+threshold to EITHER eval set, then train on the (still ~140k) clean remainder + document the residual-max
+-cosine + boundary spot-check as the §0 proof. Drop count will be tiny vs 140k. NEXT after steer:
+compute per-workbook max-similarity (transpose), set threshold by reading the boundary, write the
+decontaminated corpus + §0 proof, THEN Task 6.1 harvest. NO training until §0 green.
+
+## 2026-06-21 — Phase 6 §0 GATE GREEN (decontaminated); ready for Task 6.1
+Decontaminated Lean Workbook against miniF2F-test ∪ ProofNet#-test (scripts/phase6_decontaminate.py,
+ruff clean). Boundary-band reading drove the rule: FORMAL cosine = thematic-not-duplicate (the 0.85-0.98
+non-exact band is distinct same-technique problems sharing notation — KEEP, they're useful training
+data; 30k sit ≥0.5), INFORMAL cosine = the clean duplicate signal (~60 ≥0.9 are real near-dups). Rule
+(conservative on the duplicate axis): drop = exact ∪ formal_cos≥0.95 ∪ informal_cos≥0.85. RESULT: dropped
+202/140214 (0.14%), CLEAN = 140,012 -> scratch/phase6/lean_workbook_clean.json; residual exact=0, residual
+max cosine formal 0.95 (thematic) / informal 0.845. Proof: results/phase6/disjointness_proof.json +
+results/phase6/DISJOINTNESS.md. §0 GREEN — training may proceed on the clean corpus, every checkpoint
+manifest records corpus=lean_workbook_clean + this proof. Artifacts: src/atp/data/disjointness.py (+6
+tests), scripts/phase6_{disjointness,decontaminate}.py. NEXT = Task 6.1 harvest (generate base-model
+proofs on the clean corpus, keep verified, build RFT set + closing-targeted (deep_state->closing) set);
+needs a design call on training-subset size + per-problem gen budget (a real GPU spend) before launch.
+
+## 2026-06-21 — Phase 6 Task 6.1 START: clean-corpus loader (pilot-first path)
+User chose PILOT-FIRST harvest (build pipeline test-first → ~1k problems/model → check in before
+scaling). Built the foundational component: src/atp/data/lean_workbook.py (load_lean_workbook +
+strip_proof_tail; reads scratch/phase6/lean_workbook_clean.json, strips `:= by sorry`, names from
+_lw_id, benchmark='lean_workbook' split='train', refuses to load if clean corpus missing = §0 guard).
+Tests tests/test_lean_workbook.py (3, incl missing-file raise). Wired into data/__init__._load_raw
+(benchmark=='lean_workbook' → lean_workbook_path or default clean path) + __all__. Loads real corpus =
+140,012. Full fast suite green, ruff clean.
+REMAINING for the pilot harvest (next): (1) generation harness on lean_workbook — reuse run_eval /
+WholeProofAgent via a configs/phase6_harvest_*.yaml (data.limit=1000, modest budget, keep VERIFIED
+proofs = RFT pool); low risk, existing infra. (2) **closing-target construction = the novel + RISKY
+piece**: from each verified proof, get the intermediate proof STATE at a deep truncation point (F3 range
+~steps 20-50), pair (deep_state → remaining closing tactics), and RE-VERIFY (apply closing to the
+truncated state → 0 goals). This needs REPL tactic-mode / proofState extraction — current ReplBackend is
+COMMAND-mode only (same gap flagged in the Phase 3 hammer probe). Validating this re-verification is the
+WHOLE POINT of the pilot. (3) pilot slurm + run ~1k/model (Goedel+DeepSeek) → measure base solve rate +
+prove closing-targets re-verify → size the full harvest → CHECK IN. NO large GPU until the pilot validates.
+
+## 2026-06-21 — Phase 6 Task 6.1 harvest pipeline BUILT (test-first); smoke launched
+Built the full pilot-harvest pipeline (autonomous per feedback_atp_autonomy), all test-first + ruff clean,
+full fast suite green:
+- src/atp/data/closing_targets.py (+6 tests): the NOVEL core. Parses a verified tactic-mode proof into
+  top-level tactic groups (indentation-based, keeps multi-line `have … := by` intact), emits truncation
+  candidates at end-weighted depths {n-1,n-2,n-3,n//2} → (prefix+sorry, closing). Pure/Lean-free.
+- src/atp/lean/repl.py ReplBackend.elaborate (+2 tests): surfaces REPL `sorries` (goal text) for a
+  `<prefix> … sorry` source; clean single-sorry (errors==0 ∧ len(sorries)==1) → deep_state. Reuses the
+  command-mode transport + infra-retry — NO tactic-mode/proofState build needed (the pair re-verifies by
+  construction since the full proof already verified). This sidesteps the Phase-3 "command-mode only" gap.
+- scripts/phase6_harvest.py (+2 tests, pure aggregation): generation run dir → rft.jsonl (verified whole
+  proofs = RFT pool) + closing_targets.jsonl (deep_state→closing pairs, REPL-validated) + harvest_summary
+  (base solve rate, candidate→valid rate). CPU+Lean, no GPU. --skip-closing for RFT-only.
+- src/atp/config.py: DataCfg gains benchmark 'lean_workbook' + lean_workbook_path.
+- configs/phase6_harvest_{goedel,deepseek}.yaml (+ _goedel_smoke): generation on the clean corpus,
+  limit=1000, 1 seed, single 16k budget (early-stop on solve = maximize verified-proofs/GPU-h). Both load
+  + resolve correct model/Lean pins; deepseek inherits its v4.9.0/f0957a7 pin.
+SMOKE (CLAUDE.md rule 5): job 10786402 = Goedel harvest on 5 lean_workbook problems (1 shard, 45min wall)
+to validate the chain end-to-end (load→generate→verify→agent_states with proofs) AND give a tiny set to
+exercise the closing-target REPL extraction before the 1000-problem×2-model pilot. NEXT: on smoke pass,
+run scripts/phase6_harvest.py on the smoke dir (validates elaborate path on real proofs), then launch the
+full pilot (goedel+deepseek, 1000 each). Gate = base solve rate + closing-target candidate→valid rate.
+
+## 2026-06-21 — Phase 6 harvest: smoke caught an infra gap (fixed); full pilot launched
+SMOKE (job 10786402) FAILED: vLLM died at startup with NameResolutionError — sweep_array.sh did NOT set
+HF offline mode, so vLLM's revision-check (list_repo_files) hit huggingface.co on a non-resolving compute
+node (same failure as the Phase 5 pilot). FIX (durable): sweep_array.sh now defaults HF_HUB_OFFLINE=1 +
+TRANSFORMERS_OFFLINE=1 (weights always pre-cached; override ATP_HF_OFFLINE=0). Re-smoke 10786715 COMPLETED:
+vLLM up, 5 lean_workbook cells ran, pipeline HEALTHY — model emits genuine substantial Lean proofs (have-
+blocks/nlinarith) — but 0/5 solved (the first 5 are hard sqrt-inequalities/functional-eqns; one failed at
+step 0 = statement didn't elaborate on the Goedel fork pin → some Workbook statements won't, lowers yield).
+0 verified proofs from 5 hard problems → need the full pilot to get proofs for closing-target validation.
+FULL PILOT LAUNCHED (1000 problems/model, 1 seed, 16k, 8 shards): Goedel 10787277, DeepSeek 10787278
+(deepseek: ATP_HF_HOME=.hf_cache, deepseek-lean-env, ELAN_HOME scratch/elan-deepseek, port 8300, both
+--exclude=ins082,ins087). ON COMPLETION: run slurm/phase6_harvest_extract.sh per model → harvest_summary
+(base solve rate + closing-target candidate→valid rate) = the pilot gate → size full harvest / proceed to
+Stage A RFT SFT. NOTE: if many statements fail at step 0, add a validate_statements gate before the full harvest.
+
+## 2026-06-22 — Phase 6 pilot: generation + extraction DONE; key finding → closing-targets enhanced
+PILOT GENERATION (jobs 10787277 goedel / 10787278 deepseek, 1000 problems each, 16k, 1 seed):
+base solve rate Goedel 244/1000 (24.4%), DeepSeek 239/1000 (23.9%) — all tactic-mode. Healthy yield;
+extrapolates to ~34k verified proofs/model on the full 140k corpus. (~half of cells show step-0
+failures = some Workbook statements don't elaborate on our pins → add a validate_statements pre-gate
+for the full harvest to cut wasted budget.)
+FIRST EXTRACTION (10792098/9): closing-target REPL path VALIDATED — candidate→valid rate Goedel 94.5%
+(342/362), DeepSeek 97.2% (307/316). BUT pilot spot-check exposed a DATA-QUALITY issue: 55% (goedel) /
+68% (deepseek) of pairs had TRIVIAL closings (`exact h_main`), because these provers write monolithic
+`have h_main : <goal> := by <real work>` then `exact h_main` (the Phase-3 hammer structure) — top-level
+truncation captures the trivial wrapper, the real goal-closing work is NESTED inside the have. Training
+Stage B on `exact h_main` would test nothing → fix necessary for experiment validity.
+FIX (test-first, no GPU): src/atp/data/closing_targets.py now (1) descends one level into `… := by`
+blocks (reconstructs source keeping outer context so exactly ONE sorry results, deep_state = the goal
+inside the have), and (2) DROPS trivial closings (lone exact/simpa/assumption/rfl). closing pairs now
+carry a `depth` field (0 top-level, 1 nested). 7 tests (incl the monolithic case), ruff clean, full fast
+suite green. RE-EXTRACTION launched (10792621 goedel / 10792622 deepseek, CPU+Lean, reuses pilot proofs,
+no GPU) → substantive closing-targets. NEXT: confirm trivial fraction drops + pairs are real closing
+work, write the pilot summary + full-harvest sizing, then Stage A (RFT SFT).
+
+---
+## 2026-06-22 (cont.) — Phase 6 nested closing-target bug FIXED; re-extraction relaunched
+
+**Root cause of depth1=0% (re-extraction 10792621/22).** `top_level_groups` treated tactic-combinator
+continuation lines (`<;> norm_num`, `<;> rfl`) as SEPARATE top-level groups. The dominant Goedel/DeepSeek
+proof shape is `have h_main := by <tac> <;> … <;> …`. Truncating between a tactic and its `<;>`
+combinator produced (a) a closing that begins with a dangling `<;>` (invalid Lean → elaboration error)
+and (b) a prefix with the lead tactic left mid-combinator. So every nested candidate failed the REPL.
+
+**Fix** (`src/atp/data/closing_targets.py`): added `_CONTINUATION = ^(<;>|<\|>|\||\)|\}|=>)`; in
+`top_level_groups`, a line only STARTS a new group if it is at base indent AND is not a continuation —
+otherwise it attaches to the current group. So `rw [hx] <;> norm_num <;> rfl` is one tactic, never cut.
+Regression test `test_combinator_lines_attach_to_preceding_tactic` (+ COMBINATOR fixture = lean_workbook_101).
+
+**Offline yield check (Goedel pilot, 244 solved, pre-Lean, post-fix):**
+  - 0 candidates: 29 (11.9%)  ← legitimately single-tactic monolithic (no intermediate state to target)
+  - has depth0 (top-level last-mile): 114 (46.7%), 188 candidates
+  - has depth1 (nested deep closing): 205 (84.0%), 941 candidates  ← was 0% before fix
+The fix trades quantity for VALIDITY: we no longer fabricate `<;>`-leading closings; nested deep-state
+closings now generate across 84% of proofs.
+
+**Harvest selection upgrade** (`scripts/phase6_harvest.py`): `closing_truncations` emits depth0 first,
+so a `max_per_proof=2` cap would drop every nested closing. Added `_depth_interleave` (alternate
+depth1/depth0) so each proof contributes a DEPTH-DIVERSE mix (the nested deep-state closing is the
+on-mechanism prize). Pairs now carry `depth`; summary adds `n_nested_pairs`. Tests added.
+
+Fast suite 357 passed; changed files lint-clean. RE-EXTRACTION relaunched:
+10795789 (goedel) / 10795790 (deepseek), CPU+Lean, reuses pilot proofs, no GPU.
+NEXT: confirm depth1 pairs survive Lean elaboration with substantive closings + healthy valid-rate,
+then write pilot summary + full-harvest sizing (incl. validate_statements pre-gate), then Stage A.
+
+---
+## 2026-06-22 (cont.) — Phase 6 pilot harvest FINAL + Stage B realization decided (Option 1)
+
+**Re-extraction (corrected code, 10797016/17) FINAL numbers:**
+  - goedel:   244 RFT proofs / 381 closing pairs (264 nested, 117 top-level), valid-rate 0.85, 205 thms
+  - deepseek: 239 RFT proofs / 341 closing pairs (262 nested,  79 top-level), valid-rate 0.83, 185 thms
+  - 0 dangling-combinator closings remaining (the comment-between-combinator fix worked; the bug had
+    affected only 1 deepseek pair — rare, but a real correctness hole, now closed by code).
+
+**Two correctness fixes shipped to closing_targets.py this session** (both with regression tests):
+  1. `<;>`/combinator continuation lines no longer start a top-level group (else cut yields invalid
+     `<;>`-leading closing). 2. comment-only lines no longer start a group (a comment between a tactic
+     and its `<;>` was letting the cut split the tactic mid-combinator → unrunnable target). Plus a
+     `_closing_is_dangling` defense-in-depth filter. Fast suite 358 passed; changed files lint-clean.
+
+**GPU sizing (from gen sweep 10787278):** 23.3 GPU-h / 2000 cells ≈ 11.6 GPU-h per 1000 problems per
+model; ~92% of tokens burn on UNSOLVED cells → validate_statements pre-gate (already exists) is the
+efficiency lever before any scale-up.
+
+**STAGE B = OPTION 1 PROOF-CONTINUATION (user decision; see DECISIONS.md 2026-06-22).** Byte-exact
+whole-proof fence ending at `:= by <deep-prefix>` → closing target. Rejected subgoal-as-theorem
+(gift-wrapped easier skill) and weighted-RFT (collapses A vs B). CRUX = targets must be closings the
+BASE MODEL CANNOT already produce (probe + keep only failures). Falsify on pilot data before scaling.
+
+NEXT: 6.2 continuation template + tests (byte-exact, CPU) → 6.3 round-trip handful (parseable + verifies)
+→ 6.4 hard-target probe over all pairs = Stage B's training set → 6.5 SFT infra (install peft/trl) →
+6.6 Stage A vs B pilot SFT + eval on held-out miniF2F+ProofNet# (disjoint), per-seed, both models.
+
+---
+## 2026-06-22 (cont.) — Phase 6 Task 6.2/6.3 built: continuation format + probe (round-trip smoke launched)
+
+**6.2 continuation prompt (byte-exact).** WholeProofTemplate.render_continuation(theorem, prefix) =
+identical wrapper to the cold whole-proof prompt; only the ```lean4 block ends at `:= by <prefix>`
+instead of `:= by sorry` (test asserts swapping prefix→` sorry` reproduces the cold prompt BYTE-for-byte).
+ClosingCandidate gained cont_prefix/cont_target with INVARIANT head+cont_prefix+cont_target==proof (so
+the continuation target verifies by construction; nested cuts carry the outer tail e.g. `exact h_main`).
+phase6_harvest.py persists both fields going forward.
+
+**6.3/6.4 probe** (scripts/phase6_continuation_probe.py, +10 tests): feeds the continuation prompt to
+the BASE model via the real VLLMClient+ReplBackend path and classifies each pair HARD (base fails to
+close → keep for Stage B) vs already-closable (drop) — the CRUX. Conservative (any sample closing, whole
+OR spliced, => drop). recompute_cont re-derives cont_prefix/cont_target for the pilot jsonl (which predate
+the fields) by matching closing_truncations — validated 380/381 goedel, 339/341 deepseek, 0 recon
+mismatch. slurm/phase6_probe.sh = vLLM (sweep pattern) + /dev/shm Lean stage (extract pattern).
+
+371 fast tests pass; repo lint clean. ROUND-TRIP SMOKE launched: 10799139 (goedel) / 10799140 (deepseek),
+limit 10, 1 sample, budget 4096. Checking: continuation prompts yield parseable ```lean4 through the real
+serving path (the −36pp inference_mode_match guard) + base hard/closable split looks sane. Then full probe
+(all pairs) = Stage B's training set, then 6.5 SFT infra.
+
+---
+## 2026-06-22 (cont.) — Stage B round-trip smoke PASSED; full hard-target probe launched
+
+**Smoke (Task 6.3) — clean PASS both models** (budget 8192, 12 pairs each):
+  - goedel:   parseable 100%, finished 100%, hard 17% (2/12), indeterminate 0
+  - deepseek: parseable 100%, finished 100%, hard 25% (3/12), indeterminate 0
+Confirms: (1) FORMAT FIDELITY — the continuation prompt yields a parseable+verifiable ```lean4 proof
+through the REAL VLLMClient+ReplBackend inference path on BOTH models, ZERO agent change (base re-emits
+the whole proof; extract_proof+verify handles it; splice never needed). The −36pp inference_mode_match
+guard passes. (2) The CRUX signal is POSITIVE — ~17–25% of pairs are genuinely hard (base can't
+reproduce the closing from the prefix), so Stage B imparts NEW capability, won't just echo A.
+
+**Two bugs the smoke caught + fixed:** VerifyResult.ok (not .success); DeepSeek weights live in the
+project-PARENT .hf_cache (/insomnia001/depts/edu/COMS-E6998-012/zwz2000/.hf_cache), not $HOME — fixed in
+slurm/phase6_probe.sh docs. **Probe hardening:** record finish_reason; a TRUNCATED non-closing sample
+(base overran budget re-emitting a long whole proof) is INDETERMINATE, not hard — so the Stage B train
+set isn't polluted by budget noise. budget 4096→8192 removed all truncation on pilot-length proofs.
+
+**Probe sharded** (--num-shards/--shard-id stride + --merge) so the full ~720-pair/model probe (serial
+~1min/pair = ~12h) runs as an 8-way array (~1.5-3h/shard). FULL HARD-TARGET PROBE launched:
+10799214 (goedel) / 10799215 (deepseek), array 0-7, budget 8192, samples 1, all pairs. Output =
+probe_hard.s{0..7}.json per shard → merge → the hard subset = Stage B's training set.
+373 fast tests pass; probe + launcher lint-clean, bash -n OK.
+NEXT: merge shards → hard set; then 6.5 SFT infra (peft/trl), single-variable A(RFT) vs B(continuation
+on hard targets); then 6.6 pilot eval on held-out miniF2F+ProofNet#.
+
+---
+## 2026-06-22 (cont.) — full probe merged; Stage A/B SFT data + training infra built
+
+**FULL hard-target probe (Task 6.4) done** (8-way array, budget 8192, samples 1):
+  - goedel:   380 probed → 72 HARD (19%), 12 indeterminate, 296 base-closes; hard from 56 proofs, mostly depth1
+  - deepseek: 339 probed → 88 HARD (26%),  4 indeterminate, 247 base-closes; hard from 71 proofs, mostly depth1
+Hard targets are substantive (nested nlinarith/positivity/induction closings) but the sets are SMALL
+(~72-88/model) — a NULL pilot here would be data-starved (uninformative); a POSITIVE signal would justify
+scaling. Pilot-first still correct (cheap, validates infra). Merge via `--merge`; probe records now carry
+k/n_groups for exact pair mapping.
+
+**SFT data (Task 6.5, scripts/phase6_build_sft.py +tests):** conversational jsonl (messages) so trl/HF
+applies the model's OWN chat template (inference_mode_match at the data level). A(RFT)=all verified proofs
+(244/239); B(continuation-hard)=hard pairs only (72/88), user=render_continuation(stmt+deep-prefix),
+assistant=fenced full proof (SAME completion shape as A → single variable = prompt + hard selection). Hard
+set reconstructed from per-shard probe files via the rows[shard::N] stride (name-validated).
+
+**Training (scripts/phase6_train_sft.py +tests, slurm/phase6_train.sh):** LoRA SFT, explicit chat-template
+tokenize + completion-only label masking (build_labels, fake-tokenizer tested), standard Trainer+PEFT,
+restartable. Single-variable: same args for A/B, only --data differs. **SMOKE RUNNING** (10799385, goedel
+Stage B, 10 steps): 72 ex, median 1073 tok, LoRA 43.6M params (0.53%) — tokenize/mask/attach all work.
+
+**Eval prep:** ATP_SERVED_MODEL env override (client.py +test) lets the held-out eval target a LoRA adapter
+served alongside the base (vLLM --lora-modules) vs the base control, same config+server.
+381 fast tests pass; all changed files lint-clean. NEXT: confirm smoke adapter saves + loads in vLLM →
+build eval launcher (base+LoRA serve + held-out eval) → pilot A-vs-B on miniF2F+ProofNet#.
+
+---
+## 2026-06-22 (cont.) — SFT loss-targeting fix; seed-0 training + eval-mechanics test launched
+
+**Training smoke (masking fix) result + finding:** loss-mask now restricts B's supervision to the
+closing (median 425 supervised tokens of ~1073, 71/72 examples). Loss stayed ~0.058 → the low loss is
+NOT prefix-copy dilution but the RFT-on-own-outputs effect: the base assigns high per-token prob to its
+own closings even though autoregressively (at temp) it FAILS to generate them (exposure bias = why the
+probe marked them hard). IMPLICATION worth noting in results: the closing failure looks like a
+sampling/exposure problem (RL/Stage C's lever) more than a conditional-probability gap (SFT's lever) —
+but pass@B at eval is the real test, so the pilot proceeds. build_labels gained `supervise_after`
+(common-token-prefix boundary, fake-tokenizer tested); make_example emits it for B (=cont_target).
+
+**LAUNCHED:** goedel A_seed0 (10799394) + B_seed0 (10799395), LoRA r16, max_steps=120 (≈4 epochs A /
+≈13 B — matched steps = single-variable; epoch asymmetry inherent to the targeted-set size, reported).
+**Eval mechanics test** (10799396): sweep_array.sh now serves base+LoRA via ATP_VLLM_LORA + the eval
+targets the adapter via ATP_SERVED_MODEL — validating the serve/request path on proofnet_smoke (3 probs)
+with the smoke adapter before the real pilot eval. 385 tests pass; changed files lint-clean.
+NEXT: confirm eval mechanics → pilot eval (base vs A vs B) on held-out miniF2F+ProofNet# @ budgets
+[8k,32k]; then 3 seeds + deepseek if signal.
+
+---
+## 2026-06-22 (cont.) — BYTE-EXACT serving gate PASSED; pilot eval prepped; pre-registration locked
+
+**PRE-REGISTERED (DECISIONS.md + memory) before any pass@B lands:** loss=0.06 = conditional-prob
+saturation / exposure-bias signature → PREDICT Stage B moves pass@B little if floor is sampling-bound.
+Three-way read fixed: B-lifts→scale harvest; B-null-but-A/B-separates→partial signal, scale; B-flatly-
+null→(loss signature makes it a DIAGNOSIS) floor is sampling-bound→Stage C RL, NOT scale-up. A_seed0
+final loss 0.0587 too (both arms saturated, as predicted).
+
+**LOAD-BEARING GATE — base-vs-adapter serving is BYTE-EXACT (verified, not assumed):** base and
+A_seed0 adapter chat_templates are IDENTICAL (sha256 a55ee1b1.., 4168 chars) and a rendered prompt is
+byte-identical → inference format provably unchanged regardless of which tokenizer vLLM uses for the
+adapter. Eliminates the −36pp mismatch risk at the source. Runtime confirmation: eval-mechanics test
+(10799396) has vLLM serving base+LoRA (--enable-lora accepted) and the eval requesting the adapter.
+
+**Pilot eval configs:** configs/phase6_eval_goedel_{proofnet,minif2f}.yaml — baseline agent, budgets
+[8k,32k] (the moderate window where closing bites), eval seed [0] for the first cheap signal (→[0,1,2]
+if a direction appears). Arm chosen at launch (ATP_VLLM_LORA + ATP_SERVED_MODEL); all arms share the
+config (single variable = served weights). A_seed0 adapter DONE; B_seed0 training; then base/A/B eval.
+
+---
+## 2026-06-22 (cont.) — pilot eval launched (base/A/B × miniF2F/ProofNet#); vLLM-startup-timeout fix
+
+Launched 6 eval jobs (3 arms × 2 held-out benchmarks), 4-shard arrays, budgets [8k,32k], eval seed 0,
+all through the SAME phase6_eval config + sweep_array.sh (only served weights differ — base / goedel-A /
+goedel-B via ATP_VLLM_LORA+ATP_SERVED_MODEL). Decided to run BASE FRESH (not reuse old baselines —
+different budget grid/sweep version = confound).
+
+**BUG caught + fixed: vLLM-startup-timeout false-complete.** pn_B (10799548) logged 0 cells / "COMPLETED":
+its vLLM took >20min to come up (cluster contention), the wait loop (120×10s=20min) fell through with the
+PID still ALIVE (so no FATAL) into the eval, where EVERY cell fast-failed APIConnectionError → ran=0. Not
+a code/LoRA bug (pn_A, also a LoRA arm, ran fine). FIX (slurm/sweep_array.sh): wait up to ~40min (240×10s)
+AND fail LOUDLY if vLLM never answers (vllm_up flag) instead of running a dead sweep. Bumped wait + resubmit
+pn_B(10799931)/mf_A(10799932)/mf_B(10799933) [Slurm snapshots the script at submit, so the pending mf_A/mf_B
+were cancelled+resubmitted to pick up the fix]. pn_base(546)/pn_A(547)/mf_base(549) running fine on the
+12h wall (sweep_array.sh --time=11:55, ample). NEXT: aggregate 6 runs → base→A→B pass@B @ [8k,32k] read
+against the pre-registered saturation prediction.
+
+## 2026-06-23 — Phase 6 Stage B pilot READ-OUT (goedel, seed 0)
+
+Five of six arms complete (ProofNet# base/A/B = 186/186; miniF2F A/B = 244/244).
+mf_base hit the SAME old-script vLLM-startup bug on shards 1-3 (job 10799549 was
+submitted pre-fix; Slurm snapshots the script) — only shard 0's 61 cells valid.
+Resubmitted with fixed script as 10804974 (--resume keeps the 61, refills 1-3).
+=> miniF2F base row (n=61, strided subset) is NOT comparable to A/B (n=244); the
+   miniF2F base-vs-B verdict is PENDING 10804974. ProofNet# read is final.
+
+pass@B table (goedel, seed 0):
+  ProofNet# (n=186, FINAL):
+    base: 11.3% @8k, 13.4% @32k
+    A   :  8.6% @8k,  9.7% @32k   (A-base = -2.7 / -3.8 pp)   RFT HURT
+    B   : 11.3% @8k, 12.9% @32k   (B-base = +0.0 / -0.5 pp)   FLAT vs base
+    B-A : +2.7 / +3.2 pp
+  miniF2F (A/B n=244 valid; base n=61 PARTIAL/not comparable):
+    base(61): 65.6% @8k, 73.8% @32k   [subset, do not compare yet]
+    A(244)  : 51.6% @8k, 52.0% @32k
+    B(244)  : 59.4% @8k, 69.3% @32k
+    B-A     : +7.8 / +17.2 pp
+
+READ vs pre-registered exposure-bias/saturation prediction:
+  - B does NOT lift pass@B over base (ProofNet# B-base ~= 0). MATCHES prediction.
+  - A (generic RFT-on-own-outputs) consistently HURTS both benchmarks — classic
+    distribution-narrowing from SFT on saturated conditionals (loss ~0.06).
+  - B > A everywhere (closing-targeted shape less harmful than RFT shape) but this
+    is a within-SFT contrast, NOT a lift over base. "Less harmful," not "helpful."
+  => Interim routing: SFT (loss-saturated) does not move the floor; floor is
+     sampling/exposure-bound. Indicated lever = Stage C process-reward RL, NOT
+     harvest scale-up. LOCK after mf_base(244) confirms B<=base on miniF2F.
+
+## 2026-06-23 — Phase 6 Stage B pilot LOCKED (mf_base 244 complete)
+
+Final, fully-comparable (n matched both benchmarks):
+  miniF2F (244):   base 63.1/70.5 | A 51.6/52.0 | B 59.4/69.3
+                   A-base -11.5/-18.4 | B-base -3.7/-1.2 | B-A +7.8/+17.2
+  ProofNet# (186): base 11.3/13.4 | A 8.6/9.7 | B 11.3/12.9
+                   A-base -2.7/-3.8 | B-base +0.0/-0.5 | B-A +2.7/+3.2
+
+VERDICT (matches pre-registered saturation prediction): closing-targeted SFT (B)
+does NOT lift pass@B over base on EITHER benchmark (B-base = -1.2 to -0.5 at 32k,
+flat-to-slightly-negative). Generic RFT (A) actively HURTS (distribution narrowing
+from SFT on saturated conditionals, closing-token loss ~0.06). B > A everywhere is
+a within-SFT "less harmful" effect, NOT a lift over base => does NOT qualify as the
+(b) "partial signal, scale harvest" branch (B must beat BASE for that; it does not).
+
+ROUTING = interpretation (c), LOCKED: the F2/F3 execution floor is sampling/
+exposure-bound; SFT on saturated conditionals cannot move it; more closing-targeted
+data won't help a saturated conditional. Indicated lever = Stage C process-reward
+RL (GRPO), NOT harvest scale-up. The loss=0.06 pre-registration paid off as a
+DIAGNOSIS. (Goedel seed 0; deepseek + multi-seed only worth running if we wanted to
+publish the null robustly — the mechanism call does not need them.)

@@ -816,3 +816,86 @@ miniF2F (saturated contrast): tiny reclaim, pilot infeasible@iso-compute@512k �
 contrast. Per-seed extend counts balanced (goedel 122/123/146; deepseek 118/109/99). NEXT = Task 5.2
 pilot gate: build the resume-to-extend runner (test-first) + extend ~10 ProofNet# cells/model to 512k,
 1 seed, then CHECK IN with the pilot solve count + per-seed split before any full spend.
+
+---
+## 2026-06-22 — Phase 6 Stage B realization = OPTION 1 (proof-continuation), not subgoal-as-theorem or weighted-RFT
+
+**Decision (user, load-bearing).** The closing-targeted SFT (Stage B, the core novel ingredient) is
+realized as PROOF-CONTINUATION in the prover's exact whole-proof format: the ```lean4 code block ends at
+`<statement> := by\n<deep-prefix>` (the verified proof up to a deep cut) and the SFT target is the
+remaining CLOSING tactics — "here is the theorem and the proof so far, finish it."
+
+**Why not the alternatives:**
+- *Subgoal-as-theorem* (reconstruct `theorem sub (<hyps>) : <goal> := by <closing>` and train pure
+  whole-proof): REJECTED. It gift-wraps the deep state into a NEW, easier statement with all hypotheses
+  handed over explicitly. The model proving it shows it can close a goal someone extracted for it — NOT
+  that it can reach and close that state in situ (which is the actual F2/F3 floor). Trains/measures a
+  non-transferring, easier skill. "Looks rigorous, measures the wrong thing."
+- *Closing-weighted RFT* (full proofs, up-weight closing tokens / oversample): REJECTED. Still trains on
+  proofs the model already produces; reinforces existing capability, doesn't teach closing from states it
+  currently fails at. Collapses Stage B into "Stage A with a loss reweight" → muddies the A-vs-B novelty
+  claim into a hyperparameter.
+
+**Three constraints that make Stage B real (pre-registered):**
+1. **CRUX — targets must be closings the BASE MODEL CANNOT produce on its own.** Probe: feed
+   (statement + prefix) to the base model at normal budget; KEEP a pair only if the base fails to close it
+   AND a verified closing exists (our harvested one, another seed, or a teacher). If every target is
+   already-closable, A≈B and the novelty evaporates. This is the single most important design point.
+2. **Byte-exact inference format.** Continuation prompt = byte-for-byte the same fence / import block /
+   `theorem … := by` scaffolding the model sees at inference, with the partial proof as a genuine prefix.
+   Add a test: a base continuation prompt through the REAL inference/parse path yields a parseable
+   ```lean4 block (catch the −36pp inference_mode_match mismatch BEFORE training).
+3. **Single-variable A-vs-B.** Same base, corpus, hyperparameters, total tokens/steps; the ONLY difference
+   is data shape (A: statement→full proof; B: statement+deep-prefix→completion of hard closings).
+
+**Pre-commit verification (before building the full training set):** round-trip a handful of Option-1
+examples — feed statement+prefix to the base model (parseable?) AND confirm prefix+closing verifies in
+Lean (true by construction; spot-check catches truncation/format bugs cheaply).
+
+**Sequencing guard:** scale the harvest beyond the 1000-problem pilot ONLY after a pilot-SFT falsification
+(Stage A vs Stage B on the pilot data) shows lift signal — don't burn ~150–300 GPU-h harvesting before B
+is shown to beat A. (Consistent with validate-premise-before-building.)
+
+---
+## 2026-06-22 — PRE-REGISTERED prediction for the Stage A/B pilot (before the numbers land)
+
+**Observation (training):** with loss correctly masked to the closing tokens, SFT loss on the HARD
+closings is ~0.058 (≈94% per-token prob). The base assigns high CONDITIONAL (teacher-forced) probability
+to its own closings, yet the probe showed it FAILS to GENERATE them autoregressively at temperature.
+That split = the classic exposure-bias / sampling-vs-knowledge signature.
+
+**Falsifiable PRE-REGISTERED prediction:** if the execution floor is sampling-bound (not conditional-
+probability-bound), then closing-targeted SFT (Stage B) should move pass@B LITTLE — because SFT
+optimizes exactly the conditional probability that is already near-saturated (loss 0.06). Generic RFT
+(A) likewise. A real lift would FALSIFY the saturation read.
+
+**Three-way interpretation, fixed in advance:**
+  1. B lifts pass@B meaningfully → saturation read incomplete, SFT helps → SCALE THE HARVEST. Positive.
+  2. B null on pass@B BUT A-vs-B separates (B closes problems A doesn't) → partial mechanism signal →
+     worth the harvest scale-up. Do NOT discard a weak-but-real separation.
+  3. B FLATLY null → NOT "data-starved shrug": the loss=0.06 saturation signature is an INDEPENDENT
+     mechanistic explanation → the floor is sampling/exposure-bound → the indicated lever is Stage C
+     process-reward RL, NOT harvest scale-up (more SFT data = more of an already-saturated lever).
+  The (sign of pass@B) × (matches saturation prediction?) pairing is the deliverable — publishable
+  either way, because it diagnoses WHY the floor exists.
+
+**LOAD-BEARING GATE (before reading ANY pass@B delta):** confirm the base-vs-adapter serving path is
+BYTE-EXACT in inference format. vLLM serves the LoRA adapter on the SAME server/tokenizer/chat-template
+as the base (the adapter is weights only; its saved tokenizer_config is ignored by vLLM serving), so
+format is identical BY CONSTRUCTION — but given the −36pp inference_mode_match history, VERIFY
+empirically (both model names produce well-formed ```lean4 attempts on the same problems; base-name
+request reproduces base behavior). A silent serving discrepancy would masquerade as (or mask) a B
+effect. Do not trust A/B deltas until this is green.
+
+**Post-pilot routing (pre-loaded):** null + saturation signature → Stage C RL (evidence-motivated, not
+a guess). Positive or weak-separation → harvest scale-up. The loss=0.06 finding is early evidence the
+RL branch may be the right one; confirm with pass@B before committing.
+
+## 2026-06-23 — Stage B null => pivot to Stage C RL (not harvest scale-up)
+Phase 6 Stage B pilot (goedel seed 0, byte-exact serving gate passed) shows
+closing-targeted SFT does not lift pass@B over base (miniF2F B-base -1.2pp@32k;
+ProofNet# -0.5pp@32k); generic RFT hurts. Matches the pre-registered exposure-bias
+prediction (closing-token loss saturated at ~0.06). DECISION: do NOT scale the
+closing-target harvest. The execution floor is sampling-bound; the indicated lever
+is Stage C process-reward RL (GRPO). B>A is a "less harmful" within-SFT contrast,
+not grounds to scale (B never beats base). See PROGRESS.md 2026-06-23.
