@@ -299,3 +299,27 @@ def test_always_imports_never_pickles(tmp_path):
     assert all("unpickleEnvFrom" not in c for c in t.sent)
     assert all("pickleTo" not in c for c in t.sent)
     assert all(c.get("env") == 0 for c in t.sent if "cmd" in c and c["cmd"] != "import Mathlib")
+
+
+def test_elaborate_returns_single_sorry_goal():
+    # Phase 6 closing-targets: a `<prefix> … sorry` source elaborates with a sorry warning (not an
+    # error) and the intermediate goal in `sorries[].goal`.
+    resp = {
+        "env": 1,
+        "sorries": [{"goal": "a b : ℝ\n⊢ b = a", "proofState": 3,
+                     "pos": {"line": 2, "column": 2}}],
+        "messages": [{"severity": "warning", "data": "declaration uses 'sorry'",
+                      "pos": {"line": 1, "column": 0}}],
+    }
+    b = _backend(_import_then(resp))
+    out = b.elaborate(THM, "theorem t : True := by\n  sorry")
+    assert out["errors"] == 0 and not out["infra_error"]
+    assert out["sorries"] == ["a b : ℝ\n⊢ b = a"]
+
+
+def test_elaborate_counts_error_severity():
+    resp = {"messages": [{"severity": "error", "data": "unsolved goals",
+                          "pos": {"line": 2, "column": 2}}]}
+    b = _backend(_import_then(resp))
+    out = b.elaborate(THM, "theorem t : True := by\n  foo\n  sorry")
+    assert out["errors"] == 1 and out["sorries"] == []

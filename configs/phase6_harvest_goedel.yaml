@@ -1,0 +1,36 @@
+# configs/phase6_harvest_goedel.yaml — Phase 6 Task 6.1 data harvest (Goedel-Prover-V2-8B).
+# Generate proofs on the DECONTAMINATED Lean Workbook corpus (§0, results/phase6/DISJOINTNESS.md) and
+# keep the VERIFIED ones — the RFT/STaR pool + the source for closing-targeted (deep_state->closing)
+# pairs (scripts/phase6_harvest.py). This is a GENERATION run (the standard eval harness pointed at the
+# training corpus), NOT an eval; it must NEVER touch miniF2F/ProofNet#.
+#
+# PILOT: data.limit=1000, 1 seed, single 16k budget (early-stop on solve). Validates the pipeline +
+# measures base solve rate before sizing the full harvest. Inherits Goedel model + Lean pin from base.
+defaults: proofnet_baseline
+
+data:
+  benchmark: lean_workbook
+  split: train
+  lean_workbook_path: scratch/phase6/lean_workbook_clean.json
+  exclude_unprovable: false
+  use_novel_split: false
+  limit: 1000
+
+budget:
+  # Single modest ceiling: maximize verified-proofs-per-GPU-hour (the agent early-stops on solve, so
+  # easy Workbook problems finish well under 16k). Not a pass@B curve — harvest cares about yield.
+  values: [16000]
+
+eval:
+  seeds: [0]
+  n_workers: 8
+
+# Minimal whole-proof agent (same as the baselines): the model's own proofs, no scaffolding.
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+  components:
+    memory: { enabled: false }
+    reviewer: { enabled: false }
+    retrieval: { enabled: false }
+    tactic_skeletons: { enabled: false }

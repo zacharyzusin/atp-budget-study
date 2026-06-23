@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from atp.data.contamination import load_novel_names, mark_contamination
 from atp.data.exclusions import apply_exclusions, load_exclusions
+from atp.data.lean_workbook import load_lean_workbook
 from atp.data.manifest import DatasetManifest
 from atp.data.minif2f import load_minif2f
 from atp.data.problems import (
@@ -34,6 +35,7 @@ __all__ = [
     "load_dataset",
     "load_minif2f",
     "load_proofnet",
+    "load_lean_workbook",
     "load_exclusions",
     "apply_exclusions",
     "mark_contamination",
@@ -56,6 +58,10 @@ def _load_raw(config: ExperimentConfig, split: str) -> list[Problem]:
         return load_minif2f(split, getattr(config.data, "minif2f_dir", None))
     if bench == "proofnet_sharp":
         return load_proofnet(split, getattr(config.data, "proofnet_dir", None))
+    if bench == "lean_workbook":
+        path = getattr(config.data, "lean_workbook_path", None) \
+            or "scratch/phase6/lean_workbook_clean.json"
+        return load_lean_workbook(path)
     raise ValueError(f"unknown benchmark {bench!r}")
 
 

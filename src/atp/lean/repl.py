@@ -403,6 +403,34 @@ class ReplBackend:
             elapsed_s=time.perf_counter() - t0,
         )
 
+    def elaborate(self, theorem: Theorem, source: str) -> dict:
+        """Elaborate `source` against base env 0, returning its sorry goals (Phase 6).
+
+        Unlike `verify` (pass/fail), this surfaces the REPL `sorries` so a `<prefix> … sorry` source
+        yields the intermediate goal state(s). Returns
+        `{"errors": <#error-severity msgs>, "sorries": [goal_text, …], "infra_error": bool}`.
+        A clean single-goal truncation is `errors == 0 and len(sorries) == 1`; its `sorries[0]` is
+        the `deep_state` for the closing-targeted pair. Mirrors `verify`'s infra-retry/restart.
+        """
+        src = self._build_repl_source(theorem, source)
+        for _attempt in range(self.INFRA_RETRIES + 1):
+            transport = self._ensure_started()
+            try:
+                resp = transport.request({"cmd": src, "env": self._base_env}, float(self.timeout_s))
+            except TimeoutError:
+                self._restart()
+                return {"errors": 1, "sorries": [], "infra_error": True, "timed_out": True}
+            except Exception:  # pragma: no cover - live process only
+                self._restart()
+                continue
+            n_err = sum(
+                1 for m in resp.get("messages", [])
+                if str(m.get("severity", "error")).lower() == "error"
+            )
+            goals = [s.get("goal", "") for s in resp.get("sorries", [])]
+            return {"errors": n_err, "sorries": goals, "infra_error": False}
+        return {"errors": 1, "sorries": [], "infra_error": True}
+
     def _restart(self) -> None:
         """Drop the (possibly wedged) process so the next verify reloads Mathlib cleanly."""
         if self._injected:

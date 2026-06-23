@@ -1,0 +1,8 @@
+# configs/phase6_harvest_goedel_smoke.yaml — 5-problem smoke for the Phase 6 harvest path.
+# Validates the full chain on lean_workbook (load clean corpus -> generate -> verify -> agent_states
+# with proofs) before the 1000-problem pilot, and gives a tiny set to exercise the closing-target
+# REPL extraction (scripts/phase6_harvest.py) end-to-end. Smoke-before-scale (CLAUDE.md rule 5).
+defaults: phase6_harvest_goedel
+
+data:
+  limit: 5

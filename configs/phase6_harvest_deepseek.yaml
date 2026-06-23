@@ -1,0 +1,31 @@
+# configs/phase6_harvest_deepseek.yaml — Phase 6 Task 6.1 data harvest (DeepSeek-Prover-V2-7B).
+# Same harvest protocol as configs/phase6_harvest_goedel.yaml (decontaminated Lean Workbook, keep
+# verified proofs), only the model + matched Lean env differ. Inherits the DeepSeek model + v4.9.0 pin
+# from deepseek_proofnet_baseline; the data/budget/eval/agent harvest block is re-specified here
+# (recursive defaults take the LAST value, so we set it explicitly rather than rely on chain order).
+# Run with ATP_HF_HOME / ATP_LEAN_ENV_NAME=deepseek-lean-env / ELAN_HOME (see the slurm launcher).
+defaults: deepseek_proofnet_baseline
+
+data:
+  benchmark: lean_workbook
+  split: train
+  lean_workbook_path: scratch/phase6/lean_workbook_clean.json
+  exclude_unprovable: false
+  use_novel_split: false
+  limit: 1000
+
+budget:
+  values: [16000]
+
+eval:
+  seeds: [0]
+  n_workers: 8
+
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+  components:
+    memory: { enabled: false }
+    reviewer: { enabled: false }
+    retrieval: { enabled: false }
+    tactic_skeletons: { enabled: false }
