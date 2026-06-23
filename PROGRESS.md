@@ -1968,3 +1968,56 @@ data won't help a saturated conditional. Indicated lever = Stage C process-rewar
 RL (GRPO), NOT harvest scale-up. The loss=0.06 pre-registration paid off as a
 DIAGNOSIS. (Goedel seed 0; deepseek + multi-seed only worth running if we wanted to
 publish the null robustly — the mechanism call does not need them.)
+
+## 2026-06-23 — Stage B HARDENING: pre-registration (cross-model + multi-seed)
+
+Decision (user, overriding proceed-autonomously for this fork): harden the one-model/
+one-seed Goedel null into a two-model, per-seed result BEFORE committing Stage C RL
+compute. Rationale separates two questions the pre-registration had conflated: which
+lever is next (RESOLVED: RL) vs is the current result publishable (NOT yet, one-seed/
+one-model). Hardening gates the heavy RL stage and is also the contrast baseline the
+eventual RL result is measured against, so it is load-bearing, not parallel.
+
+PRE-REGISTERED PREDICTION (write-it-down-first, exposure-bias account):
+  If the floor is sampling/exposure-bound (not conditional-prob-bound), then on DeepSeek:
+   (1) the closing-token SFT loss is ALSO low (~0.06, base already assigns high prob to
+       its own closings), AND
+   (2) B does NOT beat base on pass@B (replicates the Goedel null), AND
+   (3) the null is per-seed robust (not seed-luck) on both models.
+  => all three => diagnosis LOCKED across both models; Stage C "SFT-can't-but-RL-might"
+     motivation is airtight; the negative-with-mechanism ("OOD execution floor is
+     sampling/exposure-bound; resists scaffolding AND targeted FT; moves only with
+     pretraining-scale training differences") is a complete, publishable result that
+     stands on its own regardless of how RL lands.
+  SURPRISE branches (learn BEFORE spending RL compute, not after):
+   - DeepSeek closing-loss notably HIGHER than ~0.06 => the saturation account is
+     model-specific; B might lift on DeepSeek => re-open scale-harvest for DeepSeek.
+   - B LIFTS pass@B on DeepSeek => targeted SFT CAN move the floor on a stronger base =>
+     the Goedel null was capacity-specific, not mechanism-general => harvest scale-up
+     becomes the indicated lever, NOT RL.
+
+PROTOCOL (single-variable, identical to Goedel seed 0): LoRA r=16, lr=1e-4, max_steps=120
+(matched steps A vs B), byte-exact serving gate per arm. 3 seeds, PER-SEED reported
+(Phase 4/5 lesson). DeepSeek seed-0 A/B training launched (10808397/8); SFT data already
+built (A=239,B=88). DeepSeek closing-loss = the cheapest, earliest signature check.
+COST (grounded from seed-0 sacct): ~85 GPU-h per model-seed (eval dominated by unsolved
+cells burning to 32k). Full 3-seed×2-model matrix ~425 GPU-h (>>50 GPU-h gate) → eval
+SCOPE put to user before launching the heavy eval matrix.
+
+## 2026-06-23 — DeepSeek seed-0: signature #1 CONFIRMS, gate PASS, eval launched
+
+Training done (rc=0; A 10808397, B 10808398; protocol identical to Goedel: r=16,
+lr=1e-4, max_steps=120). SIGNATURE #1 (closing-loss, the cheap leading indicator):
+  DeepSeek B (hard closings) first-epoch masked loss = 0.0695 (~0.07) — same SATURATED
+  regime as Goedel (~0.058); base already assigns high conditional prob to its own hard
+  closings. NOT the "notably higher" surprise. DeepSeek A (RFT) first-epoch 0.0556,
+  train_loss 0.0431 ~= Goedel A (0.0587). => exposure-bias signature REPLICATES on model
+  #2; per pre-registration, raises confidence the eval confirms the null.
+BYTE-EXACT SERVING GATE (load-bearing): DeepSeek base & both adapters share identical
+  chat_template sha256 22e97ba0… (2862 chars) — MATCH. Runtime confirmation = first
+  verified proof under each LoRA arm (read from eval logs before trusting deltas).
+EVAL LAUNCHED (seed 0, ~85 GPU-h): base/A/B × ProofNet#/miniF2F =
+  10808419(pn_base) 10808420(pn_A) 10808421(pn_B) 10808422(mf_base) 10808423(mf_A)
+  10808424(mf_B). DeepSeek env: HF_HOME=.hf_cache, ELAN_HOME=scratch/elan-deepseek,
+  ATP_LEAN_ENV_NAME=deepseek-lean-env. Read pass@B vs pre-reg → CHECK IN before full
+  3-seed expansion (then = Goedel seeds 1,2 + DeepSeek seeds 1,2).

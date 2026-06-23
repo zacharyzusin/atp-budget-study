@@ -17,26 +17,29 @@ Pre-registered prediction (locked before numbers landed):
                                                    NOT harvest scale-up
 
 Usage: run after all six arms leave the queue.
-  python scripts/phase6_pilot_compare.py
+  python scripts/phase6_pilot_compare.py            # goedel (prefix g)
+  python scripts/phase6_pilot_compare.py --model d  # deepseek (prefix d)
 """
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
 
-# (arm-label) -> (run-dir-name, config)
-ARMS = {
-    ("proofnet", "base"): "p6eval_g_pn_base",
-    ("proofnet", "A"): "p6eval_g_pn_A",
-    ("proofnet", "B"): "p6eval_g_pn_B",
-    ("minif2f", "base"): "p6eval_g_mf_base",
-    ("minif2f", "A"): "p6eval_g_mf_A",
-    ("minif2f", "B"): "p6eval_g_mf_B",
-}
+# run-dir naming: p6eval_<model>_<benchshort>_<arm>  (model: g=goedel, d=deepseek)
+_BENCH_SHORT = {"proofnet": "pn", "minif2f": "mf"}
 BUDGETS = [8000, 32000]
+
+
+def _arms(model: str) -> dict[tuple, str]:
+    return {
+        (bench, arm): f"p6eval_{model}_{short}_{arm}"
+        for bench, short in _BENCH_SHORT.items()
+        for arm in ("base", "A", "B")
+    }
 
 
 def _load_cells(run_dir: Path) -> list[dict]:
@@ -60,14 +63,21 @@ def _pass_at_b(cells: list[dict], b: int) -> tuple[float, int]:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="g", choices=["g", "d"],
+                    help="g=goedel, d=deepseek")
+    args = ap.parse_args()
+    arms = _arms(args.model)
+
     grid: dict[tuple, dict] = {}
-    for (bench, arm), name in ARMS.items():
+    for (bench, arm), name in arms.items():
         cells = _load_cells(RESULTS / name)
         grid[(bench, arm)] = {
             "n": len(cells),
             **{b: _pass_at_b(cells, b) for b in BUDGETS},
         }
 
+    print(f"\n##### model={'goedel' if args.model=='g' else 'deepseek'} #####")
     for bench in ("minif2f", "proofnet"):
         print(f"\n=== {bench} (held-out) ===")
         header = f"{'arm':>5} {'n':>5} " + " ".join(f"pass@{b:>6}" for b in BUDGETS)
