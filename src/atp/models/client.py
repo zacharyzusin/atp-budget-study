@@ -14,6 +14,7 @@ budget is exact and matches what the GPU actually generated.
 
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -189,8 +190,12 @@ class VLLMClient:
         meter: BudgetMeter | None = None,
     ) -> VLLMClient:
         m = config.model
+        # ATP_SERVED_MODEL overrides the requested model name without editing the config — used by
+        # the Phase 6 eval to target a LoRA adapter served ALONGSIDE the base (vLLM --lora-modules
+        # <name>=<dir>): set it to the adapter name to eval the FT model, leave unset for the base
+        # control, against the SAME held-out config + server.
         return cls(
-            model=m.name,
+            model=os.environ.get("ATP_SERVED_MODEL") or m.name,
             transport=transport,
             meter=meter,
             temperature=m.temperature,

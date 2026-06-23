@@ -142,7 +142,7 @@ class SearchCfg(_Strict):
 
 
 class DataCfg(_Strict):
-    benchmark: Literal["minif2f", "proofnet_sharp"] = "minif2f"
+    benchmark: Literal["minif2f", "proofnet_sharp", "lean_workbook"] = "minif2f"
     split: Literal["train", "valid", "test", "novel"] = "test"
     exclude_unprovable: bool = True
     use_novel_split: bool = False
@@ -152,6 +152,8 @@ class DataCfg(_Strict):
     # Data source dirs (None → loader defaults: miniF2F to the sibling copy; ProofNet# unset).
     minif2f_dir: str | None = None
     proofnet_dir: str | None = None
+    # Phase 6 training corpus (decontaminated Lean Workbook); None → §0 clean-corpus default path.
+    lean_workbook_path: str | None = None
     exclusions_file: str | None = None  # override the built-in miniF2F exclusion list
 
 

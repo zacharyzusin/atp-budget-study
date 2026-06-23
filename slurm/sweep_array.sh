@@ -86,6 +86,13 @@ echo "[sweep] env OK: python=$(command -v python)"
 # HF_HOME holds the model weights. Default = repo scratch (Goedel); a second model (DeepSeek, cached
 # under ~/.hf_cache) overrides via ATP_HF_HOME so vLLM finds it without re-download.
 export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
+# Serve OFFLINE from the cache: weights are always pre-staged (CLAUDE.md rule 6), and some compute
+# nodes can't resolve huggingface.co — vLLM's revision-check (list_repo_files) then dies at startup
+# with NameResolutionError before any GPU work (10786402, and the Phase 5 pilot). Offline skips that
+# network call entirely → robust + reproducible. Override with ATP_HF_OFFLINE=0 if a download is ever
+# truly needed (then weights must NOT be cached-incomplete).
+export HF_HUB_OFFLINE="${ATP_HF_OFFLINE:-1}"
+export TRANSFORMERS_OFFLINE="${ATP_HF_OFFLINE:-1}"
 # elan/Lean on PATH so the ReplBackend verifier can launch the repl + resolve the toolchain sysroot.
 export PATH="$HOME/.elan/bin:$PATH"
 # ELAN_HOME = where Lean toolchains live. Default ~/.elan (Goedel); the DeepSeek env's toolchain was
@@ -212,20 +219,33 @@ STAGGER=$(( (${SLURM_ARRAY_TASK_ID:-0} % 8) * 25 ))
 # Start vLLM in the background on this node's GPU.
 HOST_IP="$(hostname -i | awk '{print $1}')"
 echo "http://$HOST_IP:$PORT/v1" > "$ENDPOINT_FILE"
+# OPTIONAL LoRA serving (Phase 6 FT eval): ATP_VLLM_LORA="name=/abs/adapter/dir" serves an adapter
+# ALONGSIDE the base. The eval then targets it via ATP_SERVED_MODEL=name (client.py honors it); leave
+# both unset for a plain base sweep (every prior phase). Additive — no effect when unset.
+LORA_ARGS=()
+if [ -n "${ATP_VLLM_LORA:-}" ]; then
+    LORA_ARGS=(--enable-lora --lora-modules "$ATP_VLLM_LORA" --max-lora-rank "${ATP_LORA_RANK:-16}")
+    echo "[sweep] LoRA serving enabled: $ATP_VLLM_LORA (max-lora-rank ${ATP_LORA_RANK:-16})"
+fi
 python -m vllm.entrypoints.openai.api_server \
     --model "$HF_REPO" --revision "$REVISION" \
-    --served-model-name "$SERVED_NAME" \
+    --served-model-name "$SERVED_NAME" "${LORA_ARGS[@]}" \
     --host 0.0.0.0 --port "$PORT" --max-model-len "$MAX_MODEL_LEN" --gpu-memory-utilization 0.90 \
     > "logs/vllm-inproc-${SLURM_JOB_ID:-local}.out" 2>&1 &
 VLLM_PID=$!
 trap 'kill $VLLM_PID 2>/dev/null' EXIT
 
-echo "[sweep] waiting for vLLM to come up on $HOST_IP:$PORT ..."
-for _ in $(seq 1 120); do
-    curl -sf "http://$HOST_IP:$PORT/v1/models" >/dev/null 2>&1 && { echo "[sweep] vLLM up."; break; }
+# Wait up to ~40min: under cluster contention vLLM startup (weight load + CUDA graph capture, +LoRA)
+# can exceed 20min; the old 120x10s=20min cap let the loop fall through with the PID still ALIVE (so no
+# FATAL) straight into the eval, where every cell fast-failed with APIConnectionError and the run logged
+# 0 cells (Phase 6 pn_B 10799548). FAIL LOUDLY if vLLM never answers, instead of running a dead sweep.
+vllm_up=0
+for _ in $(seq 1 240); do
+    curl -sf "http://$HOST_IP:$PORT/v1/models" >/dev/null 2>&1 && { echo "[sweep] vLLM up."; vllm_up=1; break; }
     sleep 10
     kill -0 $VLLM_PID 2>/dev/null || { echo "FATAL: vLLM died during startup"; exit 1; }
 done
+[ "$vllm_up" = 1 ] || { echo "FATAL: vLLM did not answer on $HOST_IP:$PORT within ~40min"; exit 1; }
 
 NSHARDS="${SLURM_ARRAY_TASK_COUNT:-1}"; SHARD="${SLURM_ARRAY_TASK_ID:-0}"
 echo "[sweep] running eval: config=$CONFIG name=$RUN_NAME shard=$SHARD/$NSHARDS"

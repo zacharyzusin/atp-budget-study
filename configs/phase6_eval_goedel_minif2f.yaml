@@ -1,0 +1,19 @@
+# configs/phase6_eval_goedel_minif2f.yaml — Phase 6 pilot eval (Goedel, miniF2F, held-out test).
+# Baseline agent (= base.yaml: whole_proof + refinement, Phase 1 components off), budgets trimmed to
+# the moderate [8k,32k] window, one eval seed for the first base-vs-A-vs-B signal. Arm selected at
+# launch (ATP_VLLM_LORA + ATP_SERVED_MODEL); all arms share this config. miniF2F test is DISJOINT from
+# the lean_workbook training corpus (§0 gate decontaminated 10 AoPS-leaked overlaps).
+
+defaults: base
+
+data:
+  benchmark: minif2f
+  split: test
+  use_novel_split: false
+
+budget:
+  values: [8000, 32000]
+
+eval:
+  seeds: [0]
+  n_workers: 3

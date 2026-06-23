@@ -40,6 +40,26 @@ def test_whole_proof_uses_official_goedel_prompt():
     assert "proof plan" in prompt
 
 
+def test_continuation_is_byte_exact_with_render_except_for_the_completed_code():
+    """Stage B proof-continuation must share the EXACT wrapper of the cold whole-proof prompt
+    (instruction + fence + header + plan suffix); only the in-block code differs — `:= by <prefix>`
+    instead of `:= by sorry`. This is the inference-mode-match guard (a drifted wrapper silently
+    degrades the prover)."""
+    t = WholeProofTemplate()
+    cold = t.render(THM)
+    cont = t.render_continuation(THM, "  have h : n + 0 = n := by simp")
+    # same opening instruction, same import/open header, same plan suffix, same fence language tag
+    assert cont.startswith("Complete the following Lean 4 code:")
+    assert cont.endswith(t.PLAN_SUFFIX)
+    assert "import Mathlib" in cont and "open Nat" in cont and "```lean4" in cont
+    assert THM.statement in cont
+    # the ONLY difference from cold is the sorry-vs-prefix tail of the code block
+    assert ":= by sorry" in cold and ":= by sorry" not in cont
+    assert "have h : n + 0 = n := by simp" in cont
+    # replacing the prefix back with `sorry` reproduces the cold prompt byte-for-byte
+    assert cont.replace("\n  have h : n + 0 = n := by simp\n```", " sorry\n```") == cold
+
+
 def test_whole_proof_refinement_carries_statement_error_and_no_dangling_fence():
     r = WholeProofTemplate().render_refinement(THM, "theorem ... := by rfl", "error: rfl failed")
     assert "rfl failed" in r

@@ -95,6 +95,23 @@ class WholeProofTemplate:
             f"{self.INSTRUCTION}\n\n```lean4\n{self._formal_block(theorem)}\n```\n\n{self.PLAN_SUFFIX}"
         )
 
+    def _continuation_block(self, theorem: Theorem, proof_prefix: str) -> str:
+        """imports + opens + `<statement> := by` followed by the proof-so-far (no `sorry`)."""
+        header = _theorem_header(theorem)
+        statement = theorem.statement.rstrip()
+        body = proof_prefix.strip("\n")
+        block = f"{statement} := by\n{body}"
+        return f"{header}\n\n{block}" if header else block
+
+    def render_continuation(self, theorem: Theorem, proof_prefix: str) -> str:
+        """Stage B (proof-continuation): byte-for-byte the same prompt as `render` — same
+        instruction, fence, header and `:= by` scaffolding — except the ```lean4 block ends at the
+        (`proof_prefix`) instead of `sorry`. The model is asked to FINISH from a deep in-situ state.
+        Inference-faithful: identical wrapper, only the completed-code differs (empty prefix == the
+        cold whole-proof prompt with `sorry`)."""
+        block = self._continuation_block(theorem, proof_prefix)
+        return f"{self.INSTRUCTION}\n\n```lean4\n{block}\n```\n\n{self.PLAN_SUFFIX}"
+
     REFINE_INSTRUCTION: str = (
         "The following Lean 4 proof attempt failed to compile. Using the Lean error feedback, "
         "write a corrected and complete proof of the original theorem (no `sorry`)."

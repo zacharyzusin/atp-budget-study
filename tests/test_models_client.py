@@ -109,6 +109,16 @@ def test_from_config_pulls_sampling_params():
     assert client.chat == cfg.model.chat_completions  # base.yaml -> chat (Qwen3 reasoning prover)
 
 
+def test_from_config_honors_served_model_override(monkeypatch):
+    # ATP_SERVED_MODEL retargets the request to a LoRA adapter served alongside the base (Phase 6)
+    cfg = load_config(BASE_CONFIG)
+    monkeypatch.setenv("ATP_SERVED_MODEL", "goedel-B-seed0")
+    client = VLLMClient.from_config(cfg, transport=_const_transport())
+    assert client.model == "goedel-B-seed0"
+    monkeypatch.delenv("ATP_SERVED_MODEL")
+    assert VLLMClient.from_config(cfg, transport=_const_transport()).model == cfg.model.name
+
+
 # -- chat-completions mode (the Goedel-V2 path) ----------------------------------------
 def test_chat_mode_sends_messages_not_prompt_and_parses_content():
     """chat=True must hit the chat endpoint shape: send `messages`, read `message.content`."""
