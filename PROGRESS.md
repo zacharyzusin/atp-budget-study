@@ -2035,3 +2035,13 @@ otherwise collapse shard0 to "do everything"). Surgical resume: 10809154(pn_B s0
 10809155(mf_A s0), 10809156(mf_B s0-2), ATP_NSHARDS=4. Avoids re-spinning vLLM for the
 already-done shards (less contention). Lesson for the 3-seed expansion: throttle total
 concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
+
+## 2026-06-24 — DeepSeek seed-0 hardening: serving confirmed + ProofNet# complete (miniF2F pending mf_B)
+- Resume of contended shards: pn_B/mf_A finished; mf_B shards 0,1 FAILED LOUDLY again ("FATAL: vLLM died during startup", 2:20/0:53) — same GPU-startup contention, NOT a bug. Resubmitted shards 0,1 only into an empty queue (job 10825603, --array=0-1, ATP_NSHARDS=4 stride).
+- SERVING GUARD PASS: every B-arm log shows adapter loaded ("LoRA serving enabled: deepseek-B=..."). Decisive non-fallthrough check on ProofNet# (base/A/B all 186): solved SETS differ — B vs base symmetric-diff=11 (5 B-only, 6 base-only); A vs base=9. Adapters genuinely changed generation; no silent base fallback. (Plus byte-exact chat_template sha256 22e97ba0… matched base/A/B earlier; closing-loss 0.0695 confirmed.)
+- ProofNet# (COMPLETE, 186 each):
+    pass@8k : base 11.8 | A 15.1 (+3.2) | B 14.5 (+2.7)
+    pass@32k: base 18.3 | A 16.7 (-1.6) | B 17.7 (-0.5)
+  => At HEADLINE full budget B≈base (-0.5pp), A slightly hurts — MATCHES Goedel null + pre-registration (interp c). Tight-budget 8k shows a modest sub-threshold lift (B +2.7pp, A +3.2pp) that washes out by 32k; single-seed, <+3pp robust threshold. Mild nuance, not a contradiction.
+- miniF2F: base/A complete (244). A HURTS badly (-9.8/-13.9pp). B still PARTIAL (122, shards 2,3 only) → B row NOT comparable to base yet; DO NOT read miniF2F verdict until mf_B hits 244.
+- NEXT: wait for 10825603 → full DeepSeek table → read against pre-registration → CHECK IN before 3-seed expansion (Goedel seeds 1,2 + DeepSeek seeds 1,2). No expansion auto-launch.
