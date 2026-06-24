@@ -1,0 +1,16 @@
+# configs/phase6_eval_goedel_proofnet.yaml — Phase 6 pilot eval (Goedel, ProofNet#, held-out test).
+# Same baseline agent + benchmark as proofnet_baseline; budgets trimmed to the moderate [8k,32k]
+# window where the goal-closing mechanism bites (the floor), and ONE eval seed for the first cheap
+# base-vs-A-vs-B signal (expand to seeds [0,1,2] once a direction is seen). The ARM (base / RFT-A /
+# closing-B) is selected at launch by ATP_VLLM_LORA + ATP_SERVED_MODEL, NOT here — so all three arms
+# share this exact config + agent (single-variable; the only difference is the served weights).
+# ProofNet# test is DISJOINT from the lean_workbook training corpus (§0 gate).
+
+defaults: proofnet_baseline
+
+budget:
+  values: [8000, 32000]
+
+eval:
+  seeds: [1]
+  n_workers: 3
