@@ -2045,3 +2045,13 @@ concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
   => At HEADLINE full budget B≈base (-0.5pp), A slightly hurts — MATCHES Goedel null + pre-registration (interp c). Tight-budget 8k shows a modest sub-threshold lift (B +2.7pp, A +3.2pp) that washes out by 32k; single-seed, <+3pp robust threshold. Mild nuance, not a contradiction.
 - miniF2F: base/A complete (244). A HURTS badly (-9.8/-13.9pp). B still PARTIAL (122, shards 2,3 only) → B row NOT comparable to base yet; DO NOT read miniF2F verdict until mf_B hits 244.
 - NEXT: wait for 10825603 → full DeepSeek table → read against pre-registration → CHECK IN before 3-seed expansion (Goedel seeds 1,2 + DeepSeek seeds 1,2). No expansion auto-launch.
+
+## 2026-06-24 — DeepSeek seed-0 COMPLETE: two-model null confirmed (pre-registration met)
+- mf_B finished clean (244/244; job 10825603 shards 0,1 COMPLETED 3h). Serving guard PASS on miniF2F too: base vs B solved-set sym-diff=12 (adapter active, no fallthrough).
+- FULL DeepSeek seed-0 table:
+    miniF2F : pass@8k base 58.2 | A 48.4 (-9.8) | B 53.7 (-4.5);  pass@32k base 66.0 | A 52.0 (-13.9) | B 66.0 (+0.0)
+    ProofNet#: pass@8k base 11.8 | A 15.1 (+3.2) | B 14.5 (+2.7);  pass@32k base 18.3 | A 16.7 (-1.6) | B 17.7 (-0.5)
+- PRE-REGISTRATION MET (both predicted): (a) closing loss 0.0695 ~0.06; (b) B flat-to-slightly-neg vs base at headline 32k (miniF2F +0.0, ProofNet# -0.5), never >=+3pp. 
+- Key reading: B SEPARATES from A (miniF2F B-A +13.9pp) only because RFT(A) DAMAGES the model while closing-targeted B lands AT base — B is non-harmful but NON-ADDITIVE, not partial-lift. Interp (c): floor is sampling/exposure-bound, not liftable by closing SFT.
+- TWO-MODEL replication @32k: Goedel B-base {mf -1.2, pn -0.5}; DeepSeek B-base {mf +0.0, pn -0.5}. Diagnosis LOCKED at seed-0 across both models.
+- CHECK-IN POINT (pre-registered): full 3-seed expansion = Goedel seeds 1,2 + DeepSeek seeds 1,2 (~340 GPU-h, >50 GPU-h rule 8 + rule 7 needs 3 seeds for headline null). Asking user before launch.
