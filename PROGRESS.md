@@ -2021,3 +2021,17 @@ EVAL LAUNCHED (seed 0, ~85 GPU-h): base/A/B × ProofNet#/miniF2F =
   10808424(mf_B). DeepSeek env: HF_HOME=.hf_cache, ELAN_HOME=scratch/elan-deepseek,
   ATP_LEAN_ENV_NAME=deepseek-lean-env. Read pass@B vs pre-reg → CHECK IN before full
   3-seed expansion (then = Goedel seeds 1,2 + DeepSeek seeds 1,2).
+
+## 2026-06-23 — DeepSeek eval: contention failures (fix worked) + surgical resume
+
+Launching 6 sweeps × 4 shards = up to 24 concurrent vLLM under cluster GPU contention →
+several shards could not start vLLM within ~40min (or crashed during startup). The
+sweep_array.sh fix WORKED AS DESIGNED: those shards FAILED LOUDLY (exit 1, FATAL),
+NOT a silent 0-cell "COMPLETED". Completed shards' cells are saved (disjoint stride).
+Missing: pn_B shard0, mf_A shard0 (shard2 still running 10808423_2), mf_B shards0-2.
+FIX (committed): added ATP_NSHARDS override to sweep_array.sh so a RESUME of only the
+failed shard indices keeps the correct 1/N stride (sub-array TASK_COUNT != N would
+otherwise collapse shard0 to "do everything"). Surgical resume: 10809154(pn_B s0),
+10809155(mf_A s0), 10809156(mf_B s0-2), ATP_NSHARDS=4. Avoids re-spinning vLLM for the
+already-done shards (less contention). Lesson for the 3-seed expansion: throttle total
+concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.

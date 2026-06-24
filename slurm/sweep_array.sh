@@ -247,7 +247,10 @@ for _ in $(seq 1 240); do
 done
 [ "$vllm_up" = 1 ] || { echo "FATAL: vLLM did not answer on $HOST_IP:$PORT within ~40min"; exit 1; }
 
-NSHARDS="${SLURM_ARRAY_TASK_COUNT:-1}"; SHARD="${SLURM_ARRAY_TASK_ID:-0}"
+# NSHARDS normally = the array task COUNT (N GPUs split the cells). ATP_NSHARDS pins the stride
+# denominator so a RESUME of only the failed shard indices (e.g. --array=0 after shards 1-3 finished)
+# keeps the correct 1/N stride instead of collapsing to "do everything" when the sub-array count != N.
+NSHARDS="${ATP_NSHARDS:-${SLURM_ARRAY_TASK_COUNT:-1}}"; SHARD="${SLURM_ARRAY_TASK_ID:-0}"
 echo "[sweep] running eval: config=$CONFIG name=$RUN_NAME shard=$SHARD/$NSHARDS"
 # `set -uo pipefail` (no -e) means a CRASHED sweep would otherwise fall through to the success echo
 # and exit 0 — exactly how baseline 10272937 logged COMPLETED after dying at 165 cells with no
