@@ -2055,3 +2055,10 @@ concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
 - Key reading: B SEPARATES from A (miniF2F B-A +13.9pp) only because RFT(A) DAMAGES the model while closing-targeted B lands AT base — B is non-harmful but NON-ADDITIVE, not partial-lift. Interp (c): floor is sampling/exposure-bound, not liftable by closing SFT.
 - TWO-MODEL replication @32k: Goedel B-base {mf -1.2, pn -0.5}; DeepSeek B-base {mf +0.0, pn -0.5}. Diagnosis LOCKED at seed-0 across both models.
 - CHECK-IN POINT (pre-registered): full 3-seed expansion = Goedel seeds 1,2 + DeepSeek seeds 1,2 (~340 GPU-h, >50 GPU-h rule 8 + rule 7 needs 3 seeds for headline null). Asking user before launch.
+
+## 2026-06-25 — 3-seed expansion LAUNCHED (user approved full expansion)
+- 8 LoRA trainings (Goedel+DeepSeek × {A,B} × seeds 1,2) COMPLETE in 11-32min; all 8 adapters verified on disk. Single-variable (only --seed/--out differ from seed-0; max_steps=120 lr=1e-4). Per-seed run-avg loss consistent: A~0.04-0.06, B~0.015→~0.0001 (same saturated regime as seed-0; first-epoch closing-loss signature already locked seed-0).
+- Eval matrix launched: 8 base arms (seeds 1,2 × 2 models × 2 bench) + 16 A/B arms (jobs 10856565-10856580). 24 sweeps × 4 shards; Slurm throttles by free L40S, fail-loud+--resume net handles vLLM-startup contention casualties.
+- Built scripts/phase6_launch_eval.sh (reusable per-arm launcher: per-model env + per-arm LoRA wiring) + 8 per-seed eval configs (*_s{1,2}.yaml, only seeds: line differs).
+- Built scripts/phase6_seed_aggregate.py = deliverable readout: per-seed pass@B mean±std + PAIRED B-base/A-base (intersection pairing, robust to partial completion) → +tests/test_phase6_seed_aggregate.py (4 tests PASS).
+- NEXT: monitor evals to completion (244 miniF2F / 186 ProofNet# per arm-seed), resume contention casualties, then phase6_seed_aggregate.py for the publishable two-model per-seed null. Stage C (GRPO RL) is the next genuine decision point AFTER the null is hardened.
