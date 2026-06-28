@@ -141,43 +141,38 @@ LOCAL_ENV="$LOCAL_BASE/${LEAN_ENV_NAME}-s${SHARD_ID}"   # PER-SHARD: never share
 mkdir -p "$LOCAL_BASE"
 N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
 REPL_REL=".lake/packages/REPL/.lake/build/bin/repl"   # the exe _env_built() requires (repl.py:258)
-exec 9>"$LOCAL_BASE/.atp_stage.s${SHARD_ID}.lock"
-flock 9   # only serializes a requeued duplicate of THIS shard id (normally uncontended)
-N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-# Reuse ONLY a provably-complete env: marker + full olean set + the repl exe. The count-only guard
-# (2026-06-15) once reused a stale exe-LESS env and every cell failed LeanEnvNotReady. When invalid,
-# stage to a PRIVATE temp dir and publish with an atomic rename — the .old cleanup here is safe because
-# nothing else points at this shard's dir.
-if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ] \
-   && [ -x "$LOCAL_ENV/$REPL_REL" ]; then
-    echo "[sweep] Lean env already staged on $(hostname) for shard ${SHARD_ID} ($N_LOCAL oleans + repl exe) — reusing."
-else
-    STAGE="$LOCAL_BASE/atp-lean-env.stage.${SLURM_JOB_ID:-x}.${SHARD_ID}"
+# Stage the GPFS env -> a PRIVATE temp dir -> atomic-publish to $LOCAL_ENV. rc!=0 only on copy error.
+# Factored into a function so a probe failure on a REUSED (content-corrupt) cache can self-heal by
+# re-staging fresh — see the orchestration + probe below.
+_stage_fresh() {
+    exec 9>"$LOCAL_BASE/.atp_stage.s${SHARD_ID}.lock"
+    flock 9   # only serializes a requeued duplicate of THIS shard id (normally uncontended)
+    local STAGE="$LOCAL_BASE/${LEAN_ENV_NAME}.stage.${SLURM_JOB_ID:-x}.${SHARD_ID}"
     echo "[sweep] staging Lean env (shard ${SHARD_ID}) -> $STAGE, atomic-publish -> $LOCAL_ENV (cp $N_GPFS oleans, ~3-20min off GPFS)..."
     rm -rf "$STAGE"; mkdir -p "$STAGE"
-    t0=$SECONDS
+    local t0=$SECONDS
     # Copy the WHOLE env dir (.lake + lakefile + manifest + toolchain + the package lib dir, whatever
     # its name) so this works for any pin — the Goedel env's lib is AtpLeanEnv/, the DeepSeek env's is
     # DeepseekLeanEnv/; enumerating a hardcoded lib name broke the DeepSeek stage.
     cp -a "$GPFS_ENV/." "$STAGE/" \
-        || { echo "FATAL: staging copy to $STAGE failed"; rm -rf "$STAGE"; flock -u 9; exit 1; }
+        || { echo "FATAL: staging copy to $STAGE failed"; rm -rf "$STAGE"; flock -u 9; return 1; }
     [ -x "$STAGE/$REPL_REL" ] \
-        || { echo "FATAL: staged env missing repl exe at $STAGE/$REPL_REL"; rm -rf "$STAGE"; flock -u 9; exit 1; }
+        || { echo "FATAL: staged env missing repl exe at $STAGE/$REPL_REL"; rm -rf "$STAGE"; flock -u 9; return 1; }
     touch "$STAGE/.staged_ok"
     rm -rf "$LOCAL_ENV.old"                              # publish atomically (sub-ms vs ~250s absent)
     mv -T "$LOCAL_ENV" "$LOCAL_ENV.old" 2>/dev/null || true
     mv -T "$STAGE" "$LOCAL_ENV"
     rm -rf "$LOCAL_ENV.old"
     echo "[sweep] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans + repl exe)."
-fi
-flock -u 9; exec 9>&-
-export ATP_LEAN_PROJECT="$LOCAL_ENV"
+    flock -u 9; exec 9>&-
+}
 
 # GUARDRAIL probe: confirm the Lean env accepts a trivial-true proof AND rejects a false one BEFORE
 # spending GPU. A silent env regression (empty LEAN_PATH / wrong sysroot / repl flush bug) makes every
-# proof fail and would masquerade as a low pass@B. Also warms the page cache for the sweep.
-echo "[sweep] Lean trivial-true/false probe (cold Mathlib load from local SSD ~2-3min)..."
-python - "$CONFIG" <<'PY' || { echo "FATAL: Lean probe failed — env broken, refusing to spend GPU."; exit 1; }
+# proof fail and would masquerade as a low pass@B. Also warms the page cache for the sweep. rc!=0 = bad.
+_probe_env() {
+    echo "[sweep] Lean trivial-true/false probe (cold Mathlib load from local SSD ~2-3min)..."
+    ATP_LEAN_PROJECT="$LOCAL_ENV" python - "$CONFIG" <<'PY'
 import sys, time
 from atp.config import load_config
 from atp.lean import ReplBackend, Verifier, Theorem
@@ -199,6 +194,35 @@ assert nn.ok, f"norm_num proof rejected (broken env?): {nn.reason} / {nn.feedbac
 assert (not bad.ok) and bad.reason == "compile_error", f"false-proof not rejected: {bad.reason}"
 print("[sweep] Lean probe OK (true + norm_num accepted, false rejected)")
 PY
+}
+
+# Reuse ONLY a provably-complete env (marker + full olean count + repl exe); else stage fresh. The
+# count guard cannot catch CONTENT corruption: a truncated olean from an ENOSPC/eviction during a
+# concurrent stage storm passes the count check but ABORTS the cold Mathlib load — observed 2026-06-28,
+# specific nodes served reused envs that failed the probe even at low concurrency. So if the probe
+# fails on a REUSED env, invalidate that node-local cache and re-stage fresh ONCE before giving up
+# (defense-in-depth). A freshly-staged env that still fails the probe is a real FATAL (broken source).
+N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
+REUSED=0
+if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ] \
+   && [ -x "$LOCAL_ENV/$REPL_REL" ]; then
+    echo "[sweep] Lean env already staged on $(hostname) for shard ${SHARD_ID} ($N_LOCAL oleans + repl exe) — reusing."
+    REUSED=1
+else
+    _stage_fresh || exit 1
+fi
+export ATP_LEAN_PROJECT="$LOCAL_ENV"
+
+if ! _probe_env; then
+    if [ "$REUSED" = 1 ]; then
+        echo "[sweep] reused env FAILED probe on $(hostname) — content-corrupt node-local cache; invalidating + re-staging fresh."
+        rm -rf "$LOCAL_ENV"
+        _stage_fresh || exit 1
+        _probe_env || { echo "FATAL: Lean probe failed after fresh re-stage — env broken, refusing to spend GPU."; exit 1; }
+    else
+        echo "FATAL: Lean probe failed on a freshly-staged env — refusing to spend GPU."; exit 1
+    fi
+fi
 
 # Pin the served weights to the exact reviewed revision (reproducibility rule 4).
 # Model identity is fully config-driven (hf_repo/name/revision) so a second prover (DeepSeek) serves
