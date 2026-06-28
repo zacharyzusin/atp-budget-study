@@ -899,3 +899,17 @@ prediction (closing-token loss saturated at ~0.06). DECISION: do NOT scale the
 closing-target harvest. The execution floor is sampling-bound; the indicated lever
 is Stage C process-reward RL (GRPO). B>A is a "less harmful" within-SFT contrast,
 not grounds to scale (B never beats base). See PROGRESS.md 2026-06-23.
+
+## 2026-06-28 — 3-seed eval resume: cap concurrency (root cause = self-inflicted GPFS/RAM storm)
+Root cause (systematic-debugging Phase 1): launching ~15 arms × 4 shards at once → dozens of concurrent
+cp of 4.2-4.6GB Lean envs (4700 oleans each) off shared GPFS into /dev/shm (RAM tmpfs). Evidence:
+staged in 15128-16878s (4+h vs script's 3-20min estimate); failure split 37 reused-env probe-FAIL /
+5 fresh-staged probe-FAIL / 18 probe-OK. The reuse guard (.staged_ok + olean-count==GPFS + exe) is
+CORRECT and the "refuse to spend GPU on broken probe" guard fired correctly (zero wasted GPU) — the
+envs were structurally complete; the probe (cold Mathlib load) failed under node RAM/IO storm, not
+corruption. NOT a code bug; orchestration bug.
+DECISION: resubmit each remaining arm as a SINGLE shard (ATP_NSHARDS=1, --array=0-0; --resume skips
+done cells; 11:55h wall ≫ ~9h worst case for the 183-cell arm at n_workers=3) = 1 staging/arm, and
+submit in small batches (≤4 concurrent) chained by Slurm --dependency=afterany so concurrency stays
+capped WITHOUT a live watcher (survives session teardown). Hypothesis test: a 4-arm low-concurrency
+batch should probe-OK and advance cells; gate the bulk chain on that.
