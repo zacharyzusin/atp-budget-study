@@ -2062,3 +2062,8 @@ concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
 - Built scripts/phase6_launch_eval.sh (reusable per-arm launcher: per-model env + per-arm LoRA wiring) + 8 per-seed eval configs (*_s{1,2}.yaml, only seeds: line differs).
 - Built scripts/phase6_seed_aggregate.py = deliverable readout: per-seed pass@B mean±std + PAIRED B-base/A-base (intersection pairing, robust to partial completion) → +tests/test_phase6_seed_aggregate.py (4 tests PASS).
 - NEXT: monitor evals to completion (244 miniF2F / 186 ProofNet# per arm-seed), resume contention casualties, then phase6_seed_aggregate.py for the publishable two-model per-seed null. Stage C (GRPO RL) is the next genuine decision point AFTER the null is hardened.
+
+## 2026-06-25 (cont) — 3-seed eval: first wave hit contention, resumed
+- After the 24-arm launch, 21/36 arm-seed cells completed; 15 partial (mostly 1 of 4 shards short; DeepSeek arms worse, e.g. d_pn_A_s1 46/186 — Lean staging lengthens vLLM startup → more contention casualties). Fail-loud worked (no silent 0-cell). Queue had drained to ~empty.
+- Resumed all 15 partial arms with --resume (jobs 10916484-10916498); completed cells skipped, only gaps refill. Queue now GPU-bound (1 run + 15 pend) so concurrency self-throttles.
+- Aggregator (phase6_seed_aggregate.py) pairs over problem INTERSECTION so partial reads stay valid.
