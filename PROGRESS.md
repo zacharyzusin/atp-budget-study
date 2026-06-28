@@ -2067,3 +2067,9 @@ concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
 - After the 24-arm launch, 21/36 arm-seed cells completed; 15 partial (mostly 1 of 4 shards short; DeepSeek arms worse, e.g. d_pn_A_s1 46/186 — Lean staging lengthens vLLM startup → more contention casualties). Fail-loud worked (no silent 0-cell). Queue had drained to ~empty.
 - Resumed all 15 partial arms with --resume (jobs 10916484-10916498); completed cells skipped, only gaps refill. Queue now GPU-bound (1 run + 15 pend) so concurrency self-throttles.
 - Aggregator (phase6_seed_aggregate.py) pairs over problem INTERSECTION so partial reads stay valid.
+
+## 2026-06-28 (cont) — eval resume: low-concurrency batches + cache self-heal fix
+- Hypothesis test (4-arm batch, single shard): staging storm GONE (all reused cache in seconds, no 4h stage) — concurrency was the storm cause. BUT 2/4 probe-FAILED on REUSED envs even at low concurrency (ins083, ins089) → distinct bug: content-corrupt node-local caches pass the structural reuse guard (count+marker+exe) but abort the cold Mathlib probe.
+- FIX (committed): refactor sweep_array.sh staging+probe into _stage_fresh/_probe_env; on probe fail after a REUSE, invalidate node-local cache + re-stage fresh + re-probe once before FATAL (defense-in-depth). Fresh-stage probe fail stays FATAL. bash -n clean.
+- Resubmitted 12 remaining arms (excl 2 running OK) single-shard (ATP_NSHARDS=1), 3 dependency-chained batches of 4 (jobs 10919079-90) → ≤4 concurrent stagings, autonomous via Slurm afterany (survives session teardown).
+- 2 batch-1 OK arms still running cells (g_pn_A_s2, d_pn_base_s2). NEXT: matrix completes → phase6_seed_aggregate.py → FINETUNE.md → Stage C decision.
