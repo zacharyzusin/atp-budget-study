@@ -922,3 +922,20 @@ and the scientific conclusion (two-model SFT null) is already locked + visible i
 aggregate, so completing the variance bars reliably outranks completing them fast. Long DeepSeek
 arms (183/140/139 cells) kept single-shard to cap waves at 4 nodes; can shard-up the tail if
 exclusive nodes prove plentiful.
+
+## 2026-06-29 — Stage C = Option 1 (gated RL feasibility probe), user-decided
+DECISION: after the two-model SFT null, proceed to a GATED GRPO RL feasibility probe (NOT full
+Stage C, NOT close). Probe model = DeepSeek (stronger OOD basis). RATIONALE: SFT null upgrades RL
+to the decisive exposure-bias experiment (SFT maxed conditional likelihood, floor didn't move;
+on-policy RL optimizes the generation distribution directly). ~even c1(exposure-bound)/c2(capacity)
+prior → detect c2 cheaply (~40 GPU-h) before any multi-day sweep; positive-EV both ways.
+PRE-REGISTERED TRIPLE SUCCESS GATE (guards reward-hacking false positives) — a PASS needs ALL:
+  (1) held-out VERIFIED solve-rate up (PRIMARY; not training reward — train-reward-up-but-held-out-flat
+      = hack/overfit, not c1),
+  (2) soundness rates (loophole/malformed/false-pos) do NOT degrade base->RL (first-class output),
+  (3) no diversity collapse / KL blowup (track diversity + KL-to-base).
+ESCAPE CLAUSE: a stall WITH a KL/diversity pathology = retune+re-probe, NOT c2; c2 concluded only
+when reward fails to move on TRAIN problems WITHOUT a tuning pathology.
+NEXT CHECKPOINT: bring concrete probe specs (problem subset, K, steps, reward shaping, KL coeff,
+numeric threshold, GPU-h est) for user pressure-test BEFORE spending GPU, after 3-seed bars finalize.
+Full memo: results/phase6/STAGE_C_DECISION.md (gitignored, local).
