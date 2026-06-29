@@ -2079,3 +2079,13 @@ concurrent vLLM (don't fire all arms×shards at once) or stagger submissions.
 - The self-heal fix is correct when GPFS is healthy (fresh re-stage DID fix a corrupt cache on ins083→probe OK) BUT under degraded GPFS it triggers multi-hour re-stages: both 'running' 4h jobs (10919085/86) were STUCK in a self-heal re-stage with ZERO cell progress → cancelled (resume-safe). Pending batch C cancelled too.
 - Some node-local caches ARE genuinely corrupt (storm leftovers): self-heal recovers them when GPFS is fast; fresh re-stage still FATAL'd on ins080/ins088 (bad nodes or transient-corrupt copy under load) — exclude on relaunch.
 - DECISION: HOLD all eval relaunches until GPFS recovers (gate on a fast read probe). No code change needed; environmental. Then resume 13 partials at low concurrency, --exclude ins080,ins088, self-heal handles remaining corrupt caches quickly.
+
+## 2026-06-28 — GPFS recovered, 3-seed eval resumed
+GPFS read probe healthy again (20 oleans in 0s, vs 29s during the outage). Stale watcher
+b04jp4yhd killed. Resumed all 13 partial eval arms (jobs 10922346-10922358) via
+phase6_launch_eval.sh, per-arm sharded so each shard handles <=~60 remaining cells
+(NSHARDS 1-3), --exclude=ins080,ins088,ins082,ins087, --resume skips completed cells.
+Matrix state at resume: 23/36 arm-seeds complete; partials = g_mf_A_s2(183), g_mf_B_s1/s2(183),
+g_pn_A_s1/s2(140), d_mf_base_s1(61), d_mf_A_s1(122), d_mf_B_s1/s2(183), d_pn_base_s1(82),
+d_pn_A_s1(46), d_pn_B_s1(47), d_pn_B_s2(47). On completion: run phase6_seed_aggregate.py ->
+results/phase6/FINETUNE.md, then bring Stage C (GRPO RL) go/no-go to user.
