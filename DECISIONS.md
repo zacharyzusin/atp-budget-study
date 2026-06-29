@@ -913,3 +913,12 @@ done cells; 11:55h wall ≫ ~9h worst case for the 183-cell arm at n_workers=3) 
 submit in small batches (≤4 concurrent) chained by Slurm --dependency=afterany so concurrency stays
 capped WITHOUT a live watcher (survives session teardown). Hypothesis test: a 4-arm low-concurrency
 batch should probe-OK and advance cells; gate the bulk chain on that.
+
+## 2026-06-29 — eval concurrency: --exclusive single-shard waves
+DECISION: run the 3-seed eval fill at strictly low concurrency (single-shard, --exclusive,
+dependency-chained waves of 4) rather than sharded-parallel. RATIONALE: two consecutive
+parallel attempts failed on node contention (bin-packing -> Lean/vLLM resource starvation),
+and the scientific conclusion (two-model SFT null) is already locked + visible in the partial
+aggregate, so completing the variance bars reliably outranks completing them fast. Long DeepSeek
+arms (183/140/139 cells) kept single-shard to cap waves at 4 nodes; can shard-up the tail if
+exclusive nodes prove plentiful.

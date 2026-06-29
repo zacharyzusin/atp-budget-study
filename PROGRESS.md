@@ -2089,3 +2089,13 @@ Matrix state at resume: 23/36 arm-seeds complete; partials = g_mf_A_s2(183), g_m
 g_pn_A_s1/s2(140), d_mf_base_s1(61), d_mf_A_s1(122), d_mf_B_s1/s2(183), d_pn_base_s1(82),
 d_pn_A_s1(46), d_pn_B_s1(47), d_pn_B_s2(47). On completion: run phase6_seed_aggregate.py ->
 results/phase6/FINETUNE.md, then bring Stage C (GRPO RL) go/no-go to user.
+
+## 2026-06-29 — eval resubmitted contention-proof (root cause: bin-packing)
+First resume (jobs 10922346-58, 2-3 shards x 13 arms = up to 29 tasks) FAILED: scheduler
+bin-packed up to 5 tasks/node (ins084 x5, ins090/85 x4). Per-task load (4.6GB /dev/shm env +
+vLLM + Lean) saturated nodes -> Mathlib import 1978s (ref 95-141s) -> vLLM missed 40min window;
+6 FATAL-vllm, 0 cells/90min. NOT GPFS this time (login probe fast); pure node contention from
+my over-sharding. Cancelled all (resume-safe). Resubmitted single-shard, --exclusive (one node
+per job), 4 dependency-chained waves of 4 (jobs 10923121-33). Slower wall-clock, contention
+structurally impossible. Aggregator dry-run on partial data ALREADY reproduces the null
+(B-base within -2..+0.4pp both models/benches, never >=+3pp; A hurts) -> reliability > speed.
