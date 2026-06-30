@@ -939,3 +939,16 @@ when reward fails to move on TRAIN problems WITHOUT a tuning pathology.
 NEXT CHECKPOINT: bring concrete probe specs (problem subset, K, steps, reward shaping, KL coeff,
 numeric threshold, GPU-h est) for user pressure-test BEFORE spending GPU, after 3-seed bars finalize.
 Full memo: results/phase6/STAGE_C_DECISION.md (gitignored, local).
+
+## 2026-06-29 (correction) — eval concurrency: bounded CPU/mem, NOT --exclusive
+SUPERSEDES the earlier "--exclusive single-shard" decision. Topology: 13 big GPU nodes
+(ins080-092 = 192 cpu, 8x A6000) + 2 small (ins093/094 = 64 cpu, 4x A6000); `free` QOS caps
+cpu=80/job. So --exclusive on a 192-cpu node requests 192 > 80 -> QOSMaxCpuPerJobLimit, PERMANENT
+block; it only fits the two 64-cpu nodes -> locked out 13/15 nodes. Real root cause of the
+original contention was visible in ReqTRES: jobs reserved only cpu=4, so 5 co-located Mathlib
+imports starved on CPU (1978s vs ~100s). FIX: drop --exclusive, reserve --cpus-per-task=32
+--mem=96G per single-shard job. Fits QOS (32<=80), gives each job near-exclusive import speed,
+lets up to 6 well-resourced jobs share a 192-cpu node without starvation, and unlocks the big
+fleet. Validate-first: 2-arm probe wave (10944859-60) ungated; remaining 5 (10944861-65) gated
+afterany so a bad resource model is caught before the bulk runs. Goedel arms (5) + d_mf_base_s1
+already complete/running under prior submits.
