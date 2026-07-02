@@ -2099,3 +2099,10 @@ my over-sharding. Cancelled all (resume-safe). Resubmitted single-shard, --exclu
 per job), 4 dependency-chained waves of 4 (jobs 10923121-33). Slower wall-clock, contention
 structurally impossible. Aggregator dry-run on partial data ALREADY reproduces the null
 (B-base within -2..+0.4pp both models/benches, never >=+3pp; A hurts) -> reliability > speed.
+
+## 2026-06-30 — 3-seed matrix COMPLETE; FINETUNE.md finalized
+All 36 arm-seeds at target (miniF2F 244 / ProofNet# 186). Re-sharded ProofNet arms (3 shards,
+cpu=32/mem=96G) cleared the single-shard time-limit risk. FINAL null (paired B-base @32k, n=3):
+Goedel -2.0+/-1.1 (mf) / -2.0+/-1.2 (pn); DeepSeek -0.3+/-1.3 / -0.9+/-0.3. Never >=+3pp; A hurts
+(-12..-20pp mf@32k). Two-model per-seed NULL locked. results/phase6/FINETUNE.md = FINAL.
+NEXT: draft Stage C GRPO RL probe specs for user pressure-test (per STAGE_C_DECISION.md triple gate).
