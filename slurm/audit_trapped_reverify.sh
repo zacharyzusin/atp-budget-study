@@ -19,14 +19,21 @@
 # needs real wall-clock time (hence the 11h cap, near partition max), not a quick interactive check.
 #
 # Usage: sbatch slurm/audit_trapped_reverify.sh <config> <run-dir> <trapped-file> [limit-problems]
+# DeepSeek runs need a DIFFERENT Lean env/toolchain (its own pin, v4.9.0 + standard mathlib, vs
+# Goedel's v4.9.0-rc1 fork) -- set ATP_LEAN_ENV_NAME=deepseek-lean-env + ELAN_HOME=scratch/elan-deepseek
+# as sbatch --export vars, exactly like slurm/sweep_array.sh's own convention (PROGRESS.md 2026-06-xx).
+# Getting this wrong silently verifies against the WRONG mathlib version -- found live 2026-07-10 when
+# two jobs were first submitted without it and had to be cancelled mid-stage.
+#   sbatch slurm/audit_trapped_reverify.sh configs/base.yaml results/baseline \
+#       scratch/phase2/trapped_minif2f.txt 55
 #   sbatch slurm/audit_trapped_reverify.sh configs/proofnet_baseline.yaml results/proofnet_baseline \
 #       scratch/phase2/trapped_proofnet.txt 150
-#   sbatch slurm/audit_trapped_reverify.sh configs/baseline.yaml results/baseline \
-#       scratch/phase2/trapped_minif2f.txt 55
-#   sbatch slurm/audit_trapped_reverify.sh configs/deepseek_proofnet_baseline.yaml \
-#       results/deepseek_proofnet_baseline scratch/phase2/trapped_proofnet_deepseek.txt 140
-#   sbatch slurm/audit_trapped_reverify.sh configs/deepseek_minif2f_baseline.yaml \
+#   sbatch --export=ALL,ATP_LEAN_ENV_NAME=deepseek-lean-env,ELAN_HOME=scratch/elan-deepseek \
+#       slurm/audit_trapped_reverify.sh configs/deepseek_minif2f_baseline.yaml \
 #       results/deepseek_minif2f_baseline scratch/phase2/trapped_minif2f_deepseek.txt 61
+#   sbatch --export=ALL,ATP_LEAN_ENV_NAME=deepseek-lean-env,ELAN_HOME=scratch/elan-deepseek \
+#       slurm/audit_trapped_reverify.sh configs/deepseek_proofnet_baseline.yaml \
+#       results/deepseek_proofnet_baseline scratch/phase2/trapped_proofnet_deepseek.txt 140
 set -uo pipefail
 
 PROJ="/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
@@ -62,27 +69,29 @@ export ELAN_HOME="${ELAN_HOME:-$HOME/.elan}"
 export ATP_IMPORT_TIMEOUT_S="${ATP_IMPORT_TIMEOUT_S:-2700}"
 cd "$PROJ"
 
-# --- Stage the Lean env to node-local SSD, flock-guarded (same pattern as validate_statements.sh) --
-GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
+# --- Stage the Lean env to node-local SSD, PER-JOB dir (no shared-path races) -----------------------
+# Lean env to stage: default atp-lean-env (Goedel pin); a DeepSeek run MUST set
+# ATP_LEAN_ENV_NAME=deepseek-lean-env (its own pin, v4.9.0 + standard mathlib -- see usage comment
+# above). Getting this wrong silently verifies against the wrong mathlib version, not an error.
+#
+# PER-JOB dir, not a shared reusable path: found live 2026-07-10 -- two earlier jobs (11473148/149,
+# same node ins021) were `scancel`led mid-stage; their `cp -a` children apparently weren't fully
+# reaped, and a LATER job (11473167) landed on the same node, saw no `.staged_ok`, did `rm -rf` on
+# the shared path while the orphaned cp was still writing into it -> "cannot create regular file...
+# No such file or directory" (the exact "concurrent rm -rf + cp into one dir" failure mode
+# slurm/sweep_array.sh's own comments already document for the GPU sweep path). A shared,
+# flock-guarded path is fine for jobs that always run to completion, but is not robust to a
+# scancel'd predecessor's stragglers -- per-job-ID dirs sidestep the whole class.
+LEAN_ENV_NAME="${ATP_LEAN_ENV_NAME:-atp-lean-env}"
+GPFS_ENV="$PROJ/scratch/lean-cache/$LEAN_ENV_NAME"
 LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
-LOCAL_ENV="$LOCAL_BASE/atp-lean-env"
+LOCAL_ENV="$LOCAL_BASE/${LEAN_ENV_NAME}-j${SLURM_JOB_ID:-$$}"
 mkdir -p "$LOCAL_BASE"
-N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-exec 9>"$LOCAL_BASE/.atp_stage.lock"
-flock 9
-N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ]; then
-    echo "[audit-trapped] Lean env already staged on $(hostname) ($N_LOCAL oleans) — reusing."
-else
-    echo "[audit-trapped] staging Lean env -> $LOCAL_ENV (cp $N_GPFS oleans)..."
-    rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"; t0=$SECONDS
-    cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
-          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$LOCAL_ENV/" \
-        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; flock -u 9; exit 1; }
-    touch "$LOCAL_ENV/.staged_ok"
-    echo "[audit-trapped] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
-fi
-flock -u 9; exec 9>&-
+rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"; t0=$SECONDS
+echo "[audit-trapped] staging Lean env -> $LOCAL_ENV ..."
+cp -a "$GPFS_ENV/." "$LOCAL_ENV/" \
+    || { echo "FATAL: staging copy to $LOCAL_ENV failed"; exit 1; }
+echo "[audit-trapped] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
 LIMIT_ARGS=()

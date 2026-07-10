@@ -3360,3 +3360,32 @@ Full ledger: `results/audit/AUDIT_FINDINGS.md` (not git-tracked, matches other p
 convention). Committed so far: `78a7230` (A0). The A1/A2 fix + new tests are still uncommitted in the
 working tree as of this entry — commit next, after Task B's job result is known or the session
 otherwise wraps up.
+
+## 2026-07-10 (cont.) — A1/A2 fix committed (`d374895`); Task B extended to all 4 trapped cores; a slurm bug found+fixed
+
+Committed the no_goal fix + tests + audit infra scripts as `d374895` (working tree clean). Queued the
+remaining 3 trapped-core reverify jobs (Goedel×miniF2F, DeepSeek×ProofNet#, DeepSeek×miniF2F) alongside
+the already-running Goedel×ProofNet# job (11472759).
+
+**Two real mistakes found and fixed in `slurm/audit_trapped_reverify.sh` itself while submitting:**
+1. First submission for the two DeepSeek configs used the DEFAULT `ATP_LEAN_ENV_NAME` (Goedel's
+   `atp-lean-env`), silently pointing DeepSeek's verification at the WRONG mathlib/toolchain pin.
+   Cancelled both (11473148/149) before they got past staging. Fixed: script now documents + requires
+   `--export=ALL,ATP_LEAN_ENV_NAME=deepseek-lean-env,ELAN_HOME=scratch/elan-deepseek` for DeepSeek runs,
+   matching `slurm/sweep_array.sh`'s own established convention exactly. Also found the staging `cp`
+   hardcoded the Goedel-only `AtpLeanEnv` project-dir name (DeepSeek's is `DeepseekLeanEnv`) — switched
+   to `cp -a "$GPFS_ENV/." "$LOCAL_ENV/"` so it copies whatever is actually present.
+2. A LATER job (11473167, Goedel×miniF2F) landed on the same node (ins021) as the two cancelled jobs
+   and failed staging (`cp: cannot create regular file ... No such file or directory`) — the cancelled
+   jobs' `cp -a` children apparently weren't fully reaped by `scancel`, and the new job's `rm -rf` on
+   the SAME shared `/local/$USER/atp-lean-env` path raced against the orphaned copy still writing into
+   it. This is the exact "concurrent rm -rf + cp into one dir" failure class `slurm/sweep_array.sh`'s
+   own comments already document for the GPU sweep path (2026-06-14) — the flock guard here protects
+   against concurrent CLEAN starts, not a scancel'd predecessor's stragglers. **Fixed**: switched from
+   one shared, flock-guarded path to a PER-JOB directory (`${LEAN_ENV_NAME}-j${SLURM_JOB_ID}`) — no
+   reuse across jobs, but the whole race class is now structurally impossible. Resubmitted (11473232).
+
+All 4 trapped-core jobs now running/queued: 11472759 (Goedel×ProofNet#), 11473232 (Goedel×miniF2F,
+fixed script), 11473199/11473200 (DeepSeek×miniF2F/ProofNet#, correct env, old shared-path script but
+never cancelled so no race risk). Next session: check `sacct -j 11472759,11473232,11473199,11473200`
+and `results/audit/AUDIT_FINDINGS.md` for Task B's outcome.
