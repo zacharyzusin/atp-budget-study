@@ -3271,3 +3271,40 @@ and did NOT decide paper-vs-internal framing — both stay explicitly the user's
 per instruction.
 
 Full `pytest -q` green (100%) throughout this entire session's fixes.
+
+## 2026-07-10 (new session) — Post-Phase-8 planning: PLAN_NEXT.md + AUDIT_PLAN.md; Task A0 done
+
+User asked for two things before resuming experiments: (1) a deep audit of the codebase for bugs
+that may have affected empirical results so far, (2) an execution plan for the post-Phase-8 work the
+user specified (Phase 4 allocation validation as critical path, floor paper, contingent allocation
+paper). Both planned with Opus, saved to repo root (`AUDIT_PLAN.md`, `PLAN_NEXT.md`), then handed to
+this Sonnet session to execute autonomously.
+
+**Immediate finding during planning, now the audit's Task A0**: `git status` showed the ENTIRE
+Phase 6 Stage C / Phase 7 / Phase 8 effort — all three structural bug fixes, `src/atp/rl/`,
+`agents/{stepwise,tactic_stepwise}.py`, every `configs/deepseek_v15_*`/`leanabell_*`/`goedel_sft_*`
+config, every `phase6_grpo`/`phase7_*`/`phase8_*` script and slurm file, ~40 new test files, and the
+SYNTHESIS/PROGRESS/DECISIONS updates themselves — was **uncommitted working-tree state**. Last
+commit was `aec81a2` ("Phase 6: 3-seed matrix complete"), from BEFORE Stage C even started. Weeks of
+work were one `git checkout`/`stash -u` away from loss.
+
+**Task A0 executed**: reviewed the full diff of every modified `src/` file against the documented
+PROGRESS.md/DECISIONS.md history — every change traces to a named, dated fix (the wiring bug, the
+source-assembly bug, the maxHeartbeats/import-Aesop header, the informal_statement threading, the
+Stage-C cache-quota fix). Confirmed PROGRESS.md/DECISIONS.md stayed genuinely append-only (0 removed
+lines each) and SYNTHESIS.md's 9 removed lines match only this session's own header-date fix. Ran the
+fast suite clean-shell (`pytest -m "not slow and not gpu and not lean"`): **652 passed, 0 failed**.
+Staged deliberately (`git add -A` scoped to `src/ tests/ scripts/ slurm/ configs/` + the docs;
+confirmed `results/`/`scratch/`/`__pycache__/` stay gitignored, no endpoint files or secrets in the
+untracked list). Committed as `78a7230` (109 files, +10259/-19) and tagged `pre-audit-2026-07-10` as
+the rollback point.
+
+**Bonus finding from the diff review (feeds Task B directly)**: `git diff` on `src/atp/lean/repl.py`
+shows `set_option maxHeartbeats 0` was ADDED code, not modified — independent version-control
+confirmation (not just the PROGRESS.md narrative) that `ReplBackend` truly never injected it before
+2026-07-06. Every Phase 0-7 headline sweep ran under Lean's default heartbeat limit. Also confirmed
+`templates.py`'s diff is 100% additive (new classes only, `WholeProofTemplate` untouched) —
+structural corroboration of the Phase 8 taint audit's "Phase 0-7 unaffected" claim, from the code
+history rather than the narrative.
+
+Proceeding to AUDIT_PLAN.md Task A1 (verifier decision layer) next.
