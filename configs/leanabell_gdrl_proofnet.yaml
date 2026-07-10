@@ -1,0 +1,15 @@
+# Phase 8 second matched pair — Leanabell-Prover-GD-RL on ProofNet#. See
+# configs/leanabell_gdsft_minif2f.yaml for the full pin/format rationale, INCLUDING the 2026-07-06
+# format revision — rebuilt on the SAME raw-completion template as GD-SFT so the pair stays
+# apples-to-apples.
+defaults: proofnet_baseline
+
+model:
+  name: leanabell-gdrl
+  hf_repo: stoney0062/Leanabell-Prover-GD-RL
+  revision: "30f4ddf3dd1352dbaf2985df090131fb13b5236d"   # pinned 2026-07-06 (HF API sha at pin time)
+  max_model_len: 8192
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: goedel_sft
+  chat_completions: false

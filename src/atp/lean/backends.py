@@ -12,6 +12,7 @@ stays login-node importable for the fast suite.
 from __future__ import annotations
 
 import os
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -20,6 +21,11 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from atp.config import ExperimentConfig
+
+# Mirrors verifier.py's own `_DECL_RE` (duplicated, not imported, to avoid a circular import —
+# verifier.py imports Theorem/LeanBackend FROM this module). Keep the pattern identical if either
+# changes: both are answering "does this text already declare its own theorem/lemma/example?"
+_DECL_RE = re.compile(r"(?m)^\s*(?:theorem|lemma|example)\b")
 
 
 class LeanEnvNotReady(RuntimeError):
@@ -35,6 +41,12 @@ class Theorem:
     imports: tuple[str, ...] = ("Mathlib",)
     opens: tuple[str, ...] = ()
     source_file: str | None = None  # provenance: benchmark file this came from
+    # The informal (natural-language) problem statement, when the benchmark provides one (242/244
+    # for miniF2F). Threaded through so DeepSeekV15Template/GoedelSFTTemplate can render it as the
+    # `/-- ... -/` doc-comment their official inference scripts always include before the theorem —
+    # dropped at this boundary was a confirmed bug (found live 2026-07-06, see PROGRESS.md/
+    # DECISIONS.md that date).
+    informal_statement: str | None = None
 
 
 @dataclass(frozen=True)
@@ -202,13 +214,43 @@ class PantographBackend:
 
     # -- verification ------------------------------------------------------------------
     def _build_source(self, theorem: Theorem, proof: str) -> str:
-        """Assemble a self-contained Lean file: ensure imports/opens are present, then the proof."""
+        """Assemble a self-contained Lean file: ensure imports/opens AND the theorem declaration
+        are present, then the proof body.
+
+        Three shapes, in order:
+        1. The model emitted a complete file (has its own `import` line, e.g. `WholeProofTemplate`'s
+           models, which re-emit the whole fenced block including imports+theorem) -> use as-is.
+        2. No `import` line, but the proof already restates its own `theorem`/`lemma`/`example`
+           declaration -> just prepend imports/opens (the original fallback behavior).
+        3. No `import` line AND no declaration (continuation-style templates —
+           `DeepSeekV15Template`/`GoedelSFTTemplate` — ask the model to continue directly after
+           `:= by`, so the extracted proof is a BARE tactic body) -> reconstruct
+           `<imports>\n<opens>\n\n<theorem statement> := by\n<proof>`. Missing this case is a
+           confirmed bug (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date): bare
+           tactics landing at the top level of the file are a guaranteed Lean parse error, not a
+           real proof failure — `theorem_stmt := by` must precede them.
+        """
         if any(line.lstrip().startswith("import ") for line in proof.splitlines()):
             return proof  # model emitted a complete file
+        # `import Aesop` + `set_option maxHeartbeats 0`: the DeepSeek-Prover-V1.5/Goedel-Prover-SFT
+        # family's own official header convention (verified byte-for-byte 2026-07-06 against
+        # quick_start.py / eval/step1_inference.py's LEAN4_DEFAULT_HEADER — see PROGRESS.md/
+        # DECISIONS.md that date). These two non-"complete file" branches are, in current practice,
+        # only exercised by that family's continuation-style templates, so applying their own
+        # official convention here is correct, not an unjustified default. Missing
+        # `set_option maxHeartbeats 0` in particular disables Lean's default elaboration-heartbeat
+        # limit — without it, otherwise-valid nlinarith/field_simp/simp-heavy proofs can spuriously
+        # fail, indistinguishable from a genuinely wrong proof.
         header = [f"import {imp}" for imp in (theorem.imports or ("Mathlib",))]
+        header.append("import Aesop")
+        header.append("")
+        header.append("set_option maxHeartbeats 0")
         if theorem.opens:
+            header.append("")
             header.append("open " + " ".join(theorem.opens))
-        return "\n".join(header) + "\n\n" + proof
+        if _DECL_RE.search(proof):
+            return "\n".join(header) + "\n\n" + proof
+        return "\n".join(header) + "\n\n" + theorem.statement.rstrip() + " := by\n" + proof
 
     def _format_message(self, theorem: Theorem, msg) -> str:
         sev = msg.severity.name.lower()

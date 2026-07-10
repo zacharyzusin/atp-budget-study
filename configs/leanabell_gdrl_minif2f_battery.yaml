@@ -1,0 +1,6 @@
+# Phase 8 second-pair metric battery (matched budgets, capped at 32k to stay apples-to-apples with
+# the V1.5 triple's own battery cap). Reuses the existing harness unchanged.
+defaults: leanabell_gdrl_minif2f
+
+budget:
+  values: [2000, 8000, 32000]

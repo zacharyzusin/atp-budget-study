@@ -1,0 +1,30 @@
+# configs/phase6_grpo_heldout_deepseek.yaml — Stage C probe G1 gate eval (STAGE_C_PROBE_SPEC.md §2/§4).
+# Evaluate base vs RL-final on the HELD-OUT Workbook slice (disjoint from train AND both benchmarks),
+# pass@1 (seed 0) + pass@8 (seeds 0-7) at budget 8192. Points at heldout_corpus.json emitted by
+# phase6_select_subset.py (same clean-corpus schema, so the standard lean_workbook loader reads it).
+# Base run: no LoRA. RL run: ATP_VLLM_LORA=deepseek-grpo=<adapter> + ATP_SERVED_MODEL=deepseek-grpo,
+# same config + server (single-variable; only served weights differ). G1: RL pass@1 >= base +5pp.
+defaults: deepseek_proofnet_baseline
+
+data:
+  benchmark: lean_workbook
+  split: train
+  lean_workbook_path: scratch/phase6/grpo/deepseek/heldout_corpus.json
+  exclude_unprovable: false
+  use_novel_split: false
+
+budget:
+  values: [8192]
+
+eval:
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7]
+  n_workers: 3
+
+agent:
+  mode: whole_proof
+  refinement: { enabled: true, max_iters: 4, alloc_split: 0.5 }
+  components:
+    memory: { enabled: false }
+    reviewer: { enabled: false }
+    retrieval: { enabled: false }
+    tactic_skeletons: { enabled: false }

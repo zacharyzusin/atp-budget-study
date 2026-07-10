@@ -1,0 +1,51 @@
+# Phase 8 second matched pair — Leanabell-Prover-GD-SFT on miniF2F (pre-RL half of the GD-SFT ->
+# GD-RL pair, Leanabell-LM/Leanabell-Prover, arXiv:2504.06122). CORRECTION to check-in #1's ZOO.md
+# finding ("no locatable GitHub/paper") — a GitHub repo-name search for "Leanabell-Prover" (not just
+# "Leanabell-Prover-GD-RL") DOES surface Leanabell-LM/Leanabell-Prover, with a public paper, HF
+# collection, and an eval table. The earlier search was incomplete, not a real dead end. See
+# PROGRESS.md/DECISIONS.md 2026-07-06 for the correction.
+#
+# Lineage (from the paper's own README): "Leanabell-Prover-GD-SFT/GD-RL" = continual-trained +
+# RL-trained starting from Goedel-Prover-SFT ("GD" = Goedel lineage; "DS" siblings start from
+# DeepSeek-Prover-V1.5 instead). GD-SFT is GD-RL's OWN base checkpoint (continual-trained on a hybrid
+# statement-proof + "cognitive behavior" dataset, prior to the RL stage) — this is the tighter,
+# single-variable RL delta than comparing GD-RL against plain Goedel-Prover-SFT (one stage further
+# upstream, per the coordinator's phrasing) would be.
+#
+# PIN: NOT independently GH-confirmed — the Leanabell-Prover GitHub repo has no code (README + figures
+# only, "Setup Environment: TODO"), so there is no `.gitmodules`/toolchain file to check like the V1.5
+# triple's own repos had. Best-evidence default (same class of inference as `configs/stp_proofnet.yaml`):
+# reuses the Goedel pin unchanged, since the paper explicitly continual-trains from Goedel-Prover-SFT
+# and its own eval table lists Goedel-Prover-SFT/DeepSeek-Prover-V1.5/STP side-by-side with directly
+# comparable pass@B numbers, consistent with this whole research lineage sharing one mathlib fork+pin
+# (already independently confirmed for 3 other papers in this repo). NOT proven — flag in any writeup.
+#
+# PROMPT FORMAT: REVISED 2026-07-06 (see PROGRESS.md/DECISIONS.md same date for the full incident).
+# The original best-evidence choice (`whole_proof`, chat_completions, proof-plan preamble — reasoning
+# based on config.json's max_position_embeddings=8192 + a real HF chat_template + the README's
+# "cognitive behaviors/reasoning" framing) LOOKED coherent at the 2-problem smoke bar but FAILED at
+# real battery scale: 0/2025 solves across both stages/benchmarks, ~63% of attempts truncated before
+# closing their code fence (falling back to raw text with the fence marker still attached ->
+# guaranteed Lean parse error) and a further ~46% of "cleanly extracted" attempts hitting "unknown
+# namespace" errors on legitimate tactics (bare tactic body outside proper `theorem ... := by`
+# context) — neither pattern present in Goedel-Prover-V2's own existing baseline using the same
+# harness code, confirming this was specific to the wrong format choice, not a framework bug.
+#
+# Switched to the SAME raw-completion template already validated for the V1.5 triple and
+# Goedel-Prover-SFT in this harness (`goedel_sft` — chosen over `deepseek_v15` since Leanabell
+# continual-trains directly from Goedel-Prover-SFT, the closer lineage match) — no proof-plan
+# preamble, no chat_completions, model closes its own fence. Re-contract-tested via a fresh smoke
+# before any real re-run (house rule: smoke before scale) — see the smoke config's own log for the
+# pass/fail readout.
+defaults: phase0_baseline
+
+model:
+  name: leanabell-gdsft
+  hf_repo: stoney0062/Leanabell-Prover-GD-SFT
+  revision: "7af62def7a964d3df962d14b6653601eec705620"   # pinned 2026-07-06 (HF API sha at pin time)
+  max_model_len: 8192        # model's own max_position_embeddings (config.json) — unchanged, this is
+                              # a real architecture ceiling, not what caused the earlier failure
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: goedel_sft
+  chat_completions: false    # raw /v1/completions — reverted from the failed whole_proof/chat choice

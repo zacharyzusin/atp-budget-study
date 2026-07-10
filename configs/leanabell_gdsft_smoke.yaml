@@ -1,0 +1,19 @@
+# Phase 8 second-pair pin triage — GPU smoke (CLAUDE.md rule 5) for Leanabell-Prover-GD-SFT.
+# REVISED 2026-07-06: the original whole_proof/chat_completions choice passed THIS smoke's shallow
+# "coherent-looking text" bar but failed at real battery scale (0/2025 solves — see
+# PROGRESS.md/DECISIONS.md 2026-07-06). Re-testing the corrected raw-completion `goedel_sft` template
+# on a slightly larger sample (8 problems, not 2) specifically checking for the two failure signatures
+# found last time: (1) `proof` fields starting with a leftover fence marker (extraction failure), (2)
+# "unknown namespace" errors on legitimate tactics (out-of-context assembly). A clean run here should
+# show neither, plus a plausible non-zero-ish attempt quality in the same ballpark as Goedel-Prover-SFT
+# (which shares this exact template).
+defaults: leanabell_gdsft_minif2f
+
+data:
+  limit: 8
+
+budget:
+  values: [8000]
+
+eval:
+  seeds: [0]

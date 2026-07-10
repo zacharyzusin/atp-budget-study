@@ -1,0 +1,15 @@
+# Phase 8 Cluster A pin triage — DeepSeek-Prover-V1.5-RL on miniF2F (stage 3 of the centerpiece
+# triple — the RL-vs-SFT-vs-Base comparison this whole phase's causal claim rests on). See
+# configs/deepseek_v15_base_proofnet.yaml for the pin finding + prompt-format note (same Goedel Lean
+# env, same DeepSeekV15Template — this file only differs in hf_repo/revision).
+defaults: phase0_baseline
+
+model:
+  name: deepseek-prover-v1.5-rl
+  hf_repo: deepseek-ai/DeepSeek-Prover-V1.5-RL
+  revision: "40a760138c68038d9869a436077c16b654b1cc72"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: deepseek_v15
+  chat_completions: false

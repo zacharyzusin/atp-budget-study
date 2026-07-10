@@ -143,6 +143,58 @@ def test_build_source_adds_imports_when_missing():
     assert backend._build_source(thm, full) == full  # already complete -> unchanged
 
 
+def test_build_source_reconstructs_theorem_header_for_continuation_only_proofs():
+    """CRITICAL REGRESSION (found live 2026-07-06, traced byte-exact from a real p8battery2_*
+    ProofNet# cell — see PROGRESS.md/DECISIONS.md that date): `DeepSeekV15Template`/`GoedelSFTTemplate`
+    ask the model to CONTINUE directly after `:= by` — their extracted "proof" is a bare tactic body
+    with no `import` line AND no restated `theorem ...` line (unlike `WholeProofTemplate`, which makes
+    the model re-emit the whole fenced block, self-contained, hitting the OTHER `_build_source`
+    branch). The old code's fallback branch just prepended imports/opens and appended the proof
+    VERBATIM — dropping the theorem declaration entirely, so bare tactics ended up at the top level of
+    the file (a guaranteed Lean parse error, not a real proof failure). This must never regress.
+
+    Uses the EXACT real example traced live: `Artin__exercise_10_1_13`, DeepSeek-Prover-V1.5-SFT.
+    """
+    cfg = load_config(BASE_CONFIG)
+    backend = PantographBackend(cfg)
+    thm = Theorem(
+        name="exercise_10_1_13",
+        statement=(
+            "theorem exercise_10_1_13 {R : Type*} [Ring R] {x : R}\n"
+            "  (hx : IsNilpotent x) : IsUnit (1 + x)"
+        ),
+        imports=("Mathlib",),
+        opens=("Function", "Fintype", "Subgroup", "Ideal", "Polynomial", "Submodule", "Zsqrtd",
+               "BigOperators"),
+    )
+    # the real extracted proof from the traced cell — bare tactics, no import, no restated theorem
+    continuation_proof = (
+        "obtain ⟨n, hn⟩ := hx\n  use 1 - x\n  rw [← sub_eq_zero] at hn\n"
+        "  simp [mul_add, mul_comm, mul_left_comm, hn, sub_eq_add_neg]"
+    )
+    src = backend._build_source(thm, continuation_proof)
+    assert "import Mathlib" in src
+    assert "open Function Fintype Subgroup Ideal Polynomial Submodule Zsqrtd BigOperators" in src
+    # the theorem declaration MUST be reconstructed, ending in `:= by`, immediately before the body
+    assert "theorem exercise_10_1_13 {R : Type*} [Ring R] {x : R}" in src
+    assert "(hx : IsNilpotent x) : IsUnit (1 + x) := by" in src
+    assert continuation_proof in src
+    # and the body must come AFTER the theorem line, not before it (order matters for Lean parsing)
+    assert src.index(":= by") < src.index("obtain ⟨n, hn⟩")
+
+
+def test_build_source_whole_proof_branch_is_unaffected_by_the_fix():
+    """Regression check: `WholeProofTemplate`'s own models (Goedel-Prover-V2, DeepSeek-Prover-V2-7B)
+    re-emit a complete file (their extraction naturally includes `import ...`) — that branch must stay
+    byte-identical to before this fix, not get a theorem line spliced in a second time.
+    """
+    cfg = load_config(BASE_CONFIG)
+    backend = PantographBackend(cfg)
+    thm = Theorem(name="t", statement="theorem t : True", imports=("Mathlib",), opens=("Nat",))
+    full = "import Mathlib\n\ntheorem t : True := by trivial"
+    assert backend._build_source(thm, full) == full
+
+
 # --------------------------------------------------------------------------------------
 # Real-Lean integration CONTRACT (version-agnostic): trivial true/false proofs that must behave
 # identically on EITHER stack — the v4.29.0 plumbing env or the Goedel-pinned env. This is the

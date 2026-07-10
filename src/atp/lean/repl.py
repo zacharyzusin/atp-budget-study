@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from atp.lean.backends import (
+    _DECL_RE,
     LeanEnvNotReady,
     RawVerification,
     Theorem,
@@ -321,12 +322,35 @@ class ReplBackend:
         Mathlib is already imported in env 0, and `import` is only legal as the first command of a
         fresh env — so strip any `import ...` lines the model emitted. Preserve `open` namespaces:
         keep the model's, else prepend the theorem's.
+
+        CRITICAL (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date — same root cause as
+        `PantographBackend._build_source`, a separate class): continuation-style templates
+        (`DeepSeekV15Template`/`GoedelSFTTemplate`) ask the model to continue directly after `:= by`,
+        so their extracted proof is a BARE tactic body with no `theorem`/`lemma`/`example`
+        declaration. Without reconstructing that declaration here, the bare tactics land as top-level
+        commands against env 0 — a guaranteed parse error, not a real proof failure. If the proof
+        already declares its own goal (self-contained, e.g. `WholeProofTemplate`'s models), leave it
+        untouched.
+        NOTE on `set_option maxHeartbeats 0` (found live 2026-07-06, see PROGRESS.md/DECISIONS.md
+        that date): the DeepSeek-Prover-V1.5/Goedel-Prover-SFT family's own official header always
+        sets this (disables Lean's elaboration heartbeat limit — without it, otherwise-valid
+        nlinarith/field_simp/simp-heavy proofs can spuriously fail, indistinguishable from a
+        genuinely wrong proof). Prepended here as its own top-level command, same convention as
+        `open`. Deliberately NOT adding `import Aesop` here (unlike `PantographBackend._build_source`,
+        which builds an isolated fresh file and needs it): env 0 already has Mathlib imported, whose
+        own modules transitively depend on Aesop, so its tactics are already available — and `import`
+        is only legal as a fresh env's FIRST command, so injecting one here as a later command would
+        be a genuine (avoidable) Lean error, not a fix.
         """
         body_lines = [ln for ln in proof.splitlines() if not ln.lstrip().startswith("import ")]
         body = "\n".join(body_lines).strip("\n")
+        if not _DECL_RE.search(body):
+            body = theorem.statement.rstrip() + " := by\n" + body
         has_open = any(ln.lstrip().startswith("open ") for ln in body_lines)
         if theorem.opens and not has_open:
             body = "open " + " ".join(theorem.opens) + "\n" + body
+        if "set_option maxHeartbeats" not in body:
+            body = "set_option maxHeartbeats 0\n" + body
         return body
 
     def _format_response(self, theorem: Theorem, resp: dict) -> tuple[bool, str]:

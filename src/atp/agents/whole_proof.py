@@ -27,7 +27,7 @@ from atp.agents.state import (
     Attempt,
 )
 from atp.budget.meter import BudgetExhausted, BudgetMeter
-from atp.models.templates import WholeProofTemplate
+from atp.models.templates import PromptTemplate, template_from_config
 
 if TYPE_CHECKING:
     from atp.config import ExperimentConfig
@@ -48,7 +48,7 @@ class WholeProofAgent:
 
     client: VLLMClient
     verifier: Verifier
-    template: WholeProofTemplate
+    template: PromptTemplate
     max_refine: int = 4
     refine_enabled: bool = True
     max_rounds: int = 64
@@ -74,7 +74,7 @@ class WholeProofAgent:
         return cls(
             client=client,
             verifier=verifier,
-            template=WholeProofTemplate(),
+            template=template_from_config(config),
             max_refine=ref.max_iters,
             refine_enabled=ref.enabled,
             sample_max_tokens=config.model.max_model_len // 2,

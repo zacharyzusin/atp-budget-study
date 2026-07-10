@@ -1,0 +1,23 @@
+# Phase 8 Cluster A pin triage — Goedel-Prover-SFT on ProofNet# (the predecessor to Goedel-Prover-V2
+# already pinned in base.yaml — this is a DIFFERENT checkpoint, not a duplicate; per atp-phase8-plan
+# it's the SFT-only half of the "training-paradigm contrast" comparison, and the model that publicly
+# outperformed DeepSeek-Prover-V1.5-RL via SFT alone).
+#
+# Pin: same lineage/pin as the V1.5 triple and Goedel-Prover-V2 — Goedel-LM/Goedel-Prover's GitHub
+# `.gitmodules` points mathlib4 at the identical `xinhjBrant/mathlib4@2f65ba7f...` commit (verified
+# 2026-07-05). Reuses base.yaml's Lean env unchanged.
+#
+# Prompt format: verified against `eval/step1_inference.py` in the Goedel-LM/Goedel-Prover GitHub
+# repo — a RAW completion (no chat template, no proof-plan preamble, UNLIKE its successor
+# Goedel-Prover-V2/WholeProofTemplate, a reasoning model) — see `atp.models.templates.GoedelSFTTemplate`.
+defaults: proofnet_baseline
+
+model:
+  name: goedel-prover-sft
+  hf_repo: Goedel-LM/Goedel-Prover-SFT
+  revision: "5b03a13d14265d438048ffd4620f28f637f85313"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096         # model's own max_position_embeddings (config.json)
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: goedel_sft
+  chat_completions: false    # raw /v1/completions

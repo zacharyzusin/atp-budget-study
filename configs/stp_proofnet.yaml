@@ -1,0 +1,26 @@
+# Phase 8 Cluster A pin triage — STP (Self-play Theorem Prover, kfdong/STP_model_Lean) on ProofNet#.
+# Per atp-phase8-plan: STP vs Goedel-Prover-SFT is the "training-paradigm contrast on shared lineage"
+# comparison (self-play vs expert-iteration, both finetuned from DeepSeek-Prover-V1.5-SFT).
+#
+# PIN CONFIDENCE — LOWER than the V1.5 triple/Goedel-SFT (flag honestly, do not overstate): STP's HF
+# model card states it is "finetuned from DeepSeek-Prover-V1.5-SFT... for 1 epoch" on a dataset drawn
+# from mathlib4 + LeanWorkbook, and its own paper benchmarks it against DeepSeek-Prover-V1.5 on the
+# IDENTICAL miniF2F-test/ProofNet-test pass@3200 numbers (strong circumstantial evidence of the same
+# Lean/mathlib pin) — but unlike the V1.5 triple and Goedel-Prover-SFT, its GitHub repo
+# (kfdong/STP, TPU/JAX-based training code) does NOT vendor a mathlib4 submodule to directly confirm
+# the commit, and its own inference script's exact prompt template was not found in a quick pass of
+# the repo. Assigned DeepSeekV15Template (same lineage, same benchmark protocol) as the best-evidence
+# default, but this is INFERRED, not GH-confirmed like the other Cluster A entries — run the contract
+# test (scripts/phase8_pin_contract_check.py) before trusting this for a real sweep; if elaborate
+# rejects its output outright, the model may need a raw-log capture to nail down its actual format.
+defaults: proofnet_baseline
+
+model:
+  name: stp
+  hf_repo: kfdong/STP_model_Lean
+  revision: "63a78b9e0206bea6c91254f54cb25a5241a423ec"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096         # model's own max_position_embeddings (config.json)
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: deepseek_v15   # INFERRED (see header) — verify via contract test before real use
+  chat_completions: false

@@ -1,0 +1,27 @@
+# Phase 8 Cluster A pin triage — DeepSeek-Prover-V1.5-Base on ProofNet# (stage 1 of the centerpiece
+# matched-lineage triple: Base -> SFT -> RL, see atp-phase8-plan memory / results/phase8/ZOO.md).
+#
+# PIN FINDING (2026-07-05, corrects the Phase 8 plan's assumption that the V1.5 family shares
+# DeepSeek-Prover-V2's pin): the V1.5 family's `.gitmodules` (deepseek-ai/DeepSeek-Prover-V1.5 GitHub
+# repo) points mathlib4 at the SAME fork+commit as GOEDEL's pin — `xinhjBrant/mathlib4@2f65ba7f...`,
+# whose `lean-toolchain` is `leanprover/lean4:v4.9.0-rc1` — i.e. this triple reuses base.yaml's
+# (Goedel's) Lean env unchanged, NOT deepseek-lean-env (that's DeepSeek-Prover-V2's own, later,
+# standard-mathlib pin). No `lean:` override needed here.
+#
+# PROMPT FORMAT (verified against `quick_start.py` in the deepseek-ai/DeepSeek-Prover-V1.5 repo): a
+# RAW completion (no chat template, no proof-plan preamble) — see
+# `atp.models.templates.DeepSeekV15Template`. All three stages (Base/SFT/RL) share this format (no
+# stage-specific prompt documented anywhere in the repo/paper).
+defaults: proofnet_baseline
+
+model:
+  name: deepseek-prover-v1.5-base
+  hf_repo: deepseek-ai/DeepSeek-Prover-V1.5-Base
+  revision: "0b260a2db7a4f491c9e412e4f0ccf5c34947a067"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096         # model's own max_position_embeddings (config.json) — short-context,
+                              # single-shot generator; refinement resamples fresh attempts, not a
+                              # long single completion (unlike Goedel-V2/DeepSeek-V2's long CoT).
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: deepseek_v15
+  chat_completions: false    # raw /v1/completions — pre-dates this family's chat-tuned successors

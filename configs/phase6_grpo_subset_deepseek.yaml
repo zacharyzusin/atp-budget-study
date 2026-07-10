@@ -1,0 +1,37 @@
+# configs/phase6_grpo_subset_deepseek.yaml — Stage C probe: base K-seed generation for GRPO subset
+# selection (STAGE_C_PROBE_SPEC.md §1). Sweep the DeepSeek BASE over a decontaminated lean_workbook
+# slice with K=16 seeds; phase6_select_subset.py buckets by per-problem solve-count and draws the
+# sweet-spot band ([1/16,10/16]) into disjoint train (~256) + held-out (~200) sets.
+# CRITICAL: the band must be measured in the SAME generation regime GRPO uses — ONE ≤4096-tok rollout,
+# NO refinement — so "base solve-count/16" == the base single-sample solve-rate GRPO actually sees.
+# Refinement ON / budget 8192 would count problems the agent only solves via the error-feedback loop,
+# which GRPO's single-completion rollouts never get -> we'd pick problems with ZERO GRPO gradient.
+# (The G1 gate eval, phase6_grpo_heldout_deepseek.yaml, DOES use the full eval regime — that's the
+# reportable base-vs-RL comparison, a different question from band selection.)
+# Run via slurm/sweep_array.sh with the DeepSeek env (ATP_HF_HOME / ATP_LEAN_ENV_NAME=deepseek-lean-env
+# / ELAN_HOME). Disjoint from miniF2F/ProofNet# by construction (§0 decontamination).
+defaults: deepseek_proofnet_baseline
+
+data:
+  benchmark: lean_workbook
+  split: train
+  lean_workbook_path: scratch/phase6/lean_workbook_clean.json
+  exclude_unprovable: false
+  use_novel_split: false
+  limit: 2000
+
+budget:
+  values: [4096]   # == GRPO max_completion_length: one rollout's worth of tokens per seed
+
+eval:
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  n_workers: 8   # launched with --cpus-per-task=32; 8 parallel Lean REPLs + vLLM (no CPU starvation)
+
+agent:
+  mode: whole_proof
+  refinement: { enabled: false, max_iters: 0, alloc_split: 0.5 }  # single-sample, matches a rollout
+  components:
+    memory: { enabled: false }
+    reviewer: { enabled: false }
+    retrieval: { enabled: false }
+    tactic_skeletons: { enabled: false }

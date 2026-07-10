@@ -1,0 +1,7 @@
+# configs/phase6_grpo_deepseek.yaml — Stage C GRPO RL probe (DeepSeek-Prover-V2-7B).
+# scripts/phase6_grpo.py reads model.hf_repo/revision (the policy to train) and the lean.* pin (the
+# reward backend verifies against it — the SAME env the eval reports on). All GRPO hyperparameters are
+# CLI flags on the trainer (single-variable, logged in atp_grpo_manifest.json), not here; this config
+# only pins the model + Lean env so the probe is reproducible (rule 4). Run under the DeepSeek env
+# (ATP_HF_HOME / ATP_LEAN_ENV_NAME=deepseek-lean-env / ELAN_HOME) via slurm/phase6_grpo.sh.
+defaults: deepseek_proofnet_baseline

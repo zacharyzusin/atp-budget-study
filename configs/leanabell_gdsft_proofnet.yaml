@@ -1,0 +1,16 @@
+# Phase 8 second matched pair — Leanabell-Prover-GD-SFT on ProofNet#. See
+# configs/leanabell_gdsft_minif2f.yaml for the full pin/format rationale, INCLUDING the 2026-07-06
+# format revision (whole_proof/chat_completions failed at battery scale — 0/2025 solves, fence-
+# truncation + out-of-context tactic errors; reverted to the validated raw-completion goedel_sft
+# template).
+defaults: proofnet_baseline
+
+model:
+  name: leanabell-gdsft
+  hf_repo: stoney0062/Leanabell-Prover-GD-SFT
+  revision: "7af62def7a964d3df962d14b6653601eec705620"   # pinned 2026-07-06 (HF API sha at pin time)
+  max_model_len: 8192
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: goedel_sft
+  chat_completions: false

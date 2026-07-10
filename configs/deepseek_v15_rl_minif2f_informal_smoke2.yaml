@@ -1,0 +1,15 @@
+# Phase 8 blocker #5 expanded smoke — coordinator-directed 2026-07-06: 0/29 solves in the first
+# smoke was inconclusive (could be real signal needing more samples, or noise). Expanding to ~150
+# cells total (this config: ~40 of them) across SFT+RL, miniF2F+ProofNet#, 2 seeds, budget 8k —
+# still smoke-scale, NOT the full battery. Skipping Base (its issue looked like "gives up
+# immediately", which the informal-statement fix is less likely to address).
+defaults: deepseek_v15_rl_minif2f
+
+data:
+  limit: 20
+
+budget:
+  values: [8000]
+
+eval:
+  seeds: [0, 1]

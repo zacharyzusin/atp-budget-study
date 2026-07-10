@@ -78,6 +78,11 @@ def test_load_minif2f_fixture(tmp_path):
     # to_theorem round-trips the fields the verifier needs
     thm = p0.to_theorem()
     assert thm.name == "t_one" and thm.opens == p0.opens
+    # CRITICAL REGRESSION (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date):
+    # informal_statement was silently dropped at this boundary — `Theorem` had no field for it, so
+    # DeepSeekV15Template/GoedelSFTTemplate could never include the doc-comment their official
+    # inference scripts always do, even for the 242/244 miniF2F problems that have one.
+    assert thm.informal_statement == p0.informal_statement == "n plus 0."
 
 
 def test_missing_split_raises(tmp_path):

@@ -1,0 +1,6 @@
+# Phase 8 step 3 — metric battery (matched budgets, capped at 32k per atp-phase8-plan's "128k
+# optional/lower priority given cost"). Reuses the existing harness unchanged.
+defaults: deepseek_v15_rl_minif2f
+
+budget:
+  values: [2000, 8000, 32000]

@@ -59,7 +59,9 @@ class ModelCfg(_Strict):
     max_model_len: int = 16384
     temperature: float = 1.0
     top_p: float = 0.95
-    prompt_template: Literal["whole_proof", "tactic"] = "whole_proof"
+    prompt_template: Literal[
+        "whole_proof", "tactic", "bfs_prover", "deepseek_v15", "goedel_sft"
+    ] = "whole_proof"
     # Goedel-Prover-V2-8B is a Qwen3-based *reasoning* prover trained with a chat template; it must
     # be driven via /v1/chat/completions (server applies the template) — raw /v1/completions makes
     # it ramble in prose instead of emitting a ```lean4 block. See DECISIONS.md 2026-06-06.

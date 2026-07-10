@@ -1,0 +1,15 @@
+# Phase 8 blocker #5 smoke — DeepSeek-Prover-V1.5-SFT with the informal_statement doc-comment fix
+# (2026-07-06, see PROGRESS.md/DECISIONS.md that date). Cheap smoke ONLY per the coordinator's
+# explicit gate: a handful of miniF2F problems (limit=30 catches aime_1983_p1 at index 2 and
+# mathd_algebra_137 at index 29, both already hand-traced, plus ~28 others for broader coverage),
+# 1 seed, a modest budget — checking completion length/quality/solves BEFORE scoping any real re-run.
+defaults: deepseek_v15_sft_minif2f
+
+data:
+  limit: 30
+
+budget:
+  values: [8000]
+
+eval:
+  seeds: [0]

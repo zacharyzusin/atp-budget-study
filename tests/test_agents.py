@@ -244,6 +244,61 @@ def test_from_config_wires_refinement_policy():
     assert agent.sample_max_tokens == cfg.model.max_model_len // 2
 
 
+def test_from_config_resolves_the_configured_prompt_template():
+    """CRITICAL REGRESSION (found live 2026-07-06 — see PROGRESS.md/DECISIONS.md that date):
+    `WholeProofAgent.from_config` used to hardcode `template=WholeProofTemplate()`, ignoring
+    `config.model.prompt_template` entirely — `template_from_config` existed but was dead code, never
+    called here. Every model whose config specifies a DIFFERENT template (DeepSeekV15Template,
+    GoedelSFTTemplate, ...) was silently run under WholeProofTemplate's chat/proof-plan prompt instead
+    of its own validated format. This must never regress: the agent's resolved template has to match
+    what the config actually asks for, for a genuinely non-default case.
+    """
+    from atp.config import load_config
+    from atp.models.templates import DeepSeekV15Template, GoedelSFTTemplate, WholeProofTemplate
+
+    cfg = load_config("configs/deepseek_v15_base_minif2f.yaml")
+    assert cfg.model.prompt_template == "deepseek_v15"  # sanity: this config IS non-default
+    client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
+    agent = WholeProofAgent.from_config(cfg, client, Verifier(_backend()))
+    assert isinstance(agent.template, DeepSeekV15Template)
+    assert not isinstance(agent.template, WholeProofTemplate)
+
+    cfg2 = load_config("configs/goedel_sft_minif2f.yaml")
+    assert cfg2.model.prompt_template == "goedel_sft"
+    agent2 = WholeProofAgent.from_config(cfg2, client, Verifier(_backend()))
+    assert isinstance(agent2.template, GoedelSFTTemplate)
+
+
+def test_from_config_regression_goedel_v2_and_deepseek_v2_still_resolve_whole_proof_template():
+    """Regression check for the fix above: Goedel-Prover-V2 (base.yaml) and DeepSeek-Prover-V2-7B
+    (deepseek_minif2f_baseline.yaml / deepseek_proofnet_baseline.yaml) are the two models whose
+    OFFICIAL prompt format IS textually WholeProofTemplate's (by design, documented in their own
+    config comments) — they were unaffected by the wiring bug (they happened to want the hardcoded
+    template anyway) and MUST STILL resolve to WholeProofTemplate after the fix, not silently break.
+    This is load-bearing for Phases 1-7, which used these two models as the headline comparison —
+    if either ever specified a non-default prompt_template upstream of Phase 8, this test surfaces it
+    now rather than leaving it undiscovered.
+    """
+    from atp.config import BASE_CONFIG, load_config
+    from atp.models.templates import WholeProofTemplate
+
+    client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
+
+    goedel_v2_cfg = load_config(BASE_CONFIG)
+    assert goedel_v2_cfg.model.prompt_template == "whole_proof"
+    goedel_v2_agent = WholeProofAgent.from_config(goedel_v2_cfg, client, Verifier(_backend()))
+    assert isinstance(goedel_v2_agent.template, WholeProofTemplate)
+
+    for path in ["configs/deepseek_minif2f_baseline.yaml", "configs/deepseek_proofnet_baseline.yaml"]:
+        deepseek_v2_cfg = load_config(path)
+        assert deepseek_v2_cfg.model.prompt_template == "whole_proof", (
+            f"{path}: expected whole_proof (this model's own documented official format) — if this "
+            "ever changes, the fix above would silently change DeepSeek-V2's actual prompt too"
+        )
+        deepseek_v2_agent = WholeProofAgent.from_config(deepseek_v2_cfg, client, Verifier(_backend()))
+        assert isinstance(deepseek_v2_agent.template, WholeProofTemplate)
+
+
 # --------------------------------------------------------------------------------------
 # Real end-to-end solve (deferred): needs a running vLLM server + built Lean cache.
 # --------------------------------------------------------------------------------------

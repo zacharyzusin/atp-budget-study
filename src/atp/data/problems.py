@@ -66,6 +66,7 @@ class Problem:
             imports=self.imports,
             opens=self.opens,
             source_file=self.provenance.get("source_file"),
+            informal_statement=self.informal_statement,
         )
 
     def to_dict(self) -> dict[str, Any]:

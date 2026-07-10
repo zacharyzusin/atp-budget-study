@@ -1,0 +1,14 @@
+# Phase 8 Cluster A pin triage — DeepSeek-Prover-V1.5-SFT on ProofNet# (stage 2 of the centerpiece
+# triple). See configs/deepseek_v15_base_proofnet.yaml for the pin finding + prompt-format note
+# (same Goedel Lean env, same DeepSeekV15Template — this file only differs in hf_repo/revision).
+defaults: proofnet_baseline
+
+model:
+  name: deepseek-prover-v1.5-sft
+  hf_repo: deepseek-ai/DeepSeek-Prover-V1.5-SFT
+  revision: "e9a6e6fbb67620d4e9c4944bc51ff7c435af12da"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: deepseek_v15
+  chat_completions: false

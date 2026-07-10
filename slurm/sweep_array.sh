@@ -92,6 +92,16 @@ export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
 # network call entirely → robust + reproducible. Override with ATP_HF_OFFLINE=0 if a download is ever
 # truly needed (then weights must NOT be cached-incomplete).
 export HF_HUB_OFFLINE="${ATP_HF_OFFLINE:-1}"
+# Redirect torch-inductor / triton / vLLM compile caches OFF the tight HOME quota onto scratch (GPFS,
+# large quota). A LoRA-enabled vLLM serve (ATP_VLLM_LORA, Phase 6 FT/Stage-C gate evals) compiles a
+# NEW graph (Punica kernels) and writes a fresh compile-cache entry under $HOME/.cache/vllm, which hit
+# "OSError: [Errno 122] Disk quota exceeded" on shards 11112521_1/_2 (2026-07-04) — the same failure
+# mode phase5_pilot.sh already worked around. Per-array-job dir so co-located shards never race.
+export XDG_CACHE_HOME="$PROJ/scratch/cache/xdg-j${SLURM_ARRAY_JOB_ID:-x}"
+export TORCHINDUCTOR_CACHE_DIR="$PROJ/scratch/cache/torchinductor-j${SLURM_ARRAY_JOB_ID:-x}"
+export TRITON_CACHE_DIR="$PROJ/scratch/cache/triton-j${SLURM_ARRAY_JOB_ID:-x}"
+export VLLM_CACHE_ROOT="$PROJ/scratch/cache/vllm-j${SLURM_ARRAY_JOB_ID:-x}"
+mkdir -p "$XDG_CACHE_HOME" "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" "$VLLM_CACHE_ROOT"
 export TRANSFORMERS_OFFLINE="${ATP_HF_OFFLINE:-1}"
 # elan/Lean on PATH so the ReplBackend verifier can launch the repl + resolve the toolchain sysroot.
 export PATH="$HOME/.elan/bin:$PATH"

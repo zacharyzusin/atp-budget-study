@@ -1,0 +1,31 @@
+# Phase 7 Track 1 — BFS-Prover-V1-7B on ProofNet# (the tactic-native Mode 4 disambiguator).
+#
+# Pulled forward from Track 2 (model zoo) ahead of schedule: Goedel-Prover-V2-8B's Mode 4 run is
+# confounded — it's a whole-proof REASONING model that doesn't cleanly decompose into single-tactic
+# turns (see DECISIONS.md 2026-07-05), so a null there can't distinguish "exposure bias isn't the
+# bottleneck" from "this model can't answer in this format at all." BFS-Prover-V1-7B is verified
+# (against its own model card, 2026-07-05 — not assumed) to be a genuinely tactic-native model: raw
+# completion, no chat template, trained format is EXACTLY `"{state}:::"` -> tactic
+# (`atp.models.templates.BFSProverTemplate`). Mode 4 is in-distribution for it.
+#
+# Lean pin: REUSES Goedel's pin (base.yaml) rather than a separate toolchain — BFS-Prover-V2's
+# sibling model card documents Lean 4.10.0 (V1 undocumented but presumably similar vintage), close
+# to our v4.9.0-rc1 pin. Verify via the Format-guard smoke (elaborate accepts a real tactic) BEFORE
+# any real run; if the pin proves incompatible (unresolved lemma names, etc.), build a dedicated
+# bfsprover-lean-env the same way deepseek-lean-env was (see slurm/build_lean.sh's DeepSeek variant).
+defaults: proofnet_baseline
+
+model:
+  name: bfs-prover-v1-7b
+  hf_repo: "ByteDance-Seed/BFS-Prover-V1-7B"
+  revision: "750e39030cf25f4af4fcdc81d358123659656cbe"   # pinned 2026-07-05 (HF API sha at pin time)
+  max_model_len: 4096         # model's own max_position_embeddings (config.json) — short by design;
+                              # this model answers with one bare tactic, no CoT room needed.
+  temperature: 1.0
+  top_p: 0.95
+  prompt_template: bfs_prover
+  chat_completions: false    # raw /v1/completions — this model was never given a chat template
+
+agent:
+  mode: whole_proof           # placeholder; Mode 4 is wired directly via TacticStepwiseAgent,
+                               # bypassing agent.mode/refinement entirely (see scripts/phase7_tactic_run.py)

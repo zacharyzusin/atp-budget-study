@@ -149,7 +149,9 @@ def test_build_repl_source_strips_imports_and_keeps_opens():
     proof = "import Mathlib\nimport Aesop\ntheorem t : True := by trivial"
     src = backend._build_repl_source(thm, proof)
     assert "import" not in src  # all import lines stripped (Mathlib already in base env)
-    assert src.startswith("open Nat")
+    # `set_option maxHeartbeats 0` is now always prepended first (see the dedicated test) — "open"
+    # follows it, not the very start of the string.
+    assert src.startswith("set_option maxHeartbeats 0\nopen Nat")
     assert "theorem t : True := by trivial" in src
 
 
@@ -158,7 +160,67 @@ def test_model_opens_not_duplicated():
     thm = Theorem(name="t", statement="theorem t : True", opens=("Nat",))
     src = backend._build_repl_source(thm, "open Finset\ntheorem t : True := by trivial")
     assert src.count("open ") == 1  # model already opened a namespace -> don't prepend ours
-    assert src.startswith("open Finset")
+    assert src.startswith("set_option maxHeartbeats 0\nopen Finset")
+
+
+def test_build_repl_source_reconstructs_theorem_header_for_continuation_only_proofs():
+    """CRITICAL REGRESSION (found live 2026-07-06, same root cause as `PantographBackend.
+    _build_source` — see PROGRESS.md/DECISIONS.md that date — but a SEPARATE class: `ReplBackend` is
+    the backend `eval/run.py` actually uses in production ("ReplBackend supersedes PantographBackend
+    for the pin" per that module's own docstring), so fixing `_build_source` alone would have been a
+    no-op for every real sweep. `_build_repl_source` strips `import` lines and preserves/prepends
+    `open`, but — like the other backend — NEVER reconstructed the `theorem ... := by` declaration
+    for a bare continuation-only proof (`DeepSeekV15Template`/`GoedelSFTTemplate`'s extracted output).
+    Uses the exact real traced example (`Artin__exercise_10_1_13`, DeepSeek-Prover-V1.5-SFT).
+    """
+    backend = _backend(_import_then({"env": 1, "messages": []}))
+    thm = Theorem(
+        name="exercise_10_1_13",
+        statement=(
+            "theorem exercise_10_1_13 {R : Type*} [Ring R] {x : R}\n"
+            "  (hx : IsNilpotent x) : IsUnit (1 + x)"
+        ),
+        opens=("Function", "Fintype", "Subgroup", "Ideal", "Polynomial", "Submodule", "Zsqrtd",
+               "BigOperators"),
+    )
+    continuation_proof = (
+        "obtain ⟨n, hn⟩ := hx\n  use 1 - x\n  rw [← sub_eq_zero] at hn\n"
+        "  simp [mul_add, mul_comm, mul_left_comm, hn, sub_eq_add_neg]"
+    )
+    src = backend._build_repl_source(thm, continuation_proof)
+    assert "theorem exercise_10_1_13 {R : Type*} [Ring R] {x : R}" in src
+    assert "(hx : IsNilpotent x) : IsUnit (1 + x) := by" in src
+    assert continuation_proof in src
+    assert src.index(":= by") < src.index("obtain ⟨n, hn⟩")
+
+
+def test_build_repl_source_leaves_self_contained_proofs_unaffected():
+    """Regression check: a proof that already declares its own theorem/lemma/example must not get a
+    SECOND theorem line spliced in (the `_DECL_RE`/theorem-reconstruction fix). Does now ALSO gain a
+    `set_option maxHeartbeats 0` prefix (a separate fix, same date) — that one applies uniformly
+    regardless of whether the proof is self-contained, since Lean's heartbeat limit can suppress a
+    genuinely valid proof either way."""
+    backend = _backend(_import_then({"env": 1, "messages": []}))
+    thm = Theorem(name="t", statement="theorem t : True", opens=("Nat",))
+    proof = "import Mathlib\nimport Aesop\ntheorem t : True := by trivial"
+    assert backend._build_repl_source(thm, proof) == (
+        "set_option maxHeartbeats 0\nopen Nat\ntheorem t : True := by trivial"
+    )
+
+
+def test_build_repl_source_always_sets_max_heartbeats_zero():
+    """CRITICAL REGRESSION (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date): the
+    DeepSeek-Prover-V1.5/Goedel-Prover-SFT family's official header always includes
+    `set_option maxHeartbeats 0` — without it, Lean's default elaboration-heartbeat limit can make an
+    otherwise-valid nlinarith/field_simp/simp-heavy proof spuriously fail, indistinguishable from a
+    genuinely wrong one. Must apply whether or not the proof already declares its own theorem, and
+    must not be duplicated if the model's own completion happens to already set it."""
+    backend = _backend(_import_then({"env": 1, "messages": []}))
+    thm = Theorem(name="t", statement="theorem t : True")
+    assert "set_option maxHeartbeats 0" in backend._build_repl_source(thm, "trivial")
+    # not duplicated if already present
+    already = "set_option maxHeartbeats 400000\ntheorem t : True := by trivial"
+    assert backend._build_repl_source(thm, already).count("set_option maxHeartbeats") == 1
 
 
 def test_timeout_is_graceful_and_marks_timed_out():

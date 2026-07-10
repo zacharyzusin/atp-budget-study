@@ -1,8 +1,10 @@
 # Synthesis — Budget-Bounded Agentic Theorem Proving
 
-*Consolidated findings as of 2026-06-18. Source of truth for the numbers: `PROGRESS.md` (dated lab
-notebook), `DECISIONS.md`, `results/*/metrics.json`, `results/phase1/FINDINGS.md`, and
-`results/phase2/MECHANISM.md`. This file is the one-page story; those are the receipts.*
+*Consolidated findings as of 2026-07-10 (Phases 0-8 complete). Source of truth for the numbers:
+`PROGRESS.md` (dated lab notebook), `DECISIONS.md`, `results/*/metrics.json`, and each phase's own
+result doc (`results/phase1/FINDINGS.md`, `phase2/MECHANISM.md`, `phase3/HAMMER_PROBE.md`,
+`phase4/ALLOCATION.md`, `phase6/{FINETUNE.md,STAGE_C_RESULT.md}`, `phase7/STEPWISE.md`,
+`phase8/ZOO.md`). This file is the consolidated story; those are the receipts.*
 
 ## The question
 
@@ -120,14 +122,110 @@ four model×benchmark cells. Pre-registered prediction: diversity rises, solves 
    manifold — but **every degraded attempt is caught by the verifier (0 false solves)**, so result
    soundness is intact and the scaffolding is counterproductive, not neutral.
 
+## Phase 3 — Hammer/SMT probe: NO-GO
+
+A portfolio of hammer/SMT-style closing tactics tried against the trapped core (problems unsolved by
+every seed at 128k). 0/119 newly solved. Rules out "the model just needs a stronger closing-tactic
+library" as cheaply as Phase 1 ruled out scaffolding. (`results/phase3/HAMMER_PROBE.md`.)
+
+## Phase 4 — Compute-optimal budget allocation: the one clearly positive lever
+
+Not a model or scaffold change — a policy for *how to spend* a fixed total token budget across a
+batch of problems (vs. a flat per-problem allocation). Goedel × ProofNet#: **STRONG and per-seed
+robust, +26% ± 7%** (saves ~30% of budget at 90% of full-budget accuracy). DeepSeek × ProofNet#: weak
+and fragile by comparison (−13% ± 28%) — this result is one-model-robust, not yet a confirmed general
+property. Still the clearest actionable finding in the whole project. (`results/phase4/ALLOCATION.md`.)
+
+## Phase 5 — Reclaim-and-reinvest: a fourth confirmation of the floor
+
+Extending the ALREADY-trapped cells past 128k tokens (more of the SAME budget on the SAME problems):
+~0 new solves (Goedel 1, DeepSeek 0). Budget helps when *reallocated across different problems*
+(Phase 4); it does not help by simply adding more of it to problems already known to be hard.
+
+## Phase 6 — Mechanism-targeted execution fine-tuning
+
+- **Stage A/B** (closing-targeted SFT — maximize conditional likelihood on verified closings): a
+  two-model NULL, but a diagnostically useful one — the **exposure-bias signature**: near-zero
+  teacher-forced loss on the closing, yet the same model still fails when it has to *generate* its own
+  path there autoregressively. Reframes the open question from "does the model know how to close a
+  proof" (yes) to "why does it drift away from a closeable state during its own free-running
+  generation" (open).
+- **Stage C** (`results/phase6/STAGE_C_RESULT.md`): a GRPO RL probe — LoRA r=16, DeepSeek-Prover-V2-7B,
+  80 steps, direct outcome-reward against the Lean verifier. Clean **c2 (capacity-ceiling) null**: held-
+  out pass@1 went 0.586→0.570 (Δ=−1.6pp), training reward flat for all 80 steps, no reward-hacking or
+  diversity collapse (G2/G3 both passed cleanly). RL, at LoRA scale, post-hoc on an existing model,
+  does not move the floor.
+
+## Phase 7 — Verified-state re-grounding
+
+Tests the Stage B exposure-bias hypothesis directly and training-independently: force the model to
+continue from a VERIFIED intermediate Lean state rather than free-running on its own generation.
+Modes 3/4, both models: resolved **NULL**. Re-grounding alone does not unlock the trapped core.
+(`results/phase7/STEPWISE.md`.)
+
+## Phase 8 — Model zoo: does full-pipeline, lab-scale RL move the floor?
+
+Extends the Phase 2 cross-model replication to a new question: not "do two labs' models differ" but
+"does a lab's own full RL training pipeline (not a lightweight post-hoc LoRA probe, but Base→SFT→RL
+integrated from the start) move the floor?" — tested via two independent matched lineages:
+DeepSeek-Prover-V1.5 (Base→SFT→RL) and Leanabell-Prover (GD-SFT→GD-RL, RL over a continual-trained
+Goedel-Prover-SFT base).
+
+This phase surfaced and fixed **four real, independently-confirmed bugs** before its floor table
+could be trusted (full evidence trail in `results/phase8/ZOO.md`'s superseded-attempts table and
+`PROGRESS.md`/`DECISIONS.md`, 2026-07-05 through 2026-07-10):
+
+1. **Wiring bug**: `WholeProofAgent.from_config` hardcoded `WholeProofTemplate` regardless of
+   `config.model.prompt_template`, since the project's first commit. A taint audit confirmed this
+   affected **zero** Phase 0-7 results (Goedel-V2/DeepSeek-V2 both natively use `whole_proof`) — fully
+   contained to Phase 8.
+2. **Missing-theorem-header assembly bug**: the Lean-source assembly never reconstructed the theorem
+   declaration for continuation-style completions, so bare tactics landed as top-level commands — a
+   guaranteed parse error masquerading as "the model's proof was wrong."
+3. **Missing `import Aesop` / `set_option maxHeartbeats 0`**: verified byte-for-byte against the
+   models' own official inference scripts; the latter disables Lean's elaboration heartbeat limit,
+   without which otherwise-valid proofs can spuriously time out.
+4. (Investigated, not scaled) **missing `informal_statement` doc-comment**: real, fixed, smoke-tested
+   to 160 cells — modest qualitative improvement, 0 solves, stopped per a pre-committed decision rule.
+
+After all three structural bugs were fixed, a **harness-sanity control** (re-verifying Goedel-V2/
+DeepSeek-V2's historically-solved proofs under the current patched backend: 37/37 and 40/40 still
+verify) confirmed the scoring pipeline itself is sound. The result, harness-validated:
+
+**0.0 ± 0.0 pass@B — every stage (Base/SFT/RL, GD-SFT/GD-RL), both benchmarks, every budget up to
+32000, for BOTH matched lineages.** The originally-reported "clean Base<SFT<RL" pattern was entirely a
+wiring-bug artifact and does not survive correction.
+
 ## The thesis
 
-**Compute budget — not agentic scaffolding — is the lever for whole-proof proving at this scale.** This
-holds across two independent provers and two benchmarks, and is supported at three levels: Phase 1
-(OFAT-null, with two scaffolding components that *hurt* OOD), Phase 2 mechanism (F1–F4: diversity collapse
-onto a deep-reasoning floor with nothing to retrieve), and the F5→F6 interventional test (forcing the one
-scaffolding move the mechanism implicates raises diversity but not solves, and degrades quality). The
-remaining levers are model capability and raw budget.
+**Compute budget allocation — not agentic scaffolding, not search strategy, not more of the same
+budget, not SFT-style closing-likelihood training, not lightweight post-hoc RL, and not full-pipeline
+lab-scale RL either — is the one lever that has moved anything in this whole project.** Across eight
+phases and four independent proving lineages (Goedel-Prover-V2, DeepSeek-Prover-V2, DeepSeek-Prover-
+V1.5, Leanabell-Prover), the execution floor holds:
+
+- Phase 1: agentic scaffolding (memory/reviewer/retrieval/skeletons) — OFAT-null, two components
+  actively hurt OOD.
+- Phase 2 mechanism (F1-F4) + F6 intervention: diversity collapse onto a deep-reasoning floor with
+  nothing to retrieve; forcing diversity raises it but not solves, and degrades quality.
+- Phase 3: hammer/SMT closing-tactic strategies — NO-GO.
+- Phase 5: more of the same budget on already-trapped problems — ~0 new solves.
+- Phase 6 Stage B: SFT-style closing-likelihood maximization — null, reveals exposure bias instead.
+- Phase 6 Stage C: lightweight, post-hoc, outcome-reward RL — clean capacity-ceiling null.
+- Phase 7: verified-state re-grounding — null.
+- **Phase 8, corrected and harness-validated: full-pipeline, lab-scale RL, two independent training
+  lineages — also null.**
+
+The one lever that DID move something, robustly for at least one model (Phase 4): *how* a fixed
+compute budget is allocated across a batch of DIFFERENT problems. That remains this project's
+clearest actionable finding, and the open question — Phase 4's result is one-model-robust, not yet
+confirmed on DeepSeek or in the Phase 8 zoo — is the natural next validation if this project
+continues.
+
+**What this synthesis does not decide**: whether the accumulated null (an execution floor that eight
+phases, four training lineages, and every tried intervention except budget-allocation policy fail to
+move) is written up as a definitive-negative paper finding or kept as an internal record. That framing
+call, like the discovery-vs-null headline itself, is explicitly the user's/coordinator's to make.
 
 ## Verifier soundness — why these numbers are trustworthy
 
@@ -167,3 +265,19 @@ false accept. Trustworthy numbers depend on the verifier, and we audit it as a f
    env staging to `/dev/shm`, per-shard vLLM port + endpoint file, stagger vLLM starts (NVML herd), and
    exclude bad nodes (ins082/ins087). Resume the *full* array range, never a sparse subset (num-shards is
    derived from the task count). See `slurm/sweep_array.sh` and PROGRESS.md 2026-06-16/18.
+7. **A near-zero result across a new dimension deserves the SAME base-rate check as a "too good"
+   result.** Phase 8's 0.0%-everywhere floor looked like a real finding (a clean, consistent
+   Base<SFT<RL pattern) right up until it was compared against the models' own published numbers and
+   an actual byte-level prompt diff — the same discipline that would catch an implausibly HIGH number
+   should be applied symmetrically to an implausibly LOW or implausibly PERFECT one. "Individual
+   failures look like genuine math failures" is not sufficient evidence when the base rate (a
+   published ~50-60% pass rate) says something is structurally wrong; a harness-sanity control against
+   an unaffected reference model is cheap and should be run BEFORE trusting a dramatic null, not just
+   before trusting a dramatic positive.
+8. **A newly-introduced model config exercises code paths existing tests never covered.** All three
+   structural Phase 8 bugs were latent in code that had been shipping (and presumably had been passing
+   review / a fast test suite) for weeks — they only surfaced when a genuinely different template
+   (`prompt_template != whole_proof`) was exercised for the first time at real scale. Existing
+   regression tests locked in the OLD (buggy) behavior's shape without ever exercising the branch the
+   new model actually needed; add the new case FIRST as a failing test against real data, not a
+   synthetic example that happens to avoid the bug.
