@@ -393,6 +393,13 @@ class ReplBackend:
 
     def verify(self, theorem: Theorem, proof: str) -> RawVerification:
         source = self._build_repl_source(theorem, proof)
+        # Computed against the ASSEMBLED `source` actually sent to Lean (post header
+        # reconstruction), not the raw `proof` param -- see RawVerification.declares_goal
+        # docstring. `_build_repl_source` unconditionally reconstructs a theorem header when the
+        # proof lacks one, so this is only False in the (still real) edge case where the extracted
+        # text coincidentally suppresses reconstruction (e.g. a stray "theorem"/"lemma"/"example"
+        # substring in a comment) without genuinely declaring a goal.
+        declares_goal = bool(_DECL_RE.search(source))
         t0 = time.perf_counter()
         last_infra: str | None = None
         for _attempt in range(self.INFRA_RETRIES + 1):
@@ -419,7 +426,9 @@ class ReplBackend:
                 continue
             elapsed = time.perf_counter() - t0
             success, output = self._format_response(theorem, resp)
-            return RawVerification(success=success, output=output, elapsed_s=elapsed)
+            return RawVerification(
+                success=success, output=output, elapsed_s=elapsed, declares_goal=declares_goal
+            )
         # Exhausted retries — report the last infra error (distinct prefix, not a compile error).
         return RawVerification(
             success=False,

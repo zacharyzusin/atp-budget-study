@@ -8,7 +8,6 @@ This is the deterministic decision layer the agent loop relies on. Given any `Le
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -31,7 +30,15 @@ if TYPE_CHECKING:
 # can still *compile* — Lean has nothing to fail on — and would otherwise be scored "verified".
 # Requiring a declaration is a necessary soundness gate (validated: 528/528 real solves declare
 # one; it removes the truncation false-positives that dominated the ProofNet# runs, 2026-06-14).
-_DECL_RE = re.compile(r"(?m)^\s*(?:theorem|lemma|example)\b")
+#
+# AUDIT FIX (2026-07-10, AUDIT_PLAN.md Task A1): this used to be `_DECL_RE.search(proof)` — a regex
+# over the RAW extracted completion. That is wrong for continuation-style templates
+# (DeepSeekV15Template/GoedelSFTTemplate/BFSProverTemplate), which by design never restate the
+# theorem in their own completion (the backend reconstructs it) — so the check was structurally
+# always None for that whole template family, making it IMPOSSIBLE for a continuation-style
+# completion to ever score `ok=True`, correct or not. The gate now reads `raw.declares_goal`,
+# computed by the BACKEND from the source it actually assembled and compiled (see
+# `RawVerification.declares_goal`), not re-derived here from the pre-assembly text.
 
 
 @dataclass(frozen=True)
@@ -101,7 +108,7 @@ class Verifier:
             reason = "timeout"
         elif (not raw.success) or parsed.has_error:
             reason = "compile_error"
-        elif not _DECL_RE.search(proof):
+        elif not raw.declares_goal:
             # Compiled cleanly but proves nothing: the submission never declares the goal.
             reason = "no_goal"
         elif loopholes:

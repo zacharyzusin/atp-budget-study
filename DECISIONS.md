@@ -1655,3 +1655,55 @@ established negative, not new information that could change the reading — the 
 agree with each other exactly (0.0±0.0 everywhere). Cluster B is closed, not pursued further this
 phase. `configs/stp_proofnet.yaml` remains pin-triaged (inferred pin) but was never swept and stays
 that way; revisit only if a future phase specifically needs STP for a different question.
+
+## 2026-07-10 — AUDIT: no_goal false-rejection bug found + fixed; pre-registered magnitude check
+
+New session (post-Phase-8, per user's request for an independent audit before proceeding —
+`AUDIT_PLAN.md`). Working tree was entirely UNCOMMITTED at session start (all of Phase 6 Stage C /
+Phase 7 / Phase 8, since `aec81a2`) — committed first as `78a7230`, tagged `pre-audit-2026-07-10`
+(Task A0), before any further change.
+
+**Confirmed BUG (Task A1, P0)**: `Verifier.verify`'s `no_goal` soundness gate checked
+`_DECL_RE.search(proof)` against the RAW extracted completion, not the backend-ASSEMBLED source it
+actually compiled. `ReplBackend._build_repl_source`/`PantographBackend._build_source` unconditionally
+reconstruct a `theorem ... := by` header when the proof lacks one (added 2026-07-06) — but
+continuation-style templates (`DeepSeekV15Template`/`GoedelSFTTemplate`/`BFSProverTemplate`) NEVER
+restate the theorem by design, so the gate's check was structurally always-None for that whole
+template family, making `ok=True` unreachable regardless of correctness. Reproduced directly against
+the real Lean REPL (`scripts/audit_no_goal_gate_check.py`): a genuinely correct bare-tactic proof
+(`theorem triv2 : True` / body `  trivial`) compiled successfully (`backend.verify().success=True`)
+but `Verifier.verify()` still returned `no_goal`. **Fixed**: `RawVerification.declares_goal: bool`
+(computed by the backend from the assembled source) replaces the verifier's own re-derivation;
+`_DECL_RE` de-duplicated to one copy in `backends.py`. Test-first (failing→fix→passing, both fast
+`ScriptedReplTransport`-based and real-Lean `-m lean` regression tests). Full fast suite green (654
+passed). Also fixed a benign parity gap in the unused `PantographBackend`'s complete-file branch
+(never had `maxHeartbeats`; `PantographBackend` is confirmed test/plumbing-only, zero production
+usage) for consistency (Task A2).
+
+**This directly implicates Phase 8's committed "0.0%-everywhere corrected floor" headline** (both
+matched lineages are continuation-style). The 37/37 & 40/40 harness-sanity control did not catch it
+(only covers `whole_proof` models, for which the gate is a no-op). The exact completions behind the
+`p8battery2_verified2_*` headline table are NOT retained (only `problems/*.json` summaries survive,
+no `agent_states/`) — cannot be directly re-verified without a fresh GPU generation.
+
+**PRE-REGISTRATION (magnitude check, offline CPU re-verify, no new GPU generation)**: re-verifying
+recorded completions from the older (pre-`verified2`, already-known-invalid per ZOO.md's own table)
+`p8battery2_*` run dirs — which DO retain `agent_states/` — under TODAY's fully-patched code (this
+fix + the already-committed maxHeartbeats/assembly fixes) via `scripts/phase8_reverify.py`, sampled
+`--limit 20` cells each across 4 dirs (deepseek_v15_base_proofnet, deepseek_v15_sft_minif2f,
+leanabell_gdrl_proofnet, leanabell_gdsft_minif2f). Note for the record: a partial in-flight peek at
+~19/80 cells (0 solved) was visible before this entry was written, while the run continued in the
+background under heavy 4-way CPU contention on a 2-core interactive allocation — the decision rule
+below is written from first principles (matching the full corpus's own recorded reason distribution,
+sampled earlier this session: `no_goal` was only 0.03-0.6% of all attempts across these same dirs,
+`compile_error` >99% — genuine incorrectness dominates regardless of this bug), not fitted to that
+peek. **Decision rule**: this OLDER dataset is an imperfect proxy for the actual `verified2` headline
+(generated before the assembly/maxHeartbeats fixes existed) — ANY flip here is existence-evidence the
+bug has real bite on real completions (not just my synthetic Lean repro), but a ZERO-flip result on
+this small, stale-data sample does NOT clear Phase 8's headline, because (a) the sample is small
+against a rare event, (b) the exact `verified2` data is unavailable to check directly, and (c) the
+bug's structural certainty (proven directly against real Lean) does not depend on how many flips
+appear in any proxy sample. **Either way, the recommendation is: the Phase 8 continuation-style
+battery needs a GPU regeneration + reverify under the now-fully-fixed harness before its
+0.0%-everywhere headline can be trusted** — logged as a user decision (GPU jobs are user-submitted
+per `PLAN_NEXT.md` §0.3), not something this audit session can resolve by itself.

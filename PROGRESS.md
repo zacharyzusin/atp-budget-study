@@ -3308,3 +3308,55 @@ structural corroboration of the Phase 8 taint audit's "Phase 0-7 unaffected" cla
 history rather than the narrative.
 
 Proceeding to AUDIT_PLAN.md Task A1 (verifier decision layer) next.
+
+## 2026-07-10 (cont.) — Audit Tasks A1/A2/C/D/E/F/G complete; P0 bug found+fixed; Task B deferred to Slurm
+
+**Task A1 — CONFIRMED + FIXED a P0 bug.** `Verifier.verify`'s `no_goal` soundness gate checked
+`_DECL_RE.search(proof)` against the RAW extracted completion, not the backend-ASSEMBLED source it
+actually compiled. Since `ReplBackend._build_repl_source`/`PantographBackend._build_source`
+unconditionally reconstruct a `theorem ... := by` header when missing (added 2026-07-06), and
+continuation-style templates (DeepSeekV15/GoedelSFT/BFSProver) NEVER restate the theorem by design,
+the check was structurally always-None for that whole template family — making `ok=True` unreachable
+for them regardless of correctness. Reproduced directly against real Lean
+(`scripts/audit_no_goal_gate_check.py`): a genuinely correct bare-tactic proof compiled successfully
+but scored `no_goal`. **Fixed**: `RawVerification.declares_goal: bool`, computed by the backend from
+the assembled source, replaces the verifier's own re-derivation; `_DECL_RE` de-duplicated to one copy.
+Test-first (failing→fix→passing, both mocked and real-Lean). Permanent real-Lean regression test
+added and run standalone: 1 passed in 256.86s. Full fast suite green (654 passed).
+
+**This directly implicates Phase 8's committed "0.0%-everywhere corrected floor" headline** — the
+37/37 & 40/40 harness-sanity control never caught it (only covers `whole_proof` models, for which the
+gate is a no-op). The `p8battery2_verified2_*` dirs behind the actual headline table retain no
+`agent_states/` (only summaries), so the exact completions can't be directly re-verified. A partial
+proxy re-verify on older (pre-verified2, already-known-invalid) dirs was inconclusive by design (25/80
+sampled, 0 flips, aborted for CPU contention — pre-registered that a zero-flip result here doesn't
+clear the headline either way, per DECISIONS.md). **Recommendation: the Phase 8 continuation-style
+battery needs a GPU regeneration + reverify under this fix before its 0.0% headline can be trusted.**
+
+**Task A2**: found+fixed a benign parity gap (`PantographBackend`'s complete-file branch never had
+`maxHeartbeats`; confirmed test/plumbing-only, zero production usage, no live impact).
+
+**Tasks C, D, E, F, G**: all CLEAN. Notably F independently re-derived the Phase 4 pass@B curve,
+oracle ceiling, and Phase 1 flip table from raw cells with fresh from-scratch scripts — all three
+matched the committed numbers EXACTLY, strong corroboration the rest of the pipeline is sound. D found
+one dead-but-harmless config field (`stop_on_first_success`, never read, only ever set to its own
+default). G added a permanent real-Lean regression test closing the coverage gap that let A1's bug
+ship undetected.
+
+**Task B (maxHeartbeats retroactive effect on Phase 0-7 headline results) — attempted interactively,
+hit a real infra obstacle, deferred to a proper Slurm job.** A 30-problem sample of the Goedel×
+ProofNet# trapped core ran over an hour with zero completed cells and was killed. Root cause: `set_option
+maxHeartbeats 0` disables Lean's OWN internal heartbeat timeout, so genuinely-wrong trapped-cell
+attempts (which previously failed FAST on Lean's internal limit) now run to the much slower external
+120s wall-clock timeout instead — a real, if secondary, finding about re-verification cost, not a
+correctness bug. Wrote `slurm/audit_trapped_reverify.sh` (standard node-local-staging pattern) and
+`scripts/audit_trapped_heartbeat_reverify.py`; submitted job **11472759** (Goedel×ProofNet#, full 150-
+problem trapped core, 11h cap) — still the single most important unresolved question, since it's the
+one lever that could revise the Phase 0-7 headline curves and thus the whole project's "execution
+floor" thesis. Still TODO: same check for Goedel×miniF2F, DeepSeek×ProofNet#, DeepSeek×miniF2F trapped
+cores (configs ready in the sbatch script's usage comment).
+
+Full ledger: `results/audit/AUDIT_FINDINGS.md` (not git-tracked, matches other phase result docs'
+convention). Committed so far: `78a7230` (A0). The A1/A2 fix + new tests are still uncommitted in the
+working tree as of this entry — commit next, after Task B's job result is known or the session
+otherwise wraps up.

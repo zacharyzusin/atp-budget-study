@@ -22,9 +22,12 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from atp.config import ExperimentConfig
 
-# Mirrors verifier.py's own `_DECL_RE` (duplicated, not imported, to avoid a circular import —
-# verifier.py imports Theorem/LeanBackend FROM this module). Keep the pattern identical if either
-# changes: both are answering "does this text already declare its own theorem/lemma/example?"
+# The single source of truth for "does this text declare a theorem/lemma/example?" — used by both
+# backends (source assembly + RawVerification.declares_goal) and imported by repl.py. Previously
+# ALSO duplicated in verifier.py (a second copy checking the pre-assembly proof text, not the
+# compiled source) — that copy was the root cause of the no_goal false-rejection bug for
+# continuation-style templates (AUDIT_PLAN.md Task A1, 2026-07-10); removed, this is now the only
+# copy, and verifier.py consumes `RawVerification.declares_goal` instead of matching it directly.
 _DECL_RE = re.compile(r"(?m)^\s*(?:theorem|lemma|example)\b")
 
 
@@ -57,6 +60,16 @@ class RawVerification:
     output: str  # raw compiler / REPL output (stderr+messages)
     elapsed_s: float = 0.0
     timed_out: bool = False
+    # Did the source ACTUALLY COMPILED (post backend assembly -- imports/opens/theorem-header
+    # reconstruction, NOT the model's raw extracted text) declare a real goal (theorem/lemma/
+    # example)? Only the backend knows this: for continuation-style templates
+    # (DeepSeekV15Template/GoedelSFTTemplate/BFSProverTemplate) the model's own completion never
+    # restates the theorem by design, so a check against the raw extracted proof is structurally
+    # always False for that whole template family -- see AUDIT_PLAN.md Task A1 / PROGRESS.md
+    # 2026-07-10. Default True so a "dumb" ScriptedBackend/test that doesn't care about this axis
+    # keeps its old (success-implies-a-real-goal) behavior; a backend that wants the no_goal
+    # soundness gate to fire must compute this from what it actually compiled and pass it explicitly.
+    declares_goal: bool = True
 
 
 @runtime_checkable
@@ -80,9 +93,15 @@ class ScriptedBackend:
         return self.responder(theorem, proof)
 
 
-def always(success: bool, output: str = "", timed_out: bool = False) -> ScriptedBackend:
+def always(
+    success: bool, output: str = "", timed_out: bool = False, declares_goal: bool = True
+) -> ScriptedBackend:
     """Convenience: a backend that returns the same verdict for every call."""
-    return ScriptedBackend(lambda _t, _p: RawVerification(success, output, timed_out=timed_out))
+    return ScriptedBackend(
+        lambda _t, _p: RawVerification(
+            success, output, timed_out=timed_out, declares_goal=declares_goal
+        )
+    )
 
 
 def compute_lean_path(project_path: Path, toolchain: str) -> str:
@@ -231,7 +250,23 @@ class PantographBackend:
            real proof failure — `theorem_stmt := by` must precede them.
         """
         if any(line.lstrip().startswith("import ") for line in proof.splitlines()):
-            return proof  # model emitted a complete file
+            # A complete self-contained file -> only ensure the heartbeat safety net is present
+            # (AUDIT_PLAN.md Task A2, 2026-07-10: this branch previously returned `proof` verbatim,
+            # diverging from `ReplBackend._build_repl_source`, which applies `maxHeartbeats`
+            # unconditionally regardless of shape. `PantographBackend` is not used by any production
+            # run — `eval/run.py` wires `ReplBackend` exclusively — so this was never live-impactful,
+            # but kept consistent for any future caller.).
+            if "set_option maxHeartbeats" in proof:
+                return proof
+            lines = proof.splitlines()
+            insert_at = 0
+            for i, ln in enumerate(lines):
+                if ln.lstrip().startswith("import "):
+                    insert_at = i + 1
+                else:
+                    break
+            lines.insert(insert_at, "set_option maxHeartbeats 0")
+            return "\n".join(lines)
         # `import Aesop` + `set_option maxHeartbeats 0`: the DeepSeek-Prover-V1.5/Goedel-Prover-SFT
         # family's own official header convention (verified byte-for-byte 2026-07-06 against
         # quick_start.py / eval/step1_inference.py's LEAN4_DEFAULT_HEADER — see PROGRESS.md/
@@ -280,4 +315,9 @@ class PantographBackend:
         messages = [m for unit in units for m in unit.messages]
         output = "\n".join(self._format_message(theorem, m) for m in messages)
         has_error = any(m.severity.name.upper() == "ERROR" for m in messages)
-        return RawVerification(success=not has_error, output=output, elapsed_s=elapsed)
+        # Compute against the ASSEMBLED `source` actually compiled (post header reconstruction),
+        # not the raw `proof` param -- see RawVerification.declares_goal docstring.
+        declares_goal = bool(_DECL_RE.search(source))
+        return RawVerification(
+            success=not has_error, output=output, elapsed_s=elapsed, declares_goal=declares_goal
+        )

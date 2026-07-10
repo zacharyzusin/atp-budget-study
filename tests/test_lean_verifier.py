@@ -73,8 +73,13 @@ def test_rejects_submission_without_theorem_declaration():
     Regression for the ProofNet# false-positives (2026-06-14): a generation cut off at the token
     cap emitted only `def is_topology ... :=` (no `theorem`); Lean compiled the bare def with no
     errors and the proof was scored `solved`.
+
+    AUDIT FIX (2026-07-10): `declares_goal=False` here stands in for a backend that genuinely
+    found no goal-bearing declaration in what it ACTUALLY COMPILED (post assembly) -- see
+    `RawVerification.declares_goal`. This is the verifier's own defense-in-depth, independent of
+    which real backend is behind it.
     """
-    v = Verifier(always(success=True, output=""))
+    v = Verifier(always(success=True, output="", declares_goal=False))
     preamble = "def is_topology (X : Type*) (T : Set (Set X)) :=\n  univ ∈ T"
     res = v.verify(THM, preamble)
     assert res.ok is False
@@ -84,7 +89,7 @@ def test_rejects_submission_without_theorem_declaration():
 
 def test_rejects_pure_prose_marked_success():
     """Even if a backend spuriously 'succeeds', free-form prose declares no goal -> rejected."""
-    v = Verifier(always(success=True, output=""))
+    v = Verifier(always(success=True, output="", declares_goal=False))
     res = v.verify(THM, "### Detailed Proof\n\nWe are given a function f ...")
     assert res.ok is False
     assert res.reason == "no_goal"
@@ -95,6 +100,20 @@ def test_accepts_lemma_and_example_declarations():
     v = Verifier(always(success=True, output=""))
     assert v.verify(THM, "lemma t : True := by trivial").ok is True
     assert v.verify(THM, "example : True := by trivial").ok is True
+
+
+def test_accepts_continuation_style_proof_when_backend_confirms_a_declared_goal():
+    """AUDIT REGRESSION (2026-07-10, AUDIT_PLAN.md Task A1): a bare-tactic completion (no
+    theorem/lemma/example line -- what continuation-style templates extract by design) must score
+    `ok=True` when the backend reports it genuinely compiled a declared goal, even though the RAW
+    completion itself has no declaration. See `test_verifier_accepts_genuine_continuation_style_
+    solve_end_to_end` in test_lean_repl.py for the real-backend-shaped version of this test.
+    """
+    v = Verifier(always(success=True, output="", declares_goal=True))
+    bare_continuation_proof = "  trivial"
+    res = v.verify(THM, bare_continuation_proof)
+    assert res.ok is True, res.feedback
+    assert res.reason == "ok"
 
 
 def test_timeout_takes_precedence():
@@ -130,7 +149,9 @@ def test_real_backend_not_ready_raises_clearly():
 
 
 def test_build_source_adds_imports_when_missing():
-    """Source assembly prepends imports/opens for a bare proof, and leaves a full file untouched."""
+    """Source assembly prepends imports/opens for a bare proof, and only inserts the heartbeat
+    safety net (not a second theorem line) for an already-complete file (AUDIT_PLAN.md Task A2,
+    2026-07-10 — see test_build_source_complete_file_gets_heartbeat_safety_net_only below)."""
     cfg = load_config(BASE_CONFIG)
     backend = PantographBackend(cfg)
     thm = Theorem(name="t", statement="theorem t : True", imports=("Mathlib",), opens=("Nat",))
@@ -139,8 +160,6 @@ def test_build_source_adds_imports_when_missing():
     assert src.startswith("import Mathlib")
     assert "open Nat" in src
     assert bare in src
-    full = "import Mathlib\n\ntheorem t : True := by trivial"
-    assert backend._build_source(thm, full) == full  # already complete -> unchanged
 
 
 def test_build_source_reconstructs_theorem_header_for_continuation_only_proofs():
@@ -185,14 +204,36 @@ def test_build_source_reconstructs_theorem_header_for_continuation_only_proofs()
 
 def test_build_source_whole_proof_branch_is_unaffected_by_the_fix():
     """Regression check: `WholeProofTemplate`'s own models (Goedel-Prover-V2, DeepSeek-Prover-V2-7B)
-    re-emit a complete file (their extraction naturally includes `import ...`) — that branch must stay
-    byte-identical to before this fix, not get a theorem line spliced in a second time.
+    re-emit a complete file (their extraction naturally includes `import ...`) — that branch must not
+    get a theorem line spliced in a second time (the header-reconstruction fix is a no-op here).
     """
     cfg = load_config(BASE_CONFIG)
     backend = PantographBackend(cfg)
     thm = Theorem(name="t", statement="theorem t : True", imports=("Mathlib",), opens=("Nat",))
     full = "import Mathlib\n\ntheorem t : True := by trivial"
-    assert backend._build_source(thm, full) == full
+    src = backend._build_source(thm, full)
+    assert src.count("theorem t : True") == 1  # not duplicated
+    assert "import Mathlib" in src
+
+
+def test_build_source_complete_file_gets_heartbeat_safety_net_only():
+    """AUDIT FIX (2026-07-10, AUDIT_PLAN.md Task A2): the complete-file branch previously returned
+    `proof` completely untouched, diverging from `ReplBackend._build_repl_source` (which applies
+    `set_option maxHeartbeats 0` unconditionally, regardless of shape) — parity gap, benign in
+    practice since `PantographBackend` is never used by a real run (`eval/run.py` wires `ReplBackend`
+    exclusively), but fixed for consistency. Must insert the option, not restate the declaration.
+    """
+    cfg = load_config(BASE_CONFIG)
+    backend = PantographBackend(cfg)
+    thm = Theorem(name="t", statement="theorem t : True", imports=("Mathlib",), opens=("Nat",))
+    full = "import Mathlib\n\ntheorem t : True := by trivial"
+    src = backend._build_source(thm, full)
+    assert "set_option maxHeartbeats 0" in src
+    assert src.count("theorem t : True") == 1
+    assert src.count("import Mathlib") == 1
+    # inserted right after the import block, not duplicated on a second call
+    already = "import Mathlib\nset_option maxHeartbeats 400000\n\ntheorem t : True := by trivial"
+    assert backend._build_source(thm, already).count("set_option maxHeartbeats") == 1
 
 
 # --------------------------------------------------------------------------------------
@@ -240,3 +281,25 @@ def test_contract_rejects_false():
     )
     assert not res.ok
     assert res.reason == "compile_error"
+
+
+@pytest.mark.lean
+@pytest.mark.slow
+def test_contract_accepts_genuine_continuation_style_solve():
+    """AUDIT REGRESSION (2026-07-10, AUDIT_PLAN.md Task A1/G): permanent REAL-Lean lock-in for the
+    no_goal false-rejection bug. Every other test of this exact scenario
+    (`test_lean_repl.py::test_verifier_accepts_genuine_continuation_style_solve_end_to_end`,
+    `test_accepts_continuation_style_proof_when_backend_confirms_a_declared_goal` above) runs
+    against `ScriptedReplTransport`/`always()`, which only proves the WIRING is correct — this test
+    is the one that proves the real Lean REPL genuinely accepts the reconstructed source the way the
+    fix assumes, closing the exact coverage gap this bug exploited (a newly-exercised code path —
+    continuation-style, bare-tactic completions — that only fast/mocked tests had ever touched,
+    per SYNTHESIS.md Lesson 8).
+    """
+    v = Verifier(_built_backend())
+    thm = Theorem(name="triv_continuation", statement="theorem triv_continuation : True")
+    # No theorem/lemma/example line -- exactly what DeepSeekV15Template/GoedelSFTTemplate/
+    # BFSProverTemplate extraction produces by design (the backend reconstructs the header).
+    res = v.verify(thm, "  trivial")
+    assert res.ok, res.feedback
+    assert res.reason == "ok"

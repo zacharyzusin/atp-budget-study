@@ -194,6 +194,33 @@ def test_build_repl_source_reconstructs_theorem_header_for_continuation_only_pro
     assert src.index(":= by") < src.index("obtain ⟨n, hn⟩")
 
 
+def test_verifier_accepts_genuine_continuation_style_solve_end_to_end():
+    """AUDIT REGRESSION (found 2026-07-10, AUDIT_PLAN.md Task A1): a genuinely CORRECT
+    continuation-style completion (bare tactic body, no theorem/lemma/example line -- exactly what
+    `DeepSeekV15Template`/`GoedelSFTTemplate`/`BFSProverTemplate` extraction produces by design) must
+    score `ok=True` when the backend genuinely accepts the reconstructed source.
+
+    Root cause this guards: `Verifier.verify` used to check `_DECL_RE.search(proof)` against the RAW
+    extracted completion, not the backend-assembled source. Since continuation-style templates never
+    restate the theorem (the backend reconstructs it via `_build_repl_source`), that check was
+    structurally always None for this whole template family -- making it IMPOSSIBLE for any
+    continuation-style completion to ever score `ok=True`, correct or not. This directly implicates
+    Phase 8's reported "0.0%-everywhere" floor for the DeepSeek-V1.5 triple and Leanabell pair (both
+    continuation-style) -- reproduced independently against the real Lean REPL in
+    `scripts/audit_no_goal_gate_check.py`. Fix: the backend now reports `declares_goal` computed from
+    the ASSEMBLED source it actually compiled, and `Verifier.verify` uses that instead of re-deriving
+    it from the raw completion.
+    """
+    # The backend genuinely accepts the RECONSTRUCTED source (env assigned, zero messages) -- this
+    # is exactly what a real, correct `trivial` proof produces once `_build_repl_source` prepends
+    # `theorem t : True := by`.
+    v = Verifier(_backend(_import_then({"env": 1, "messages": []})))
+    bare_continuation_proof = "  trivial"  # no theorem/lemma/example line, by construction
+    res = v.verify(THM, bare_continuation_proof)
+    assert res.ok is True, res.feedback
+    assert res.reason == "ok"
+
+
 def test_build_repl_source_leaves_self_contained_proofs_unaffected():
     """Regression check: a proof that already declares its own theorem/lemma/example must not get a
     SECOND theorem line spliced in (the `_DECL_RE`/theorem-reconstruction fix). Does now ALSO gain a
