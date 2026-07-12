@@ -2,8 +2,8 @@
 #SBATCH --job-name=atp_audit_trapped
 #SBATCH --account=edu
 #SBATCH --partition=burst
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=48G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=6000M
 #SBATCH --time=24:00:00
 #SBATCH --requeue
 #SBATCH --output=logs/audit-trapped-%j.out
