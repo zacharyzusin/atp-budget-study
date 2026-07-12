@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=atp_audit_trapped
 #SBATCH --account=edu
-#SBATCH --partition=short
+#SBATCH --partition=burst
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=24G
-#SBATCH --time=11:00:00
+#SBATCH --mem=48G
+#SBATCH --time=24:00:00
 #SBATCH --requeue
 #SBATCH --output=logs/audit-trapped-%j.out
 #SBATCH --error=logs/audit-trapped-%j.err
