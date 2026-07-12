@@ -3389,3 +3389,29 @@ All 4 trapped-core jobs now running/queued: 11472759 (Goedel×ProofNet#), 114732
 fixed script), 11473199/11473200 (DeepSeek×miniF2F/ProofNet#, correct env, old shared-path script but
 never cancelled so no race risk). Next session: check `sacct -j 11472759,11473232,11473199,11473200`
 and `results/audit/AUDIT_FINDINGS.md` for Task B's outcome.
+
+## 2026-07-11 — Task B round 1: 1/4 done (3 flips confirmed), 3/4 hit resource limits; round 2 resubmitted
+
+Checked all 4 jobs. **11473232 (Goedel×miniF2F) completed clean**: 159 cells re-verified across 55
+trapped problems, **3 flipped to solved**: `algebra_apbon2pownleqapownpbpowon2__seed0`,
+`amc12a_2020_p15__seed0`, `amc12a_2020_p15__seed2`. This is the first direct evidence the P0 no_goal
+bug cost real solves on a trapped core (not just a theoretical soundness gap).
+
+The other 3 all died on resources on the `short` partition: 11472759 (Goedel×ProofNet#) staged in
+2363s then ran out of the 11h cap mid-verify; 11473199 (DeepSeek×miniF2F) hit the 11h cap AND was
+OOM-killed (48 oom_kill events at 24G); 11473200 (DeepSeek×ProofNet#) reused the staged env but also
+ran out of time. Confirms the earlier hypothesis: `maxHeartbeats 0` makes genuinely-wrong proofs run
+to the slow external 120s wall-clock timeout instead of failing fast on Lean's own heartbeat limit, so
+this workload needs materially more headroom than the original 11h/24G estimate.
+
+**Fixed** `slurm/audit_trapped_reverify.sh` (commits `c539efd`, `3bac957`): moved to `--partition=burst`
+(14-day cap), and switched memory to `--cpus-per-task=8 --mem-per-cpu=6000M` per CLAUDE.md's documented
+convention (request more CPUs, not raw `--mem`) — note the first resubmission round used a raw
+`--mem=48G` which Slurm accepted fine, left running rather than churned, and only the *script* was
+corrected for future submissions.
+
+Resubmitted the 3 incomplete jobs: **11479253** (Goedel×ProofNet#), **11479254** (DeepSeek×miniF2F),
+**11479255** (DeepSeek×ProofNet#), all `R` on `burst` within seconds of submission. Next session/check:
+`squeue --me` + tail `logs/audit-trapped-{11479253,11479254,11479255}.out`; once all 4 cores have a
+terminal result, fill in Task B's row in `results/audit/AUDIT_FINDINGS.md` and write the audit exit
+summary (remaining task-list item: "Audit exit — findings ledger, SYNTHESIS summary, final commit").
