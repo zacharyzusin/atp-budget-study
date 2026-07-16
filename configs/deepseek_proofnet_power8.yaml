@@ -1,0 +1,13 @@
+# WS1.1 (PLAN_NEXT.md) — power-up seeds 3-7 for the DeepSeek x ProofNet# allocation cell.
+# Inherits deepseek_proofnet_baseline (model/lean pins) verbatim; only eval.seeds changes. Run this
+# INTO THE SAME run dir as the original 3-seed baseline (results/deepseek_proofnet_baseline) — cells
+# are file-keyed by (seed, problem), so the 5 new seeds land alongside 0/1/2 with zero collision and
+# `atp sweep --aggregate` folds all 8 seeds into one metrics.json. Do not point this at a fresh run dir.
+#
+# Pre-registration: DECISIONS.md 2026-07-16 "WS1.1 power-up". Budget estimate: DECISIONS.md same entry.
+#
+#   sbatch slurm/sweep_array.sh configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline
+defaults: deepseek_proofnet_baseline
+
+eval:
+  seeds: [3, 4, 5, 6, 7]

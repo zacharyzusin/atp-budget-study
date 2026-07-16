@@ -1707,3 +1707,56 @@ appear in any proxy sample. **Either way, the recommendation is: the Phase 8 con
 battery needs a GPU regeneration + reverify under the now-fully-fixed harness before its
 0.0%-everywhere headline can be trusted** — logged as a user decision (GPU jobs are user-submitted
 per `PLAN_NEXT.md` §0.3), not something this audit session can resolve by itself.
+
+## 2026-07-16 — WS1.1 power-up: pre-registration for DeepSeek x ProofNet# 3->8 seeds
+
+Per PLAN_NEXT.md WS1.1 (now unblocked — audit Task B closed, see `atp-audit-plan` memory /
+SYNTHESIS.md "Independent audit"). The DeepSeek x ProofNet# realizable-allocation result is
+noise-dominated (−13% ± 28%, per-seed +5/+9/−51%, ALLOCATION.md §5) — not a confirmed negative, just
+undetermined at n=3. This buys statistical power before any mechanism claim is drawn.
+
+**Also found while prepping this**: the "two cells never run" (Goedel x miniF2F, DeepSeek x miniF2F
+per-seed allocation) already exist — `phase4_perseed.py` loops over all four baseline runs
+unconditionally and `results/phase4/perseed.json` already has both (goedel −40% ± 18%, deepseek
+−13% ± 28% [minif2f], both per-seed-consistent negative). Added to `ALLOCATION.md`'s table this
+session; the "full 2x2" WS1.1 asked for is complete with ZERO new GPU spend for that half. Only the
+DeepSeek ProofNet# power-up needs new data.
+
+**Config**: `configs/deepseek_proofnet_power8.yaml` (seeds `[3,4,5,6,7]`, inherits
+`deepseek_proofnet_baseline`'s model/Lean pins unchanged). Run into the SAME run dir
+(`results/deepseek_proofnet_baseline`) so cells merge with the existing seeds 0-2 by the usual
+file-keyed resume/skip — `atp sweep --aggregate` then covers all 8 seeds. Submit command (handed off,
+not run by this session — GPU jobs are user-submitted per PLAN_NEXT.md §0.3):
+`sbatch slurm/sweep_array.sh configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline`
+
+**Budget estimate**: original 3-seed/186-problem DeepSeek ProofNet# run (`sacct -j 10676442`, plus its
+failed-shard rerun in `10676443`/`10687933`) cost ≈55 GPU-h (8-way sharded, ~7h/shard on A6000). Same
+problem population, 5 more independent seeds ⇒ linear scaling estimate **≈90-95 GPU-h**. This is
+**above the 50 GPU-h CLAUDE.md ask-before line** — flagging explicitly per rule 8, and per
+`feedback_gpuh_limit_flexible` not truncating the seed count just to duck under 50, since resolving a
+σ=28% noise floor on the plan's stated critical path is exactly the kind of finding that memory says is
+worth the spend. User call: run all 5 new seeds as one array, or split/stage if 90+ GPU-h on `short`
+partition (11h cap, A6000) is inconvenient right now.
+
+**Pre-registered prediction + decision rule** (per PLAN_NEXT.md WS1.1, both at the pooled-8-seed
+level, using the existing c*=16k / OOF predictor — no refitting):
+- Predicted sign: net positive but modest, because M2 mechanism analysis
+  (`ALLOCATION_MECHANISM.md`, same session) found DeepSeek's raw late-bloomer population is
+  comparable to or larger than Goedel's (36 vs 28 post-c* cells) — the fragility looks like a
+  small-N per-seed sampling artifact (only ~12 late bloomers/seed) rather than a structural deficit,
+  so more seeds should mostly TIGHTEN the estimate rather than flip its sign.
+- **Decision rule** (verbatim from PLAN_NEXT.md WS1.1): if the 8-seed DeepSeek mean is within 1σ of
+  zero, the claim becomes "one-model-robust, model-dependent" full stop; if positive and >1σ, claim
+  generality (two-model STRONG); if negative and >1σ, the Goedel/DeepSeek divergence becomes the
+  headline mechanism question for WS2's discussion section.
+- This is the input to Gate G1 (end of WS1) — the user makes the two-paper-vs-one-paper call, not
+  this session.
+
+**Operational flag on the same handoff**: 90-95 GPU-h over 8 parallel shards (`sweep_array.sh`'s
+`--array=0-7%8`) is ≈11-12h/shard — right at or past `slurm/sweep_array.sh`'s current
+`--time=11:55:00` `short`-partition cap, the same failure mode (wall-clock timeout losing all progress)
+Task B's audit jobs hit twice this cycle (see `AUDIT_FINDINGS.md` notes). Recommend the user either (a)
+widen `--array` to more shards (e.g. 0-15%16) so each shard's slice shrinks proportionally, or (b) run
+via `burst` (14-day cap) instead of `short` if enough concurrent A6000s aren't free. Not changing
+`sweep_array.sh` unilaterally here since it's the shared GPU-sweep script other workstreams also use —
+flagging for the user's submit-time judgment call instead.

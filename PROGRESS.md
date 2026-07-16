@@ -3415,3 +3415,33 @@ Resubmitted the 3 incomplete jobs: **11479253** (Goedel×ProofNet#), **11479254*
 `squeue --me` + tail `logs/audit-trapped-{11479253,11479254,11479255}.out`; once all 4 cores have a
 terminal result, fill in Task B's row in `results/audit/AUDIT_FINDINGS.md` and write the audit exit
 summary (remaining task-list item: "Audit exit — findings ledger, SYNTHESIS summary, final commit").
+
+## 2026-07-16 (cont.) — Audit closure committed (`f556ca7`); WS1 kicked off: WS1.2 mechanism analysis done, WS1.1 GPU handoff prepped
+
+Post-Phase-8 audit is fully closed (Task B: 13/1212 trapped cells flip, material-but-small, scoring
+correction not new capability — see prior entry + `atp-audit-plan` memory). Committed the 4
+outstanding audit files (`f556ca7`): checkpointed `audit_trapped_heartbeat_reverify.py`, bumped
+`audit_trapped_reverify.sh` to 72h, `SYNTHESIS.md` exit summary, `PLAN_NEXT.md` WS1-unblocked note.
+
+**WS1.2 (mechanism, CPU-only) done**: wrote `scripts/analyze_allocation.py` (M1 problem-level
+mixed-outcome heterogeneity, M2 post-c* late-bloomer decomposition) → `ALLOCATION_MECHANISM.json` +
+`results/phase4/ALLOCATION_MECHANISM.md`. Finding is genuinely mixed, reported honestly rather than
+force-fit: Goedel x ProofNet# has ~2x DeepSeek's problem-level "partial" (seed-luck) rate (9.7% vs
+4.8%, M1 supports the slope-heterogeneity hypothesis), but DeepSeek's post-c* late-bloomer population
+is actually LARGER, not smaller (36 vs 28 cells, M2 contradicts a naive "less to harvest" reading).
+Best-supported account: DeepSeek's fragility (σ=28%, seed-2 collapse to −51%) is a **thin-population
+per-seed sampling artifact** (~12 late bloomers/seed) layered on comparable raw heterogeneity, not a
+qualitatively different mechanism — directly motivates WS1.1's seed power-up as the right next lever.
+
+**WS1.1 (power-up) GPU work prepped, not submitted** (GPU jobs are user-submitted per PLAN_NEXT.md
+§0.3): found the "two cells never run" (Goedel/DeepSeek x miniF2F per-seed) already exist in
+`perseed.json` (phase4_perseed.py loops over all 4 baselines unconditionally) — added them to
+`ALLOCATION.md`'s table, zero new GPU spend needed for that half. Only DeepSeek x ProofNet# needs new
+seeds: wrote `configs/deepseek_proofnet_power8.yaml` (seeds 3-7, inherits the baseline's model/Lean
+pins), verified it loads cleanly. Pre-registered prediction + decision rule + a ~90-95 GPU-h budget
+estimate (from `sacct -j 10676442`/10676443/10687933, the original 3-seed run) + an operational flag
+that this exceeds `sweep_array.sh`'s current 11:55:00 short-partition cap at 8 shards (same failure
+mode as Task B's timeouts — recommend more shards or `burst`) — all in DECISIONS.md 2026-07-16 "WS1.1
+power-up". **Next: user reviews the pre-registration + budget estimate and either submits
+`sbatch slurm/sweep_array.sh configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline`
+(after widening --array or switching to burst) or adjusts scope first.**
