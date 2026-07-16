@@ -25,6 +25,20 @@ depends on:
    real — if Task B flips trapped-core problems, WS1's baseline and WS2's central claim change.** So Task B
    is a genuine gate on this whole plan, not just hygiene.
 
+**UPDATE 2026-07-16 — WS0/Task B CLOSED, plan UNBLOCKED with a small known correction.** Full trapped-core
+offline reverify completed across all 4 (model × benchmark) cores (`results/audit/AUDIT_FINDINGS.md` row B;
+exit summary in `SYNTHESIS.md` "Independent audit, 2026-07-10/16"). Task B **DID** flip trapped-core
+problems — 13/1212 re-verified cells (1.1%), 8 distinct (problem, model) pairs out of 406 (2.0%),
+on 2 of 2 models — so per the pre-registered gate above this is not a clean no-op. **The floor is real but
+was modestly inflated**: every flipped cell's proof was already present in the ORIGINAL Phase 0-7
+generation (a scoring/verification-timeout artifact, not a new capability), and the fix only ever widens
+what counts as solved, so no reported number was previously an over-count — this is a small upward
+correction to the reported floor %, not a reversal of the thesis. WS1 and the WS2 floor paper's central
+claim **survive at this magnitude**, but should carry a one-line footnote/erratum citing the corrected
+counts once the affected curves are re-flowed (arithmetic-only, not a new experiment — not done yet). All
+other audit-gating tasks (A0, A1, A2) are also terminal (A1's `no_goal` fix is Phase-8-only, confirmed
+not to touch `whole_proof`/Goedel-V2/DeepSeek-V2). **WS1 GPU sweeps may now proceed.**
+
 **Grounding notes keyed to the user's workstreams (exact reuse targets, verified to exist):**
 
 - **WS1.1 (power-up):** the eval entrypoint is `src/atp/eval/run.py::run_eval` driven by `atp sweep` (see

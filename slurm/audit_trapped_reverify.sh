@@ -4,7 +4,7 @@
 #SBATCH --partition=burst
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=6000M
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --requeue
 #SBATCH --output=logs/audit-trapped-%j.out
 #SBATCH --error=logs/audit-trapped-%j.err

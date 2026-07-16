@@ -281,3 +281,40 @@ false accept. Trustworthy numbers depend on the verifier, and we audit it as a f
    regression tests locked in the OLD (buggy) behavior's shape without ever exercising the branch the
    new model actually needed; add the new case FIRST as a failing test against real data, not a
    synthetic example that happens to avoid the bug.
+
+## Independent audit, 2026-07-10/16
+
+A full independent audit (`AUDIT_PLAN.md`, ledger in `results/audit/AUDIT_FINDINGS.md`) re-verified this
+project's own pipeline end-to-end before any further experiments were queued. **Headline: the execution
+floor thesis holds.** One P0 verifier bug was found and fixed (Task A1: the `no_goal` soundness gate
+checked the model's raw extracted completion instead of the backend's assembled/compiled source, making
+it structurally impossible for any *continuation-style* completion — DeepSeek-V1.5/Leanabell GD-SFT/GD-RL,
+Phase 8 only — to ever score solved, regardless of correctness; fixed, permanent real-Lean regression test
+added). This **does not affect any Phase 0-7 `whole_proof` (Goedel-V2/DeepSeek-V2) headline number** — the
+gate is a no-op for that template family, confirmed both by code (harness-sanity control, 37/37 & 40/40)
+and by this audit's own re-derivation of the ProofNet# pass@B curve, oracle ceiling, and Phase 1 flip
+table from raw cells, all of which matched the committed numbers exactly (Tasks F1-F2). It DOES implicate
+Phase 8's own "0.0%-everywhere corrected floor" headline, which remains open pending a GPU regeneration +
+reverify under the fix (not yet actioned — a user decision, since it requires new GPU spend).
+
+**Task B — the highest-value check — is now closed and is MATERIAL, not a no-op.** Does
+`set_option maxHeartbeats 0` (added 2026-07-06, absent from every Phase 0-7 sweep) retroactively change any
+Phase 0-7 headline result? A full offline CPU re-verify (no GPU, no new generation) of every recorded failed
+attempt on the trapped core — problems that never solved at ANY budget — across all 4 (model × benchmark)
+cores found **13 of 1212 re-verified cells (1.1%) flip from failed to solved**, covering 8 distinct
+(problem, model) pairs out of 406 trapped-problem instances (2.0%): Goedel×miniF2F 3/159, Goedel×ProofNet#
+3/450, DeepSeek×ProofNet# 0/420 (unaffected), DeepSeek×miniF2F 7/183. Per this task's own pre-registered
+decision rule (any flip on any model is material), this is a real, if modest, correction: Lean's OLD
+internal heartbeat limit was rejecting a small number of genuinely-correct proofs before they could finish
+compiling, and the Phase 0-7 execution floor was inflated by that amount. **This is a scoring correction,
+not a new capability finding** — every flipped cell's proof was already present in the ORIGINAL Phase 0-7
+generation; nothing new was generated, and the fix can only ever widen (never narrow) what counts as
+solved, so no reported number was an *over*-count. The corrected floor numbers (folding these 13 cells'
+`tokens_to_solve` back into the affected curves) have not yet been recomputed — an arithmetic-only
+follow-up, not a new experiment, and not expected to change the thesis at this magnitude. Task B's Step 4
+(broadening the reverify to a sample of *all* near-frontier failures, not just the trapped core, to check
+for a similar effect on the mid-curve) was not performed — flagged as a residual open item, not blocking.
+
+With Tasks A0-A2, B, C-G all terminal, this audit is closed and `PLAN_NEXT.md`'s WS1 (the Phase 4
+validation critical path, which reuses this exact harness) is unblocked, carrying the small pending
+floor-number correction above as a known, quantified, non-blocking caveat.
