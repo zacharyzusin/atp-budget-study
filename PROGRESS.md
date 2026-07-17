@@ -3590,3 +3590,15 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   suggest something more than ordinary congestion) or if a node actually opens up sooner than
   scheduled (backfill can improve as other jobs finish early).
 - WS2 (paper/floor/) remains untouched -- still paused per user instruction.
+
+### 2026-07-17 (cont. 10) — WS1.1: still pending, confirmed genuine congestion (not actionable)
+
+- Job 11599656 still PENDING. StartTime moved from 2026-07-19T22:00 -> 2026-07-20T09:05 (slightly later)
+  even though squeue -p burst --state=PD dropped 106 -> 22 pending jobs -- consistent with backfill's
+  running estimate shifting, not a growing problem.
+- Verified exclude list correctly applied (ExcNodeList=ins[082,087,091]).
+- Checked all burst A6000 nodes: several show idle-looking GPUs (ins084 7/8 free, ins085 5/8 free) but
+  are in MIXED+PLANNED state -- that capacity is already earmarked by backfill for other pending jobs
+  scheduled to start sooner, not actually available to grab. Priority (5214) still far above competing
+  jobs. Nothing actionable here; resubmitting would only cost queue position.
+- Continuing at ~75min cadence. WS2 (paper/floor/) untouched.
