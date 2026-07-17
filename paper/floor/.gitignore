@@ -1,0 +1,8 @@
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+compile*.log
+main.pdf

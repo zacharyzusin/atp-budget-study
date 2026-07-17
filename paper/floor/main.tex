@@ -1,0 +1,444 @@
+\documentclass{article}
+\usepackage[final]{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+% TODO markers for content not yet finalized (figures pending scripts/, citations pending a lit pass).
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{The Execution Floor: Budget Allocation, Not Scaffolding, Search, or Training,
+Moves Whole-Proof Theorem Provers}
+
+\author{%
+  \todo{author list, anonymize for submission} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+For a fixed whole-proof theorem prover, we ask whether test-time interventions --- agentic scaffolding
+(premise retrieval, failure memory, an LLM reviewer, tactic-skeleton hints, forced approach diversity),
+additional search, or additional per-problem budget --- can move solve rate beyond what raw sampling
+already buys at a given token budget $B$. Across two independently-trained provers (Goedel-Prover-V2-8B,
+DeepSeek-Prover-V2-7B), two benchmarks (in-distribution miniF2F, out-of-distribution ProofNet\#), and
+eight experimental phases, we find a consistent negative result: none of the above move solve rate. A
+pre-registered, causally interventional test (forcing approach diversity on the fully-trapped problem
+core) confirms the mechanism directly --- diversity rises 42--70\% under a budget-matched manipulation
+check, yet solves stay flat and output quality mildly degrades. We extend the null to \emph{training}:
+neither closing-likelihood SFT, lightweight post-hoc RL, nor full-pipeline lab-scale RL (two independently
+matched Base$\to$SFT$\to$RL lineages) moves the floor either. The one lever that reliably moves outcomes
+at fixed compute is \emph{how} a budget is allocated across a batch of \emph{different} problems, not
+any change to any single problem's search or training: a realizable, mechanism-informed allocation policy
+saves \todo{XX}\% of compute at 90\% of full-budget accuracy on one model (Goedel$\times$ProofNet\#,
+per-seed robust), though this positive result is not yet confirmed on a second model. We position this
+as a definitive-negative result against an active literature that treats scaffolding and test-time
+compute as reliable levers, and as a methodological case study in verifier auditing, symmetric
+skepticism of both surprising positives and surprising nulls, and causal (not just correlational)
+mechanism testing.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Large language models fine-tuned for formal theorem proving (``whole-proof'' provers that emit a
+complete tactic proof in one generation, as opposed to step-by-step interactive search) have improved
+rapidly, and a growing body of work treats \emph{test-time compute} --- more sampling, agentic
+scaffolding, retrieval-augmented context, search over partial proof states --- as a reliable lever for
+squeezing more solves out of a fixed model. We ask a narrower, falsifiable question: for two
+independently-trained whole-proof provers, at a fixed per-problem token budget $B$, what actually moves
+solve rate?
+
+We find an \emph{execution floor}: a ceiling on solve rate that eight different interventions, spanning
+search-time scaffolding, closing-tactic libraries, additional budget on already-attempted problems, and
+three distinct training interventions (SFT, lightweight RL, full-pipeline RL), all fail to move. The one
+exception is not a model or scaffold change at all, but a \emph{policy} question: given a fixed total
+compute budget, how should it be split across a batch of different problems. This paper reports the
+floor as the headline finding, with the allocation result as a constructive counterpoint scoped to what
+is currently confirmed (Section~\ref{sec:allocation}).
+
+\textbf{Contributions.}
+\begin{itemize}
+  \item A cross-model (2 provers), cross-benchmark (in-distribution / OOD) replication of the
+    budget$\to$solve relationship and its saturation asymmetry (Section~\ref{sec:passb}).
+  \item A one-factor-at-a-time ablation of six agentic scaffolding components showing none is a net
+    positive lever, and that two are actively harmful out-of-distribution (Section~\ref{sec:scaffolding}).
+  \item A four-part mechanism account (diversity collapse onto a deep-reasoning execution floor with
+    nothing to retrieve) culminating in a \emph{pre-registered, causally interventional} test that
+    confirms the mechanism directly rather than by correlation alone (Section~\ref{sec:mechanism}).
+  \item An exhaustion sweep across five further candidate levers --- hammer/SMT tactics, more budget on
+    already-trapped problems, closing-likelihood SFT, lightweight post-hoc RL, and full-pipeline
+    lab-scale RL across two matched training lineages --- all null, extending the floor from
+    search-time to training-time interventions (Section~\ref{sec:exhaustion}).
+  \item A constructive counterpoint: compute-optimal budget allocation across problems, the one lever
+    that does move outcomes, reported honestly as one-model-robust (Section~\ref{sec:allocation}).
+  \item A methodology contribution: a verifier-soundness audit protocol, and the discipline of applying
+    the same base-rate skepticism to surprising nulls as to surprising positives, which caught a
+    verifier bug that would otherwise have produced a spurious ``training moves the floor'' headline
+    (Section~\ref{sec:methodology}).
+\end{itemize}
+
+\section{Related work}
+\label{sec:related}
+
+\todo{Position against: (1) the test-time-compute scaling literature (more samples / more search buys
+accuracy) --- we show this does not transfer to agentic scaffolding for whole-proof theorem proving;
+(2) agentic/tool-augmented LLM provers and retrieval-augmented provers (ReProver and successors) ---
+our mechanism finding (F2, Section~\ref{sec:mechanism}) explains why retrieval specifically should not
+help on this failure distribution; (3) step-by-step / search-based provers (BFS-Prover, HTPS,
+InternLM2.5-StepProver) --- out of scope by design (prior work found search $<$ Pass@1, and our
+Section~\ref{sec:mechanism} findings say the bottleneck is execution depth, not search breadth), we test whole-proof
+sampling only; (4) RL-for-reasoning post-training literature --- our Phase 6/8 results are a negative
+data point against RL-moves-everything narratives, specifically for execution-limited domains; (5) the
+self-correction-negative-result lineage, as precedent for reporting a well-controlled null as a
+contribution in its own right. Full citation pass pending.}
+
+\section{Setup}
+\label{sec:setup}
+
+\textbf{Models.} Two independently-trained whole-proof provers: Goedel-Prover-V2-8B
+(\texttt{Goedel-LM/Goedel-Prover-V2-8B}, Lean~v4.9.0-rc1 + mathlib4) and DeepSeek-Prover-V2-7B
+(\texttt{deepseek-ai/DeepSeek-Prover-V2-7B}, Lean~v4.9.0 + standard mathlib4). Pinned model
+revisions, Lean toolchains, and mathlib commits are given in \todo{repro/PINS.md}.
+
+\textbf{Benchmarks.} miniF2F-test (244 audited problems; competition-style, in-distribution for both
+provers) and ProofNet\# (186 test; undergraduate-level, out-of-distribution). DeepSeek-Prover-V2
+inherits Goedel's protocol exactly --- identical canonical statement sets, budgets, and agent
+configuration, with only the model and Lean pin changed --- so any cross-model difference is
+attributable to the model, not the harness.
+
+\textbf{Verifier.} Lean itself (REPL backend) is the sole source of truth for ``solved.'' We treat the
+verifier as a first-class audited artifact, not an assumed-correct oracle; Section~\ref{sec:methodology}
+details two rounds of verifier-soundness bugs found and fixed over the project's lifetime, and their
+measured blast radius on every reported number in this paper.
+
+\textbf{Budget and variance protocol.} Token budgets $B \in \{2\text{k}, 8\text{k}, 32\text{k},
+128\text{k}\}$; every headline number is 3 seeds minimum, reported mean $\pm$ seed-std. A mean delta
+under $\sim$1 baseline-$\sigma$ is treated as noise throughout (the ``noise bar''); component-vs-baseline
+comparisons use paired flips (per-(problem, seed) solved/unsolved transitions), not mean deltas, since
+at $n=3$ seeds mean deltas can hide gains-equal-losses churn that a flip table exposes directly
+(Section~\ref{sec:methodology}, lesson 1).
+
+\section{The pass@\emph{B} curve: budget saturation and the in-distribution / OOD asymmetry}
+\label{sec:passb}
+
+\begin{table}[t]
+  \centering
+  \caption{pass@$B$, mean $\pm$ seed-std over 3 seeds. Same curve shape on both models: miniF2F
+  saturates by 128k; ProofNet\# is still climbing from a low base.}
+  \label{tab:passb}
+  \begin{tabular}{lcccc}
+    \toprule
+    Budget & miniF2F $\cdot$ Goedel & miniF2F $\cdot$ DeepSeek & ProofNet\# $\cdot$ Goedel & ProofNet\# $\cdot$ DeepSeek \\
+    \midrule
+    2k   & 29.6 $\pm$ 3.3 & 27.9 $\pm$ 2.1 & 4.8 $\pm$ 1.4  & 5.4 $\pm$ 0.5 \\
+    8k   & 60.1 $\pm$ 1.9 & 57.9 $\pm$ 1.7 & 9.3 $\pm$ 1.1  & 13.1 $\pm$ 0.8 \\
+    32k  & 69.5 $\pm$ 0.6 & 67.1 $\pm$ 0.9 & 12.0 $\pm$ 0.6 & 18.3 $\pm$ 1.6 \\
+    128k & 74.9 $\pm$ 0.9 & 72.0 $\pm$ 0.5 & 14.3 $\pm$ 0.8 & 22.2 $\pm$ 1.7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \todo{F1: 2$\times$2 pass@B grid (miniF2F/ProofNet\# $\times$ Goedel/DeepSeek), generate from
+  \texttt{results/*/metrics.json} via \texttt{scripts/analyze\_*.py}.}
+  \caption{pass@$B$ curves, all four (model, benchmark) cells.}
+  \label{fig:passb}
+\end{figure}
+
+Table~\ref{tab:passb} replicates on both models: miniF2F rises steeply from 2k to 8k ($\sim$+30pp) then
+saturates to a $\sim$72--75\% ceiling by 128k; ProofNet\# is 3--5$\times$ harder at every budget and far
+flatter, still climbing at 128k from a low base. This budget-saturation asymmetry --- in-distribution
+saturates, out-of-distribution stays budget-hungry --- is not a single-model artifact.
+
+A second, cross-model dichotomy is visible in the same table: Goedel slightly edges DeepSeek
+in-distribution ($-2$ to $-3$pp on miniF2F), but DeepSeek clearly beats Goedel on the harder OOD
+ProofNet\# at every budget, with the gap \emph{widening} with budget ($+8$pp at 128k). We rule out a
+coverage artifact directly: both provers attempt the identical canonical statement sets under both Lean
+pins (244/244 miniF2F, 186/186 ProofNet\# each compile on both pins), so the gap is not a
+port/coverage difference. Tracing individual attempts (Section~\ref{sec:mechanism}) shows the OOD
+advantage is deeper within-approach execution, not more approach diversity: every DeepSeek-only win is
+on an opening Goedel also tried but could not close, and on shared misses DeepSeek diversifies
+\emph{less} (3.08 vs 4.07 distinct openings) yet elaborates \emph{deeper} (median deepest step 29 vs
+24). The lever that separates these two models is the model itself --- its training distribution and
+recipe --- not search-time scaffolding, which is exactly the question the rest of this paper
+interrogates directly.
+
+\section{Agentic scaffolding is null (Phase 1)}
+\label{sec:scaffolding}
+
+We ablate six scaffolding components one-factor-at-a-time against a no-frills whole-proof + refinement
+baseline (max\_iters 4, alloc\_split 0.5, all Phase 1 components off): BM25 premise retrieval ($k$=8),
+a failure-memory buffer, an LLM reviewer over Lean-failed attempts, tactic-skeleton hints, and two
+budget-allocation variants.
+
+\textbf{miniF2F: no component clears the noise bar.} Retrieval looked like a mover in an initial pass
+(+3.4pp@8k) but did not replicate under paired-flip inspection (+2.2/+0.7/$-0.8$pp at 2k/8k/32k; gains
+$\approx$ losses at every budget --- BM25 context perturbs sampling without injecting usable premises).
+
+\begin{table}[t]
+  \centering
+  \caption{ProofNet\# paired flips vs.\ the no-frills baseline. On the harder benchmark two components
+  are directional, and both hurt.}
+  \label{tab:flips}
+  \begin{tabular}{lrrrl}
+    \toprule
+    Component & Gains & Losses & Net & Verdict \\
+    \midrule
+    reviewer            & 13 & 10 & $+3$  & noise-like \\
+    budget\_alloc\_\_2   &  9 & 11 & $-2$  & noise-like \\
+    memory               &  8 & 10 & $-2$  & noise-like \\
+    tactic\_skeletons    &  9 & 12 & $-3$  & noise-like \\
+    budget\_alloc\_\_0   &  6 & 25 & $-19$ & \textbf{directional (hurts)} \\
+    retrieval             &  6 & 42 & $-36$ & \textbf{directional (hurts)} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:flips} sharpens the null on ProofNet\#: 4/6 components remain noise-like, but two are
+directional --- and both harmful. Front-loaded budget allocation (no escalation) and BM25 retrieval (42
+baseline solves lost for 6 gained) actively hurt out-of-distribution: bad context poisons the prompt
+precisely when the model is already out of its depth. \textbf{No Phase~1 component is a net-positive
+lever}, and the failure mode gets worse, not better, on the harder benchmark.
+
+\section{Mechanism: why scaffolding cannot help, tested causally}
+\label{sec:mechanism}
+
+Section~\ref{sec:scaffolding} shows \emph{what}; this section explains \emph{why}, by mining the
+on-disk attempt traces and then testing the resulting explanation with a pre-registered intervention,
+not just correlation. Every finding below holds on both provers $\times$ both benchmarks.
+
+\begin{itemize}
+  \item[\textbf{F1}] \textbf{Diversity collapse.} On never-solved problems, the model tries only
+    $\sim$1.8 distinct opening tactics across 18--33 attempts --- it loops on $\sim$2 approaches
+    regardless of budget.
+  \item[\textbf{F2}] \textbf{Failure taxonomy.} Unsolved attempts fail at deep reasoning
+    (94--100\% \texttt{reasoning\_deep}), essentially never at a missing lemma
+    ($\sim$0\% \texttt{knowledge\_hallucinated\_lemma}). Premise retrieval cannot help because there is
+    nothing to retrieve --- this is why retrieval was killed, not merely deferred, as a direction.
+  \item[\textbf{F3}] \textbf{Capability floor.} Unsolved attempts reach a median deepest step of
+    26--53 and almost never stall at step 1: the model makes real progress into a proof but cannot
+    \emph{close} it.
+  \item[\textbf{F4}] \textbf{No easy subfield.} ProofNet\# solve rates are 21--33\% across every
+    subfield --- there is no soft target a smarter router could farm.
+  \item[\textbf{F5}] \textbf{Late solves re-use the same approach (correlational).} When a hard problem
+    is finally solved late (after $\geq$3 attempts), it comes from re-sampling the \emph{same} approach,
+    not a newly explored one (0\% new opening). This predicts that forcing approach diversity will not
+    help, but is survivor-conditioned and cannot establish causation on its own.
+\end{itemize}
+
+\subsection{F6 / Step C: the interventional test (centerpiece)}
+\label{sec:stepc}
+
+We built an approach-conditioned diversity-injection component --- lists the distinct openings already
+tried, asks explicitly for a fundamentally different approach --- and ran it on each model$\times$
+benchmark's \emph{trapped core} (problems unsolved by every seed at the 128k baseline) at 8k/32k, 3
+seeds, all four cells. We pre-registered the prediction: diversity rises, solves stay flat.
+
+\begin{figure}[t]
+  \centering
+  \todo{F4: Step C before/after diversity + solve panel, all four cells, generate from
+  \texttt{results/phase6/} STAGE\_C / diversity-injection artifacts.}
+  \caption{Step C manipulation check (diversity) and outcome (solves), before/after, all four cells.}
+  \label{fig:stepc}
+\end{figure}
+
+\textbf{The manipulation check passed}: budget-matched (@32k, attempt counts held fixed), distinct
+openings per attempt rose 42--70\% ($\sim$1.0--1.3 $\to$ $\sim$1.7--1.8) --- the intervention genuinely
+fired, not just nominally. \textbf{Solves stayed null}: trapped pass@8k/32k $\approx$ 0 everywhere
+(Goedel miniF2F 0.6/1.2\%, Goedel ProofNet\# 0/0.7\%, DeepSeek both 0/0\%) --- exactly 5 genuine
+verified flips across all four arms (0 on DeepSeek), within seed-std. \textbf{Output quality mildly
+degraded}: last-attempt failure modes shift from \texttt{reasoning\_deep} (38--88\%) to majority
+\texttt{formalization\_syntax} (62--74\%) plus \texttt{loophole\_sorry} (23--36\%); soundness-relevant
+rates rise ($\sim$3$\times$ loophole, $\sim$1.5--2$\times$ syntax). Pushed for novelty, the model leaves
+its competent manifold --- but every degraded attempt is caught by the verifier (0 false solves), so
+result soundness is intact and the intervention is measurably counterproductive, not merely neutral.
+
+This closes F5's correlational gap with a causal experiment on two independent provers:
+\textbf{approach discovery is not the bottleneck; within-approach execution depth (the F2/F3 reasoning
+floor) is.} No downstream lever that only changes \emph{which} approach is tried, without changing the
+model's capacity to execute a chosen approach to completion, should be expected to move solve rate ---
+which sets up the exhaustion sweep in Section~\ref{sec:exhaustion}.
+
+\section{Exhaustion sweep: five further candidate levers, all null}
+\label{sec:exhaustion}
+
+Having isolated the mechanism causally, we exhaust the remaining candidate levers a reviewer might
+propose, compressed here (full detail in the phase result docs cited inline).
+
+\textbf{Hammer/SMT closing tactics (Phase 3).} A portfolio of hammer/SMT-style closing tactics against
+the trapped core: 0/119 newly solved. Rules out ``the model just needs a stronger closing-tactic
+library'' as cheaply as Section~\ref{sec:scaffolding} ruled out scaffolding.
+
+\textbf{More of the same budget (Phase 5).} Extending already-trapped cells past 128k tokens (more of
+the \emph{same} budget on the \emph{same} problems): $\sim$0 new solves (Goedel 1, DeepSeek 0). Budget
+helps only when reallocated \emph{across} different problems (Section~\ref{sec:allocation}), not by
+adding more of it to a problem already known to be hard --- a fourth, independent confirmation of the
+execution floor.
+
+\textbf{Closing-likelihood SFT (Phase 6, Stage A/B).} Fine-tuning to maximize conditional likelihood on
+verified proof closings is a two-model null, but a diagnostically useful one: near-zero teacher-forced
+loss on the closing, yet the same model still fails when it has to \emph{generate} its own path there
+autoregressively --- an exposure-bias signature. This reframes the open question from ``does the model
+know how to close a proof'' (yes) to ``why does it drift away from a closeable state during its own
+free-running generation'' (open).
+
+\textbf{Lightweight post-hoc RL (Phase 6, Stage C).} A GRPO probe (LoRA $r$=16, DeepSeek-Prover-V2-7B,
+80 steps, direct outcome reward against the Lean verifier) is a clean capacity-ceiling null: held-out
+pass@1 moved $0.586 \to 0.570$ ($\Delta = -1.6$pp), training reward flat across all 80 steps, with
+manipulation checks confirming no reward-hacking or diversity collapse. RL, at LoRA scale, applied
+post-hoc, does not move the floor.
+
+\textbf{Verified-state re-grounding (Phase 7).} Tests the Stage~B exposure-bias hypothesis directly and
+training-independently: force continuation from a \emph{verified} intermediate Lean state rather than
+free-running generation. Both re-grounding modes tested, both models: null. Re-grounding alone does not
+unlock the trapped core.
+
+\textbf{Full-pipeline, lab-scale RL (Phase 8).} The strongest remaining candidate: not a lightweight
+post-hoc probe but a lab's own full Base$\to$SFT$\to$RL pipeline, tested on two independently matched
+training lineages (DeepSeek-Prover-V1.5 and Leanabell-Prover). This phase surfaced and fixed four real,
+independently confirmed harness bugs before its result could be trusted (Section~\ref{sec:methodology});
+after correction and a harness-sanity control (37/37 and 40/40 historically-solved proofs still verify
+under the patched backend), the corrected result is \textbf{0.0 $\pm$ 0.0 pass@$B$ at every training
+stage, every budget up to 32000, both benchmarks, both lineages} --- the originally reported
+Base\,$<$\,SFT\,$<$\,RL pattern was entirely a wiring-bug artifact and does not survive correction.
+
+\section{The constructive counterpoint: compute-optimal budget allocation}
+\label{sec:allocation}
+
+The one lever that moved anything in this project is not a change to any single problem's search or
+training at all, but a \emph{policy} for how a fixed total token budget is split across a batch of
+\emph{different} problems.
+
+\begin{figure}[t]
+  \centering
+  \todo{F5: allocation result --- efficiency frontier (realizable vs.\ uniform vs.\ oracle),
+  \texttt{results/phase4/frontier\_*.png}.}
+  \caption{Compute-optimal allocation: realizable policy vs.\ uniform vs.\ oracle ceiling,
+  Goedel$\times$ProofNet\#.}
+  \label{fig:allocation}
+\end{figure}
+
+On ProofNet\# ($\sim$80\% of cells never solve, so uniform allocation pours full budget into a
+provably-trapped core), a \emph{realizable} during-run policy --- abandon cells a logistic predictor
+flags as trapped at a decision checkpoint $c^*$, informed by the F2/F3 mechanism (elapsed spend, proof-
+depth plateau) --- saves substantial compute at near-equal accuracy on Goedel: \textbf{+26\% $\pm$ 7\%}
+saved at 90\% of full-budget accuracy, robust across all three independent seeds (+25/+18/+34). The same
+policy on DeepSeek is weak and fragile by comparison ($-13\% \pm 28\%$, driven by a seed-2 collapse to
+$-51\%$) --- \textbf{this positive result is one-model-robust, not yet a confirmed general property}.
+Our own post-hoc mechanism analysis (\texttt{ALLOCATION\_MECHANISM.md}) finds this fragility is better
+explained as a thin-population per-seed sampling artifact than a structural deficit in DeepSeek's
+population of exploitable cells, which motivates an 8-seed power-up \todo{report resolved DeepSeek
+result once WS1.1 GPU data lands} as the natural next confirmatory step. We report this result honestly
+scoped: the win is at a fractional-accuracy operating point (at 100\% accuracy the policy must keep
+almost every cell, since the costliest winnable cells are indistinguishable from trapped ones at the
+decision checkpoint, so the saving is $\sim$0 there by construction, not by tuning failure), and
+efficiency rather than raw fixed-compute accuracy is the robust axis.
+
+\section{Methodology: auditing the verifier, and symmetric skepticism}
+\label{sec:methodology}
+
+Every number in this paper depends on the Lean verifier being sound, so we treat it as a first-class
+audited artifact rather than an assumed-correct oracle, across two independent audit rounds.
+
+\textbf{Round 1 (2026-06-14).} Found two verifier holes producing false-positive solves on hard
+problems: a truncated generation emitting a bare \texttt{def} preamble that Lean compiles with no goal
+(scored solved), and a wedged/cross-talked REPL returning an empty no-error response (scored success).
+Both fixed; blast radius measured directly rather than assumed: miniF2F Phase~0 had 0 false positives,
+Phase~1 had 6/3124 (0.2\%); only ProofNet\# was materially corrupted (constant full-budget truncation),
+and was fully re-run on the fixed verifier.
+
+\textbf{Round 2 (independent audit, 2026-07-10/16).} A separate audit pass, run before any further
+experiments were queued, found a further soundness gate bug: the \texttt{no\_goal} check compared the
+model's raw extracted completion against a regex, rather than the backend's actually-assembled/compiled
+source --- structurally always-failing for continuation-style completions regardless of correctness.
+Confirmed, via a taint audit and three independent from-scratch re-derivations that matched the
+committed pass@$B$ curve, oracle ceiling, and flip table exactly, to be Phase-8-only and to have zero
+effect on any number reported in Sections~\ref{sec:passb}--\ref{sec:allocation}
+(\texttt{whole\_proof}, the template family both headline models use, is a no-op case for this gate).
+A further, materially small (13/1212 cells, 2.0\% of trapped problems, both models) retroactive
+correction was found on re-verifying trapped-core failures under a Lean elaboration-heartbeat setting
+introduced after those results were generated; every flipped cell's proof was already present in the
+original generation, so the fix only ever widens what counts as solved and the reported floor is, if
+anything, a small upward correction, not an overturned result. \todo{fold the 13 corrected cells back
+into the affected pass@B curves once flowed --- arithmetic-only, not a new experiment.}
+
+\textbf{Lessons carried forward, with sharpest first:} (1)~paired flips beat mean-deltas at $n{=}3$
+seeds --- the flip table is what exposed retrieval as churn rather than signal. (2)~A second, harder,
+OOD benchmark earns its cost: it corroborated the miniF2F null and surfaced components (retrieval,
+front-loaded allocation) that actively hurt, invisible on the easier benchmark. (3)~A second,
+independently trained model earns its cost: it turned a single-lab result into a mechanism that
+generalizes and surfaced the in-distribution/OOD dichotomy. (4)~Distinguish the manipulation check from
+the outcome: Step~C's null is only interpretable because we first confirmed the intervention fired
+(budget-matched distinct-opening counts), not raw attempt-confounded diversity. (5)~\textbf{Apply the
+same base-rate skepticism to a surprising null as to a surprising positive.} Phase~8's
+0.0\%-everywhere floor looked like a genuine, clean Base$<$SFT$<$RL finding until it was checked against
+the models' own published pass rates and a byte-level prompt diff --- the discipline that would catch an
+implausibly high number should catch an implausibly low or implausibly perfect one with equal rigor. A
+cheap harness-sanity control against an unaffected reference model (Section~\ref{sec:exhaustion},
+Phase~8) should run \emph{before} trusting a dramatic null, not only before trusting a dramatic positive.
+(6)~A newly introduced model configuration exercises code paths existing tests never covered: all three
+Phase~8 structural bugs were latent in code that had shipped, and presumably passed review, for weeks,
+because no test exercised a template family other than \texttt{whole\_proof} until Phase~8 needed one at
+real scale --- add the new case as a failing test against real data \emph{first}.
+
+\section{Discussion, limitations, and anticipated objections}
+\label{sec:discussion}
+
+\textbf{``Your harness is broken.''} Section~\ref{sec:methodology} is not an appendix afterthought: the
+Phase~8 bug-hunt, the 37/37 and 40/40 harness-sanity controls, and two independent verifier audits are
+reported in the main text because a floor result is only as credible as the verifier that produced it.
+
+\textbf{``Only two models.''} We additionally test four training lineages, including two matched
+Base/SFT/RL sequences (Section~\ref{sec:exhaustion}, Phase~8) --- precisely to test
+\emph{training-stage} effects, not merely to add datapoints to the pass@$B$ curves.
+
+\textbf{``Scaffolding was implemented weakly.''} The Section~\ref{sec:stepc} manipulation check is the
+direct answer: the diversity intervention demonstrably fired (42--70\% more distinct openings,
+budget-matched) and still did not move solves.
+
+\textbf{``miniF2F is saturated/contaminated.''} This is exactly why ProofNet\# carries the
+out-of-distribution claims in this paper; the saturation/still-hungry dichotomy between the two
+benchmarks is reported as a finding, not hidden as a limitation.
+
+\textbf{``Negative results aren't contributions.''} We position this paper directly against an active
+test-time-compute and agentic-scaffolding literature that is shipping the same components
+(Section~\ref{sec:related}) this paper shows are null or actively harmful for whole-proof theorem
+proving specifically, with a causal (not correlational) mechanism account and two independently
+matched training-lineage negatives to back it.
+
+\textbf{Open question.} The exposure-bias signature (Section~\ref{sec:exhaustion}, Phase~6 Stage~B) ---
+near-zero teacher-forced loss on a verified closing, yet autoregressive failure to reach it --- is this
+project's most interesting unresolved thread and is analysis-, not training-, shaped; a drift
+characterization is ongoing background work (\texttt{results/phase9/DRIFT.md}) and, if a crisp
+signature emerges, a natural follow-up.
+
+\section{Conclusion}
+
+Across eight phases, two independently trained provers, two benchmarks with an in-distribution/OOD
+asymmetry, and four training lineages including two matched Base$\to$SFT$\to$RL sequences, we find a
+consistent execution floor: agentic scaffolding, additional search, additional same-problem budget,
+closing-likelihood SFT, lightweight post-hoc RL, and full-pipeline lab-scale RL all fail to move solve
+rate, and a pre-registered causal intervention confirms directly that the bottleneck is within-approach
+execution depth, not approach discovery. The one lever that reliably moves outcomes at fixed compute is
+allocation policy across a batch of different problems --- reported honestly as one-model-robust, with
+its own mechanism account and a stated path to confirmation. We hope this serves both as a cautionary
+result for test-time-compute claims in formal mathematics specifically, and as a methodological template
+--- verifier auditing, causal not correlational mechanism tests, and symmetric skepticism of nulls and
+positives alike --- for negative-result reporting in this area more broadly.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

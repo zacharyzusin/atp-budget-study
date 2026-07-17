@@ -3445,3 +3445,18 @@ mode as Task B's timeouts — recommend more shards or `burst`) — all in DECIS
 power-up". **Next: user reviews the pre-registration + budget estimate and either submits
 `sbatch slurm/sweep_array.sh configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline`
 (after widening --array or switching to burst) or adjusts scope first.**
+
+## 2026-07-16 (cont. 2) — WS2.1 paper skeleton: paper/floor/main.tex, compiles clean
+
+Drafted the floor paper skeleton (WS2.1, PLAN_NEXT.md), NeurIPS-style, structured around the causal
+chain per the plan (pass@B asymmetry -> scaffolding null -> mechanism F1-F5 -> F6/Step C causal
+centerpiece -> exhaustion sweep P3/P5/P6A-B/P6C/P7/P8 -> Phase 4 constructive counterpoint ->
+methodology/verifier-audit -> WS2.2 reviewer-objection rebuttals -> conclusion), with real numbers
+pulled from SYNTHESIS.md/ALLOCATION.md throughout, not placeholder prose. `\todo{}` markers scope
+what's left: 5 figures (F1-F5, generatable from existing results/*/metrics.json + scripts/), the
+related-work citation pass, author list/anonymization, and the DeepSeek allocation number once WS1.1
+lands. Vendored `neurips_2026.sty` (official NeurIPS 2024 style, renamed) + `environ.sty`/
+`trimspaces.sty` (built from CTAN sources, not in the local texlive install) into paper/floor/ since
+they're needed to compile and the cluster has no working tlmgr/apt path to install them system-wide.
+Compiles clean with plain pdflatex (2-pass, no bibtex needed yet -- refs.bib is an empty placeholder,
+no \cite commands until the citation pass), 7 pages. paper/floor/main.pdf gitignored (build artifact).
