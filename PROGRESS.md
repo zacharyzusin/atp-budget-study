@@ -3516,3 +3516,27 @@ mechanism for this exact case (keeps the correct 1/8 stride on a sparse resubmit
 still queued separately, untouched. Next check: confirm 11587377's 5 shards run clean this time
 (spread startup timing reduces herd collision odds), and that all 8 shard indices (1,6 from 11587332;
 0,2-5 from 11587377; 7 from 11587332) are eventually accounted for.
+
+## 2026-07-16 (cont. 6) — 11587332/11587377: ALL 13 shard-attempts failed on ins091; excluded it, resubmitted as 11587449
+
+Follow-up check found the picture worse than the prior entry suggested: shard 1 (reported "RUNNING" at
+the last check) actually never got vLLM up either -- it hit the 40min startup-timeout ("FATAL: vLLM did
+not answer... within ~40min") and died at 40:56 elapsed. Across both 11587332 (all 8 original shards)
+and 11587377 (the 5 resubmitted indices), **every single shard-attempt failed**, all on the SAME node
+`ins091` (`sacct -j 11587332,11587377 --format=...,NodeList`) -- zero per-cell JSONs written
+(`results/deepseek_proofnet_baseline/problems/` unchanged). `scontrol show node ins091` showed 3
+other users' jobs co-resident there (hcl2124, pmt2117, fnz2101) -- not the documented ins082/ins087
+"bad node" failure mode, but real contention/instability on a node under load from other tenants that
+the existing 25s anti-NVML-herd stagger isn't enough to work around when ~8 of MY shards are packed
+onto it too. Checked `scontrol show node <n>` across all non-excluded burst A6000 nodes: several
+(ins081, ins085, ins093) have 5+ of 8(or 4) GPUs actually free right now, vs ins091 where Slurm kept
+placing everything despite the contention. **Fix**: excluded ins091 alongside the existing
+ins082/ins087, resubmitted the FULL 0-7 range fresh (not a sparse resume -- nothing has actually
+progressed yet, so no ATP_NSHARDS pin needed): `sbatch --partition=burst
+--exclude=ins082,ins087,ins091 --export=ALL,ATP_LEAN_ENV_NAME=deepseek-lean-env,
+ELAN_HOME=scratch/elan-deepseek,ATP_VLLM_PORT=8300 slurm/sweep_array.sh
+configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline` -> **job 11587449**. Should scatter
+across multiple lighter-loaded nodes instead of repacking one contended node. Next check: confirm
+shards actually reach "[sweep] vLLM up." and start writing problems/*.json this time -- if ins091
+keeps getting reused or another node shows the same pattern, escalate (this is now 3 consecutive
+failed submissions and ~1h of wall time with zero cells produced).
