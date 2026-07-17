@@ -3572,3 +3572,21 @@ burst's 14-day cap, comfortable margin over the ~11-12h/shard estimate): **job 1
 via `scontrol show job` the new TimeLimit is `2-00:00:00`. This is now the 5th submission of this
 sweep; the first 3 were real bugs (HF cache, GPU contention x2), this one and the last were
 false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
+
+### 2026-07-17 (cont. 9) — WS1.1: 48h time limit was hurting backfill, not the fix; genuine congestion confirmed
+
+- Job 11587682 (48h cap) got backfill-scheduled for StartTime=2026-07-19T22:00:00 -- 2.5 days out.
+  Root cause suspected: the 48h duration request makes backfill need to reserve a much longer
+  contiguous free window per shard, which is harder to satisfy than a shorter request.
+- Checked the actual original 3-seed baseline (job 10676442) per-shard elapsed: ~6-7.5h. Scaling
+  3->8 seeds gives an estimated ~16-20h/shard, so 24h is still safely generous.
+- Cancelled 11587682, resubmitted as **11599656** with `--time=24:00:00` (same exclude list:
+  ins082,ins087,ins091). StartTime did NOT change (still 2026-07-19T22:00:00) -- confirms this is
+  genuine burst-partition congestion (squeue -p burst --state=PD went 28 -> 106 pending jobs since
+  the last check), not a time-limit-driven backfill artifact. Priority (5214) remains far above
+  competing jobs (~1281), so this is not fairshare starvation either -- just a busy cluster right now.
+- Settling into a longer check cadence (~90min) since polling faster won't move a congestion-bound
+  backfill slot. Will re-diagnose if StartTime keeps slipping further out on each check (that would
+  suggest something more than ordinary congestion) or if a node actually opens up sooner than
+  scheduled (backfill can improve as other jobs finish early).
+- WS2 (paper/floor/) remains untouched -- still paused per user instruction.
