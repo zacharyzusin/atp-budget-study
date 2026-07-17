@@ -3552,3 +3552,23 @@ shows several GPUs open, so capacity exists, but scheduling hasn't reached my jo
 queue depth, not a bug to fix. Not resubmitting again (that wouldn't help a queue-depth problem and
 would just add noise) -- staying with 11587449 and waiting. Will check back with a longer interval
 since this is passive queue-wait, not an active crash-retry loop.
+
+## 2026-07-16/17 (cont. 8) — 11587449 was queue-legit (backfill start ~02:01, priority 5214 >> everyone else's ~600) but had the SAME time-cap bug I'd flagged in the pre-registration; fixed, resubmitted as 11587682
+
+`scontrol show job 11587449_0` confirmed the pending state was genuine backfill scheduling, not a
+bug: `Priority=5214` (far ahead of every other burst-partition job, ~600-674), `Scheduler=Backfill:*`,
+`StartTime=2026-07-17T02:01:44`, `SchedNodeList=ins094` -- Slurm had already reserved a slot, just ~2h
+out because ins094's current occupant isn't preemptible. So the queue-wait diagnosis from the last two
+entries was correct.
+
+BUT: `scontrol show job` also surfaced a real bug I'd introduced -- `TimeLimit=11:55:00`. None of my
+`sbatch` overrides (`--partition`, `--exclude`, `--export`) touch `slurm/sweep_array.sh`'s own
+`#SBATCH --time=11:55:00` directive, so switching to `burst` never actually removed the wall-clock cap
+I flagged as a risk in DECISIONS.md's pre-registration -- I'd only changed the PARTITION, not the TIME
+LIMIT, so the exact timeout risk (~11-12h/shard estimate right at the 11:55 cap) was still live and
+about to be silently reintroduced on the next real run. Caught it before the job started (still
+PENDING), cancelled 11587449, resubmitted with an explicit `--time=48:00:00` override (well inside
+burst's 14-day cap, comfortable margin over the ~11-12h/shard estimate): **job 11587682**. Confirmed
+via `scontrol show job` the new TimeLimit is `2-00:00:00`. This is now the 5th submission of this
+sweep; the first 3 were real bugs (HF cache, GPU contention x2), this one and the last were
+false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
