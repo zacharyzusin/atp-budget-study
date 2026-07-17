@@ -3540,3 +3540,15 @@ across multiple lighter-loaded nodes instead of repacking one contended node. Ne
 shards actually reach "[sweep] vLLM up." and start writing problems/*.json this time -- if ins091
 keeps getting reused or another node shows the same pattern, escalate (this is now 3 consecutive
 failed submissions and ~1h of wall time with zero cells produced).
+
+## 2026-07-16 (cont. 7) — 11587449 not a new failure, just queue-bound: burst partition has 28 pending jobs right now
+
+Checked in on 11587449 (4th submission attempt) after 25min: still PENDING, no node assigned. This is
+DIFFERENT from the prior 3 failures (those were crashes with distinct errors after a node was
+assigned) -- `squeue -p burst --state=PD` shows 28 other pending jobs cluster-wide right now, heavy
+contention on the shared `burst` partition at this hour (multiple other users' training jobs queued on
+Priority/Dependency). `scontrol show node` on the previously-free nodes (ins081/085/090 etc.) still
+shows several GPUs open, so capacity exists, but scheduling hasn't reached my job yet -- ordinary
+queue depth, not a bug to fix. Not resubmitting again (that wouldn't help a queue-depth problem and
+would just add noise) -- staying with 11587449 and waiting. Will check back with a longer interval
+since this is passive queue-wait, not an active crash-retry loop.
