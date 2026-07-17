@@ -3477,3 +3477,26 @@ information here; config load was verified directly (`atp.config.load_config`) i
 the SAME run dir as the original 3 seeds (file-keyed resume, no collision). Next: check
 `squeue --me` / `logs/sweep-11586805_*.out` next session; once complete, re-run `phase4_perseed.py` +
 `analyze_allocation.py` on the 8-seed pool and resolve the pre-registered decision rule.
+
+## 2026-07-16 (cont. 4) — job 11586805 FAILED (5/5 shards, missing HF cache); root-caused, fixed, resubmitted as 11587332
+
+Scheduled check-in on 11586805 found all 5 shards that had started (0-4) FAILED within ~5min each:
+`ValueError: Invalid repository ID or local directory specified: 'deepseek-ai/DeepSeek-Prover-V2-7B'`
+from vLLM's `get_config` (`logs/vllm-inproc-<raw-jobid>.out`). Root cause: `sweep_array.sh` defaults
+`HF_HUB_OFFLINE=1` + `HF_HOME=$PROJ/scratch/hf-cache` unless `ATP_HF_HOME` overrides it — the ORIGINAL
+DeepSeek baseline run (2026-06-18) used `ATP_HF_HOME=~/.hf_cache` (script comment: "a second model
+(DeepSeek, cached under ~/.hf_cache) overrides via ATP_HF_HOME so vLLM finds it without re-download"),
+but `~/.hf_cache` no longer exists on this session (likely cleaned up — storing model weights in
+`$HOME` was itself a CLAUDE.md storage-hygiene violation to begin with, tight quota). My 11586805
+submit command omitted `ATP_HF_HOME`, so it fell through to `scratch/hf-cache`, which only has the
+V1.5 family cached (Base/SFT/RL), not V2-7B — combined with offline mode, vLLM couldn't resolve the
+repo at all.
+
+**Fixed properly, not worked around**: cancelled 11586805, downloaded `deepseek-ai/DeepSeek-Prover-V2-7B`
+@ the pinned revision (`a8d9e14432b2e8dd9df2a4d4e70f1ba9bc8d9b7b`) directly into `scratch/hf-cache`
+(9/9 files, ~13G, ~2.5min on the login node's direct internet) via `huggingface-cli download` with
+`HF_HOME=scratch/hf-cache` and the proxy vars unset. This is the storage-hygiene-correct location
+going forward (matches every other cached model) — no more dependency on a `$HOME` path that can
+silently disappear. Resubmitted with the SAME command minus any `ATP_HF_HOME` override (now correctly
+defaults to `scratch/hf-cache`): **job 11587332**, same 8-shard `burst` array. Next check: confirm
+shard 0 gets past the vLLM-serving step this time before trusting the rest of the array.
