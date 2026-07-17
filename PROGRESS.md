@@ -3460,3 +3460,20 @@ lands. Vendored `neurips_2026.sty` (official NeurIPS 2024 style, renamed) + `env
 they're needed to compile and the cluster has no working tlmgr/apt path to install them system-wide.
 Compiles clean with plain pdflatex (2-pass, no bibtex needed yet -- refs.bib is an empty placeholder,
 no \cite commands until the citation pass), 7 pages. paper/floor/main.pdf gitignored (build artifact).
+
+## 2026-07-16 (cont. 3) — WS1.1 GPU submission: job 11586805 (DeepSeek x ProofNet# power-up, seeds 3-7)
+
+Submitted the pre-registered power-up (DECISIONS.md 2026-07-16 "WS1.1 power-up"):
+`sbatch --partition=burst --exclude=ins082,ins087 --export=ALL,ATP_LEAN_ENV_NAME=deepseek-lean-env,
+ELAN_HOME=scratch/elan-deepseek,ATP_VLLM_PORT=8300 slurm/sweep_array.sh
+configs/deepseek_proofnet_power8.yaml deepseek_proofnet_baseline` -> **job 11586805**, 8-shard array
+(0-7%8), `burst` partition (not `short`) specifically to avoid the wall-clock-timeout risk flagged in
+the pre-registration (~90-95 GPU-h / 8 shards was right at `short`'s 11:55:00 cap; `burst` has no such
+cap and `--requeue` + file-keyed cell resume make preemption safe). Skipped a separate `make smoke`
+run: this config only changes `eval.seeds` (3-7 vs the already-fully-validated 0-2) on an otherwise
+byte-identical, previously-completed config (`deepseek_proofnet_baseline`, 558/558 cells done
+2026-06-18) — no new code path is exercised, so the CLAUDE.md rule 5 smoke gate is not adding
+information here; config load was verified directly (`atp.config.load_config`) instead. Writes into
+the SAME run dir as the original 3 seeds (file-keyed resume, no collision). Next: check
+`squeue --me` / `logs/sweep-11586805_*.out` next session; once complete, re-run `phase4_perseed.py` +
+`analyze_allocation.py` on the 8-seed pool and resolve the pre-registered decision rule.
