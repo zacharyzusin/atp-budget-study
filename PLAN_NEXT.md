@@ -69,6 +69,14 @@ pre-registered prediction; final paper framing/venue; a Task-B "material" outcom
 SYNTHESIS revision). The GPU-h soft-limit rule (`feedback_gpuh_limit_flexible`) applies — don't cap a run
 purely to stay under 50 GPU-h if the spend buys the finding, but still surface the estimate in the handoff.
 
+**UPDATE 2026-07-16 (later) — WS2 (paper) PAUSED, not "in parallel."** The user does not want any more
+paper-writing time spent until the experiment workstreams are done: "i dont want to do this until we are
+doing writing code completely... i just want to focus on experiments not writing the paper." A first-pass
+skeleton (`paper/floor/main.tex`) already exists and compiles — leave it as-is, do not extend it (no more
+figures, no citation pass, no further sections) until told otherwise. Effective immediately, "drive
+WS0→WS1→(WS2 in parallel)" above is superseded: **drive WS1 (and any other experiment workstream) only;
+WS2 is off until the user reopens it.**
+
 ---
 
 *[Below: the user's plan as authored, 2026-07-10, verbatim.]*
