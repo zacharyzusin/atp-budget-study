@@ -3500,3 +3500,19 @@ going forward (matches every other cached model) — no more dependency on a `$H
 silently disappear. Resubmitted with the SAME command minus any `ATP_HF_HOME` override (now correctly
 defaults to `scratch/hf-cache`): **job 11587332**, same 8-shard `burst` array. Next check: confirm
 shard 0 gets past the vLLM-serving step this time before trusting the rest of the array.
+
+## 2026-07-16 (cont. 5) — 11587332: HF cache fix confirmed, but 5/7 shards hit CUDA-busy (NVML herd); resubmitted failed indices as 11587377
+
+11587332 (resubmit after the HF-cache fix) confirms the fix worked -- shards 1 and 6 got past vLLM
+startup and are RUNNING normally. But 5 shards (0,2,3,4,5) failed differently this time:
+`RuntimeError: CUDA error: CUDA-capable device(s) is/are busy or unavailable` from
+`torch.cuda.mem_get_info()` during `init_device` (`logs/vllm-inproc-*.out`) -- the known NVML-herd
+contention from packing many shards' vLLM startups onto one 8-GPU node roughly simultaneously; the
+existing anti-herd stagger (25s/shard) wasn't sufficient this time. Not a config/data problem.
+Resubmitted only the 5 failed indices via `sbatch --array=0,2,3,4,5 ...
+--export=...,ATP_NSHARDS=8 slurm/sweep_array.sh configs/deepseek_proofnet_power8.yaml
+deepseek_proofnet_baseline` -> **job 11587377**, pinning `ATP_NSHARDS=8` per the script's own documented
+mechanism for this exact case (keeps the correct 1/8 stride on a sparse resubmit). Shard 7 (11587332_7)
+still queued separately, untouched. Next check: confirm 11587377's 5 shards run clean this time
+(spread startup timing reduces herd collision odds), and that all 8 shard indices (1,6 from 11587332;
+0,2-5 from 11587377; 7 from 11587332) are eventually accounted for.
