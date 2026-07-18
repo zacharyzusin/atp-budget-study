@@ -3649,3 +3649,10 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   the prior round appears to have been a one-time re-estimate, not an unbounded trend. Priority (5226)
   still far above next-highest pending burst job (1811). No new failure mode.
 - Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 17) — WS1.1: StartTime moved earlier
+
+- Job 11599656 still PENDING. StartTime pulled forward 12h (2026-07-21T14:00 -> 2026-07-21T02:00) --
+  first improvement seen. Priority (5227) still far above next-highest pending burst job (1811).
+  No new failure mode.
+- Holding at ~60min cadence. WS2 (paper/floor/) untouched.
