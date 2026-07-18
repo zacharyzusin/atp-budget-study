@@ -3609,3 +3609,9 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   (22 -> 52 pending on burst) but priority (5215) remains far above the pack. Nothing new to fix.
 - Settling into ~90min cadence given the situation is stable/unchanged across checks. WS2 (paper/floor/)
   untouched.
+
+### 2026-07-17 (cont. 12) — WS1.1: still pending, unchanged
+
+- Job 11599656 still PENDING. StartTime ~2026-07-20T13:20 (drifted slightly later, unsurprising given
+  queue churn 22<->52<->21). Priority (5215) still far above competing pending jobs. No new failure mode.
+- Continuing at ~60min cadence. WS2 (paper/floor/) untouched.
