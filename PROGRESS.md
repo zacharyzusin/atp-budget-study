@@ -3626,3 +3626,19 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Job 11599656 still PENDING, StartTime unchanged (2026-07-20T13:20), queue depth unchanged (21).
   Six consecutive checks with no movement -- this is a real ~3-day backfill wait on burst right now,
   not a bug to chase. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 15) — WS1.1: still pending, StartTime slipped further; deeper check confirms genuine congestion
+
+- Job 11599656 still PENDING. StartTime slipped from 2026-07-20T13:20 -> 2026-07-21T14:00 (>1 day later),
+  the first real movement after 6 stable checks -- investigated rather than just re-logging as noise.
+- Checked all 8 array shards individually: identical StartTime/SchedNodeList (ins093) across the board --
+  this is backfill's shared conservative estimate for the whole array, not a single-shard-specific issue.
+- Checked priority across ALL pending burst jobs: ours (5225) is far above the next-highest (1810,
+  submitted 2026-07-16) -- confirms still not starvation, just real demand exceeding supply of
+  simultaneous A6000 slots with a 24h window right now.
+- Noticed an unrelated interactive job (11603145, QOS=interactive, bash on ins016, short partition) --
+  confirmed this is a separate user-initiated session, not something this workflow launched or that
+  affects the sweep; left untouched.
+- No new failure mode. Continuing to hold at ~60min cadence given the wait itself is now looking like
+  it could run another ~1.5 days; will keep monitoring rather than resubmitting (resubmitting would only
+  lose queue position, not fix a supply-side congestion problem). WS2 (paper/floor/) untouched.
