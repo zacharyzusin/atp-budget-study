@@ -3615,3 +3615,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Job 11599656 still PENDING. StartTime ~2026-07-20T13:20 (drifted slightly later, unsurprising given
   queue churn 22<->52<->21). Priority (5215) still far above competing pending jobs. No new failure mode.
 - Continuing at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-17 (cont. 13) — WS1.1: still pending, fully stable
+
+- Job 11599656 still PENDING, StartTime unchanged since last check (2026-07-20T13:20), queue depth
+  unchanged (21 pending). No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
