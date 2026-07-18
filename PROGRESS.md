@@ -3667,3 +3667,11 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Job 11599656 still PENDING, StartTime shifted ~4h later (2026-07-21T02:00 -> 06:10) -- small noise,
   not the kind of large jump seen two checks ago. Priority (5380) still far above next-highest (1812).
   No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 20) — WS1.1: StartTime drifted later again, still oscillating not trending
+
+- Job 11599656 still PENDING, StartTime 2026-07-21T06:10 -> 14:20 (~8h later). Priority (5381) still
+  far above next-highest (1813). Over the last several checks the estimate has oscillated both
+  directions (13:20 -> 14:00 -> 02:00 -> 06:10 -> 14:20) rather than monotonically sliding -- reading
+  this as ordinary backfill noise, not a growing problem. No new failure mode. Holding at ~60min
+  cadence. WS2 (paper/floor/) untouched.
