@@ -3661,3 +3661,9 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 
 - Job 11599656 still PENDING, StartTime unchanged (2026-07-21T02:00). Priority (5227) still far above
   next-highest (1812). No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 19) — WS1.1: minor drift, still within noise
+
+- Job 11599656 still PENDING, StartTime shifted ~4h later (2026-07-21T02:00 -> 06:10) -- small noise,
+  not the kind of large jump seen two checks ago. Priority (5380) still far above next-highest (1812).
+  No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
