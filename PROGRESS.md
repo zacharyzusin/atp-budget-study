@@ -3642,3 +3642,10 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - No new failure mode. Continuing to hold at ~60min cadence given the wait itself is now looking like
   it could run another ~1.5 days; will keep monitoring rather than resubmitting (resubmitting would only
   lose queue position, not fix a supply-side congestion problem). WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 16) — WS1.1: StartTime stabilized, no further slippage
+
+- Job 11599656 still PENDING. StartTime unchanged from last check (2026-07-21T14:00) -- the drift from
+  the prior round appears to have been a one-time re-estimate, not an unbounded trend. Priority (5226)
+  still far above next-highest pending burst job (1811). No new failure mode.
+- Holding at ~60min cadence. WS2 (paper/floor/) untouched.
