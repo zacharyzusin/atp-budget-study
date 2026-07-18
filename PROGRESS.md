@@ -3620,3 +3620,9 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 
 - Job 11599656 still PENDING, StartTime unchanged since last check (2026-07-20T13:20), queue depth
   unchanged (21 pending). No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-17 (cont. 14) — WS1.1: still pending, fully stable (6th consecutive unchanged check)
+
+- Job 11599656 still PENDING, StartTime unchanged (2026-07-20T13:20), queue depth unchanged (21).
+  Six consecutive checks with no movement -- this is a real ~3-day backfill wait on burst right now,
+  not a bug to chase. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
