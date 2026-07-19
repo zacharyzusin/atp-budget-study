@@ -3675,3 +3675,9 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   directions (13:20 -> 14:00 -> 02:00 -> 06:10 -> 14:20) rather than monotonically sliding -- reading
   this as ordinary backfill noise, not a growing problem. No new failure mode. Holding at ~60min
   cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 21) — WS1.1: StartTime oscillating within same band
+
+- Job 11599656 still PENDING, StartTime 2026-07-21T14:20 -> 09:25 (back earlier). Confirms oscillation
+  pattern, not a trend. Priority (5381) unchanged, still far above next-highest (1814). No new failure
+  mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
