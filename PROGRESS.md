@@ -3681,3 +3681,9 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Job 11599656 still PENDING, StartTime 2026-07-21T14:20 -> 09:25 (back earlier). Confirms oscillation
   pattern, not a trend. Priority (5381) unchanged, still far above next-highest (1814). No new failure
   mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 22) — WS1.1: StartTime still in oscillation band
+
+- Job 11599656 still PENDING, StartTime 2026-07-21T09:25 -> 13:25 (small move, same band). Priority
+  (5382) unchanged relative to competitors, still far above next-highest (1814). No new failure mode.
+  Holding at ~60min cadence. WS2 (paper/floor/) untouched.
