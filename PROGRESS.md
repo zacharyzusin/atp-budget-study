@@ -3805,3 +3805,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   Resume-safe (--resume flag, no progress lost). Cell count 311, up from 194.
   Resubmitted full array 0-7 as job 11628973 with --exclude=ins082,ins087,ins089,ins091.
   WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 12) — WS1.1: 11628973 healthy, cell count 331
+
+- All 8 shard-indices RUNNING (~1h elapsed), no failures. Cell count 331, up from 311.
+  WS2 (paper/floor/) untouched.
