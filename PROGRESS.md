@@ -3765,3 +3765,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   2,3,4 from 11617103 came up clean on ins083/ins092 (no repeat of the ins089 NVML-herd issue). Cell
   count 34 and growing (was 15). No new failure mode. Holding at ~60min cadence, watching for the
   expected ~12h TimeLimit TIMEOUTs on the longer-running shards next. WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 5) — WS1.1: all 8 shards still healthy, steady progress
+
+- All 8 shard-indices still RUNNING (longest at 3h48m, well under the 12h cap). Cell count 60, up from
+  34. No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
