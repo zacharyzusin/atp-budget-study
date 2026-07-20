@@ -3798,3 +3798,10 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - All 8 shard-indices still RUNNING (longest 8h53m, approaching the 12h TimeLimit). Cell count 194,
   up from 163. No new failure mode. Holding at ~60min cadence, expecting first TIMEOUTs within ~3h.
   WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 11) — WS1.1: first TIMEOUT cycle, resubmitted all 8 shards
+
+- All 8 shard-indices hit the expected 12h TimeLimit on `short` (TIMEOUT, exit 0:0) after ~11h55m.
+  Resume-safe (--resume flag, no progress lost). Cell count 311, up from 194.
+  Resubmitted full array 0-7 as job 11628973 with --exclude=ins082,ins087,ins089,ins091.
+  WS2 (paper/floor/) untouched.
