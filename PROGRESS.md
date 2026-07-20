@@ -3687,3 +3687,13 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Job 11599656 still PENDING, StartTime 2026-07-21T09:25 -> 13:25 (small move, same band). Priority
   (5382) unchanged relative to competitors, still far above next-highest (1814). No new failure mode.
   Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-18 (cont. 23) — WS1.1: still pending, StartTime briefly Unknown due to unrelated node outage
+
+- Job 11599656 still PENDING. StartTime showed "Unknown" this check, Reason listed an additional
+  unavailable node ins025 (not in our exclude list). Checked: ins025 is DOWN+NOT_RESPONDING and has
+  Gres=(null) (no GPUs at all -- a general-purpose/CPU node, irrelevant to our A6000 request). ins082
+  also confirmed still DOWN+NOT_RESPONDING (already excluded, unrelated node health issue, not caused
+  by us). Reading this as a transient backfill recompute after a node state change, not a new problem
+  specific to our job. Priority (5246) still far above next-highest pending burst job (790). Holding at
+  ~60min cadence. WS2 (paper/floor/) untouched.
