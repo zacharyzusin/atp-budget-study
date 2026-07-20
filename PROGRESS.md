@@ -3732,3 +3732,13 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   (sparse resubmit of just the failed/timed-out indices, using ATP_NSHARDS=8 to preserve correct
   striding) rather than waiting on the whole array to fail.
 - WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 2) — WS1.1: 11616556 (short) started and confirmed healthy
+
+- Job 11616556 started as predicted: shards 0-4 RUNNING within ~45min of submission (shards 5-7 still
+  queueing behind them, short's node concurrency limits). Confirmed genuinely healthy (not hung) via
+  sweep-*.out logs showing "[sweep] vLLM up." and "running eval" for shards 0/1, plus 2 new cell files
+  already produced under results/deepseek_proofnet_baseline/problems/.
+- Given short's 12h TimeLimit vs. the ~16-20h/shard estimate, expect TIMEOUT + sparse resubmit cycles
+  ahead (progress preserved via --resume, per prior entry). Continuing to monitor.
+- WS2 (paper/floor/) untouched.
