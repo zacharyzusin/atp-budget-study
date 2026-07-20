@@ -3713,3 +3713,22 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   - Presented options to the user (keep waiting / shrink footprint / try short partition / just flag on
     completion). User chose: **keep waiting as-is**, continue current ~60min cadence.
 - WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont.) — WS1.1: switched from burst to short per user decision
+
+- User asked "does it have to be on burst?" -- investigated whether other partitions/QOS were viable.
+  Findings: (a) zgroup1 (ins093, private-looking partition) turned out to be the same shared physical
+  node as burst/short, not a separate low-contention resource -- not useful. (b) short has a much
+  larger raw pending queue (4283) than burst (~20), but per-job turnover is fast (12h cap) and our
+  priority (~5250) would land far ahead of short's current top pending job (1872) -- similar dynamic
+  to burst. (c) Confirmed sweep_array.sh passes --resume to the CLI sweep command (line 292), so a
+  shard killed by short's 12h TimeLimit does NOT lose progress -- resubmitting picks up from
+  already-completed problems.
+- Decision (user confirmed): cancelled 11599656 (burst), resubmitted as **11616556** on short
+  (same exclude list: ins082,ins087,ins091). New StartTime: 2026-07-20T01:32 -- under an hour away,
+  vs. burst's multi-day wait.
+- Since each 8-seed shard needs an estimated ~16-20h and short caps at 12h, expect each shard to need
+  ~2 resubmissions to fully complete. Will monitor for TIMEOUT state and resubmit affected shards
+  (sparse resubmit of just the failed/timed-out indices, using ATP_NSHARDS=8 to preserve correct
+  striding) rather than waiting on the whole array to fail.
+- WS2 (paper/floor/) untouched.
