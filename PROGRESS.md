@@ -3770,3 +3770,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 
 - All 8 shard-indices still RUNNING (longest at 3h48m, well under the 12h cap). Cell count 60, up from
   34. No new failure mode. Holding at ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 6) — WS1.1: still healthy, cell count 84
+
+- All 8 shard-indices still RUNNING (longest 4h49m). Cell count 84, up from 60. No new failure mode.
+  Holding at ~60min cadence. WS2 (paper/floor/) untouched.
