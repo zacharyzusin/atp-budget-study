@@ -3758,3 +3758,10 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   their own sparse resubmit (progress preserved via --resume) -- that will be a TIMEOUT state, distinct
   from this FAILED/NVML-contention state.
 - WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 4) — WS1.1: all 8 shards now healthy and running
+
+- All 8 shard-indices confirmed RUNNING: 0,1,5,6,7 from 11616556 (elapsed 1-2.8h), and the resubmitted
+  2,3,4 from 11617103 came up clean on ins083/ins092 (no repeat of the ins089 NVML-herd issue). Cell
+  count 34 and growing (was 15). No new failure mode. Holding at ~60min cadence, watching for the
+  expected ~12h TimeLimit TIMEOUTs on the longer-running shards next. WS2 (paper/floor/) untouched.
