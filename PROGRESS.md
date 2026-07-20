@@ -3697,3 +3697,19 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   by us). Reading this as a transient backfill recompute after a node state change, not a new problem
   specific to our job. Priority (5246) still far above next-highest pending burst job (790). Holding at
   ~60min cadence. WS2 (paper/floor/) untouched.
+
+### 2026-07-20 — WS1.1: deep dive per user request ("something must be wrong"), confirmed genuine full-cluster saturation
+
+- User pushed back after ~2.5 days pending, reasonably asking if something was actually broken. Did a
+  much deeper check than the routine per-hour ones:
+  - Checked GPU allocation counts (not just node MIXED state) across EVERY burst GPU node, all types
+    (A6000/L40/L40S/H100): essentially 100% allocated cluster-wide. Only ~8 free A6000s exist, on
+    ins081/088/089/090 (none excluded by us).
+  - Checked why those free GPUs aren't being used: RAM. ins088/089 have only ~11GB free (of 1TB);
+    ins081/090 have ~58GB/~38GB free -- all below our job's --mem=64G requirement (sized in
+    sweep_array.sh for concurrent Lean REPL workers, not padding -- see script comment near line 140).
+  - Conclusion: genuine simultaneous GPU+RAM saturation across the whole burst partition right now,
+    not a bug, not starvation (priority still far above queue), not fixable by resubmitting.
+  - Presented options to the user (keep waiting / shrink footprint / try short partition / just flag on
+    completion). User chose: **keep waiting as-is**, continue current ~60min cadence.
+- WS2 (paper/floor/) untouched.
