@@ -3742,3 +3742,19 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 - Given short's 12h TimeLimit vs. the ~16-20h/shard estimate, expect TIMEOUT + sparse resubmit cycles
   ahead (progress preserved via --resume, per prior entry). Continuing to monitor.
 - WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 3) — WS1.1: shards 2/3/4 hit known vLLM-timeout (NVML herd), resubmitted
+
+- Job 11616556 shards 2,3,4 all FAILED (~45min elapsed, exit 1:0), all landed on the same node ins089
+  simultaneously. Root cause confirmed via logs: "FATAL: vLLM did not answer... within ~40min" on each
+  -- same known failure class as the earlier ins091 incident (GPU/NVML contention when multiple shards
+  init CUDA near-simultaneously on one packed node; the script's 50-100s stagger wasn't enough for 3
+  concurrent shards this time). Not a new bug.
+- Shards 0,1,5,6,7 remain healthy RUNNING (cell count now 15 and growing).
+- Fix: added ins089 to the exclude list, resubmitted just the failed indices sparsely:
+  `sbatch --partition=short --exclude=ins082,ins087,ins089,ins091 --array=2,3,4
+  --export=ALL,ATP_NSHARDS=8,...` (ATP_NSHARDS=8 preserves correct striding) -> **job 11617103**.
+- Still expect shards 0,1,5,6,7 to hit the *expected* 12h short-partition TimeLimit later and need
+  their own sparse resubmit (progress preserved via --resume) -- that will be a TIMEOUT state, distinct
+  from this FAILED/NVML-contention state.
+- WS2 (paper/floor/) untouched.
