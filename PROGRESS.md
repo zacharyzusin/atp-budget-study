@@ -3855,3 +3855,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 
 - All 8 shard-indices RUNNING (~10h elapsed), no failures. Cell count 582, up from 555.
   TIMEOUT expected within ~2h. WS2 (paper/floor/) untouched.
+
+### 2026-07-21 (cont. 22) — WS1.1: 11628973 healthy, cell count 615
+
+- All 8 shard-indices RUNNING (~11h elapsed), no failures. Cell count 615, up from 582.
+  TIMEOUT expected within the next hour. WS2 (paper/floor/) untouched.
