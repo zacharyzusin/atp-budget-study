@@ -3820,3 +3820,8 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
 
 - All 8 shard-indices RUNNING (~3h elapsed), no failures. Cell count 389, up from 360.
   WS2 (paper/floor/) untouched.
+
+### 2026-07-20 (cont. 15) — WS1.1: 11628973 healthy, cell count 420
+
+- All 8 shard-indices RUNNING (~4h elapsed), no failures. Cell count 420, up from 389.
+  WS2 (paper/floor/) untouched.
