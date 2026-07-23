@@ -3867,3 +3867,10 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   Resume-safe, no progress lost. Cell count 634, up from 615.
   Resubmitted full array 0-7 as job 11641972 with --exclude=ins082,ins087,ins089,ins091.
   WS2 (paper/floor/) untouched.
+
+### 2026-07-21 (cont. 24) — WS1.1: first COMPLETED shards! 5/8 done
+
+- Shard-indices 1,3,5,6,7 reached COMPLETED (exit 0:0) in job 11641972. Shards 0,2,4 hit
+  another TIMEOUT. Cell count 925, up from 634 (big jump as completed shards flushed final results).
+  Resubmitted remaining indices 0,2,4 as job 11650652.
+  WS2 (paper/floor/) untouched.
