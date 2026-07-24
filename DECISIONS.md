@@ -1760,3 +1760,25 @@ widen `--array` to more shards (e.g. 0-15%16) so each shard's slice shrinks prop
 via `burst` (14-day cap) instead of `short` if enough concurrent A6000s aren't free. Not changing
 `sweep_array.sh` unilaterally here since it's the shared GPU-sweep script other workstreams also use —
 flagging for the user's submit-time judgment call instead.
+
+## 2026-07-21 — WS1.1 power-up RESOLVED: DeepSeek x ProofNet# 8-seed result, decision rule applied
+
+All 8 seeds (0-7) of DeepSeek-Prover-V2-7B x ProofNet# completed on `short` partition (jobs
+11616556/11617103/11628973/11641972/11650652, chained across 3 TIMEOUT/resume cycles + one
+NVML-herd node-exclude fix; see PROGRESS.md cont.9-25). `phase4_perseed.py` and
+`analyze_allocation.py` re-run on the full 8-seed pool:
+
+- deepseek x proofnet_sharp per-seed saved@90% (c*=16000): s0=+4% s1=+3% s2=+16% s3=+54% s4=-17%
+  s5=-28% s6=+29% s7=+19% -> **mean +10% ± 24%** (up from the noise-dominated 3-seed −13% ± 28%).
+- goedel x proofnet_sharp (unchanged, still 3 seeds): mean +26% ± 7% (strong, per-seed robust).
+- Applying the pre-registered decision rule (2026-07-16 entry, verbatim from PLAN_NEXT.md WS1.1):
+  0 falls within 1σ of the +10% mean (range -14% to +34%) -> **"one-model-robust, model-dependent"
+  full stop.** Not a confirmed negative (prediction of "net positive but modest, mostly tightening"
+  was directionally right — sign flipped positive and variance did shrink 28%->24% — but the effect
+  did not clear the 1σ bar for generality).
+- ALLOCATION_MECHANISM.md numbers also refreshed: deepseek_proofnet_sharp trapped%=72.6%,
+  robust%=17.7%, n_post_c*=1256 (up from smaller pre-8-seed pool).
+
+**This is the input to Gate G1** (PLAN_NEXT.md WS1, "end of WS1"): one-paper-vs-two-paper call.
+Per PLAN_NEXT.md §0 ground rules and the WS1.1 pre-registration, **this is the user's call, not
+this session's** — presenting evidence via AskUserQuestion, not deciding unilaterally.
