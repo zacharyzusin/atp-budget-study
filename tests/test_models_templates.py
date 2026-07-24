@@ -44,6 +44,31 @@ def test_whole_proof_uses_official_goedel_prompt():
     assert "proof plan" in prompt
 
 
+def test_whole_proof_official_header_adds_aesop_and_max_heartbeats_only():
+    """`WholeProofOfficialHeaderTemplate` (2026-07-24, external calibration critique) must differ
+    from `WholeProofTemplate` ONLY in the header (import Aesop + set_option maxHeartbeats 0) — same
+    instruction, same plan-suffix, same fence, same everything else, so the calibration cell isolates
+    the header/protocol variable and nothing else."""
+    from atp.models import WholeProofOfficialHeaderTemplate
+
+    official = WholeProofOfficialHeaderTemplate().render(THM)
+    plain = WholeProofTemplate().render(THM)
+    assert "import Aesop" in official
+    assert "set_option maxHeartbeats 0" in official
+    assert "import Aesop" not in plain
+    assert "set_option maxHeartbeats 0" not in plain
+    # Strip each one's own header, everything after must match byte-for-byte.
+    assert official.split("theorem", 1)[1] == plain.split("theorem", 1)[1]
+    assert official.startswith("Complete the following Lean 4 code:")
+    assert "proof plan" in official
+
+
+def test_whole_proof_official_header_registered_under_its_own_prompt_template_name():
+    from atp.models import WholeProofOfficialHeaderTemplate
+
+    assert isinstance(get_template("whole_proof_official_header"), WholeProofOfficialHeaderTemplate)
+
+
 def test_whole_proof_ignores_informal_statement_unaffected_by_the_deepseek_v15_fix():
     """Regression check: the `informal_statement` doc-comment fix (2026-07-06, see
     PROGRESS.md/DECISIONS.md that date) only touches `DeepSeekV15Template`/`GoedelSFTTemplate` —

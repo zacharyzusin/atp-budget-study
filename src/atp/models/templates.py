@@ -416,12 +416,42 @@ class TacticTemplate:
         return text.strip()
 
 
+@dataclass(frozen=True)
+class WholeProofOfficialHeaderTemplate(WholeProofTemplate):
+    """`WholeProofTemplate`, but with the model-card header (`import Mathlib`, `import Aesop`,
+    `set_option maxHeartbeats 0`) instead of the generic import-only header every Phase 0-7 sweep
+    used (see `_deepseek_lean4_header`'s docstring for why this matters — without it, otherwise-
+    valid nlinarith/field_simp/simp closings can spuriously time out).
+
+    Isolated as its own registered template (not a change to `WholeProofTemplate` itself) so no
+    existing committed result is touched — added 2026-07-24 specifically for the trapped-core
+    calibration cell (external calibration critique), which needs the model run under its
+    documented-official protocol. Only the header differs; instruction/fence/plan-suffix wording
+    is unchanged (already confirmed byte-identical to the model card, see DECISIONS.md 2026-07-21).
+    """
+
+    name: str = "whole_proof_official_header"
+
+    def _formal_block(self, theorem: Theorem) -> str:
+        header = _deepseek_lean4_header(theorem)
+        statement = theorem.statement.rstrip()
+        return f"{header}\n\n{statement} := by sorry" if header else f"{statement} := by sorry"
+
+    def _continuation_block(self, theorem: Theorem, proof_prefix: str) -> str:
+        header = _deepseek_lean4_header(theorem)
+        statement = theorem.statement.rstrip()
+        body = proof_prefix.strip("\n")
+        block = f"{statement} := by\n{body}"
+        return f"{header}\n\n{block}" if header else block
+
+
 _TEMPLATES: dict[str, PromptTemplate] = {
     "whole_proof": WholeProofTemplate(),
     "tactic": TacticTemplate(),
     "bfs_prover": BFSProverTemplate(),
     "deepseek_v15": DeepSeekV15Template(),
     "goedel_sft": GoedelSFTTemplate(),
+    "whole_proof_official_header": WholeProofOfficialHeaderTemplate(),
 }
 
 

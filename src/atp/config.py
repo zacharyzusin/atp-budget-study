@@ -57,10 +57,20 @@ class ModelCfg(_Strict):
     revision: str
     endpoint_file: str = "results/_vllm_endpoint.txt"
     max_model_len: int = 16384
+    # Per-call generation cap. None (default, every existing config) preserves the original
+    # `max_model_len // 2` heuristic (generous prompt headroom for the refinement loop's stacking
+    # prompts). An explicit value lets a single-shot, no-refinement cell (e.g. a pass@N calibration
+    # run) use MORE of the model's native context for generation without changing max_model_len
+    # itself — max_model_len is a hard ceiling set by the model's max_position_embeddings and must
+    # match what vLLM is actually served with (see DECISIONS.md 2026-07-24: Goedel-Prover-V2-8B's
+    # config.json caps max_position_embeddings at 40960, no rope scaling — raising max_model_len
+    # past that breaks serving, so widen the generation share instead of the ceiling).
+    sample_max_tokens: int | None = None
     temperature: float = 1.0
     top_p: float = 0.95
     prompt_template: Literal[
-        "whole_proof", "tactic", "bfs_prover", "deepseek_v15", "goedel_sft"
+        "whole_proof", "tactic", "bfs_prover", "deepseek_v15", "goedel_sft",
+        "whole_proof_official_header",
     ] = "whole_proof"
     # Goedel-Prover-V2-8B is a Qwen3-based *reasoning* prover trained with a chat template; it must
     # be driven via /v1/chat/completions (server applies the template) — raw /v1/completions makes
@@ -135,6 +145,10 @@ class AgentCfg(_Strict):
     mode: Literal["whole_proof", "bfs"] = "whole_proof"
     refinement: RefinementCfg = Field(default_factory=RefinementCfg)
     components: ComponentsCfg = Field(default_factory=ComponentsCfg)
+    # Cap on fresh-proposal rounds (WholeProofAgent's own safety cap otherwise defaults to 64).
+    # Exposed for plain pass@N calibration cells that need an EXACT sample count independent of
+    # the token budget (which would otherwise be the only stopping condition with refinement off).
+    max_rounds: int = Field(64, ge=1)
 
 
 class SearchCfg(_Strict):

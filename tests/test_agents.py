@@ -242,6 +242,36 @@ def test_from_config_wires_refinement_policy():
     assert agent.max_refine == cfg.agent.refinement.max_iters
     assert agent.refine_enabled == cfg.agent.refinement.enabled
     assert agent.sample_max_tokens == cfg.model.max_model_len // 2
+    assert agent.max_rounds == cfg.agent.max_rounds
+
+
+def test_from_config_wires_max_rounds_override():
+    """`agent.max_rounds` (added for pass@N calibration cells that need an exact sample count
+    independent of the token budget) must actually reach the agent, not just validate."""
+    from atp.config import BASE_CONFIG, load_config
+
+    cfg = load_config(BASE_CONFIG)
+    assert cfg.agent.max_rounds == 64  # the documented default, unchanged for every existing config
+    cfg2 = cfg.model_copy(update={"agent": cfg.agent.model_copy(update={"max_rounds": 32})})
+    client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
+    agent = WholeProofAgent.from_config(cfg2, client, Verifier(_backend()))
+    assert agent.max_rounds == 32
+
+
+def test_from_config_sample_max_tokens_override():
+    """`model.sample_max_tokens` (added for calibration cells that want more of the model's native
+    context spent on generation than the default max_model_len//2 refinement-loop heuristic)."""
+    from atp.config import BASE_CONFIG, load_config
+
+    cfg = load_config(BASE_CONFIG)
+    assert cfg.model.sample_max_tokens is None  # unset by default — every existing config unaffected
+    client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
+    agent_default = WholeProofAgent.from_config(cfg, client, Verifier(_backend()))
+    assert agent_default.sample_max_tokens == cfg.model.max_model_len // 2
+
+    cfg2 = cfg.model_copy(update={"model": cfg.model.model_copy(update={"sample_max_tokens": 30000})})
+    agent_override = WholeProofAgent.from_config(cfg2, client, Verifier(_backend()))
+    assert agent_override.sample_max_tokens == 30000
 
 
 def test_from_config_resolves_the_configured_prompt_template():

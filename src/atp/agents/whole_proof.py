@@ -77,7 +77,8 @@ class WholeProofAgent:
             template=template_from_config(config),
             max_refine=ref.max_iters,
             refine_enabled=ref.enabled,
-            sample_max_tokens=config.model.max_model_len // 2,
+            max_rounds=config.agent.max_rounds,
+            sample_max_tokens=config.model.sample_max_tokens or (config.model.max_model_len // 2),
             components=build_components(config),
         )
 

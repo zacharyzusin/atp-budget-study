@@ -1,0 +1,64 @@
+# configs/calibration_trapped32_goedel_minif2f.yaml — external calibration critique, modified cell
+# (2026-07-24). Goedel-Prover-V2-8B on its OWN 55-problem miniF2F trapped core (unsolved by every
+# seed at 128k tokens, scratch/phase2/trapped_minif2f.txt), 32 independent samples, official
+# protocol: no budget meter (effectively uncapped — max_rounds is the real stopping condition),
+# no refinement loop, official header (import Aesop + set_option maxHeartbeats 0), temp 0.7.
+#
+# Does THREE jobs at once (per pre-registration, DECISIONS.md 2026-07-24):
+#   1. trapped-core contamination check — how many of these 55 are NOT actually trapped under
+#      plain resampling (answers whether Phases 2/5/7's mechanism claims sit on a sound population).
+#   2. calibration reconciliation — feeds the union-over-seeds arithmetic against the published
+#      84.6% / GAR-implied ~78% anchors.
+#   3. token-matched sampling-vs-agent-loop comparison for the project's founding question #1,
+#      since every attempt's completion_tokens is already logged per-attempt.
+#
+# Pre-registered read (recovery out of 55, DECISIONS.md 2026-07-24):
+#   0-3   -> trapped core sound, Phases 2/5/7 stand as reported.
+#   4-10  -> contamination real but bounded, trapped-core claims need a stated recovery-rate caveat.
+#   >10   -> trapped core needs regenerating at proper sample counts; every "trapped by
+#            construction, baseline=0" claim downstream goes with it.
+
+defaults: base
+
+model:
+  prompt_template: whole_proof_official_header   # import Aesop + set_option maxHeartbeats 0
+  temperature: 0.7                               # Goedel-V2's own developer-recommended setting
+  # sample_max_tokens left at default (None -> max_model_len//2 = 20480): max_model_len is a HARD
+  # ceiling at the model's own max_position_embeddings (40960, verified against config.json, no
+  # rope scaling) — see DECISIONS.md 2026-07-24. Widening past 20480 was considered (reviewer's
+  # "max_tokens 30000") and rejected as unsafe: raising max_model_len itself risks breaking vLLM
+  # serving outright, and our own truncation-rate check (results/phase0/TRUNCATION_AND_TIMEOUT_AUDIT.md)
+  # found only 4.89% of Goedel miniF2F PROPOSE attempts hit the CURRENT 20480 cap, so this is not
+  # expected to bind materially. Flagged explicitly rather than silently deviating from the
+  # official recipe.
+
+data:
+  benchmark: minif2f
+  split: test
+  exclude_unprovable: true
+  use_novel_split: true                          # restrict to exactly the trapped-core names below
+  novel_names_file: scratch/phase2/trapped_minif2f.txt   # the 55-problem Goedel x miniF2F trapped core
+
+budget:
+  values: [2000000]     # effectively uncapped (32 * 20480 = 655360 max possible spend) — max_rounds
+                         # below is the real, exact stopping condition, not the token ledger.
+
+eval:
+  seeds: [0]             # ONE trajectory per problem, 32 independent propose rounds within it —
+                          # NOT 3 separate seeded budget-bounded reruns (that's the Phase 0 protocol,
+                          # not pass@N sampling).
+  n_workers: 8
+
+agent:
+  mode: whole_proof
+  max_rounds: 32          # the exact sample count — stops at first success or after 32 fresh samples
+  refinement: { enabled: false }   # plain best-of-32 sampling, no error-feedback loop
+  components:
+    memory:        { enabled: false }
+    reviewer:      { enabled: false }
+    retrieval:     { enabled: false }
+    tactic_skeletons: { enabled: false }
+
+# After running: `atp sweep --aggregate` for the summary; then compute the union-over-original-3-seeds
+# recovery count against scratch/phase2/trapped_minif2f.txt per the pre-registered thresholds above.
+# Log to PROGRESS.md/DECISIONS.md; do NOT touch paper/floor/ regardless of outcome (WS2 still paused).

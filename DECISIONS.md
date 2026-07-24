@@ -1857,3 +1857,59 @@ made AFTER this calibration lands, not bundled into it.
 
 **Status: NOT YET RUN.** Awaiting the CPU-only checks' results and explicit user go-ahead for the
 GPU spend (small — 244 problems × 32 samples on one model, single cell, not a sweep).
+
+## 2026-07-24 — Calibration cell design REVISED (per user, based on check #1's finding)
+
+Check #1 (pass@N recount) found more than an axis-mismatch calibration problem: Goedel x miniF2F's
+128k-token budget maps to a median of ~1 (mean 1.94, max 14) independent propose samples, meaning
+the pass@N curve was NEVER measured anywhere near N=32 — the "saturation" language in SYNTHESIS.md
+§3 is a data-exhaustion plateau artifact, not a demonstrated ceiling, and this is a Phase-0-level
+correction independent of what any new GPU run finds. It also means the 55-problem Goedel x
+miniF2F trapped core (unsolved by all 3 seeds at 128k) was defined at ~6 effective independent
+samples total (3 seeds x ~2 attempts), not at anything close to a real ceiling — union-of-seeds
+solves 189/244 (77.5%) vs published pass@32's 84.6%, so plain resampling could plausibly recover a
+material fraction of the "trapped" set.
+
+**Design change (superseding the 2026-07-21 single-cell pre-registration):** run the 55-problem
+trapped core (not the full 244) at pass@32 directly, official protocol, and log tokens per
+generation — this does the calibration reconciliation, the trapped-core contamination check, AND
+(since per-attempt tokens are already logged) the token-matched plain-sampling-vs-agent-loop
+comparison for the project's founding Q1, all from one cell, at ~1/4 the cost of the full 244.
+
+**Modified cell config**: `configs/calibration_trapped32_goedel_minif2f.yaml`. Goedel-Prover-V2-8B,
+the 55 names in `scratch/phase2/trapped_minif2f.txt`, 32 independent samples (agent.max_rounds=32,
+new config field), refinement disabled, temp=0.7, official header (`import Aesop` +
+`set_option maxHeartbeats 0`, new `whole_proof_official_header` template — isolated as its own
+registered template, `WholeProofTemplate` itself untouched, so no committed result is affected),
+budget effectively uncapped (2,000,000 tokens vs a 655,360 max possible spend at 32*20480).
+**One deviation from the reviewer's literal spec, flagged explicitly**: generation cap left at
+max_model_len//2=20480, not 30000 — Goedel-Prover-V2-8B's own `config.json` caps
+`max_position_embeddings` at 40960 with no rope scaling, so max_model_len cannot be raised past that
+without risking breaking vLLM serving; 20480 is not expected to bind materially (only 4.89% of
+Goedel miniF2F PROPOSE attempts hit this exact cap in the Phase 0 truncation audit).
+
+**Pre-registered read (recovery count out of 55, UNCHANGED thresholds, same as 2026-07-21 entry's
+spirit but against the trapped core directly rather than a full-244 calibration number)**:
+- 0-3 recover -> trapped core sound; Phases 2/5/7 stand; fix the saturation + scoring-only language
+  in SYNTHESIS.md, report the calibration, write.
+- 4-10 recover -> contamination real but bounded; trapped-core claims need a stated recovery-rate
+  caveat; interventions' nulls survive with that caveat.
+- >10 recover -> trapped core needs regenerating at proper sample counts; every downstream
+  "trapped by construction, baseline=0" claim (Phases 2 Step C, 5, 7) goes with it.
+
+**Code changes** (all additive, zero effect on any existing config/result — full fast suite green,
+tests added for each): `agent.max_rounds` (AgentCfg, WholeProofAgent.from_config — exact sample-count
+cap independent of the token budget), `model.sample_max_tokens` override (ModelCfg — decouples the
+generation cap from the max_model_len//2 heuristic without touching max_model_len itself),
+`WholeProofOfficialHeaderTemplate` (templates.py — official-header variant, registered under
+`whole_proof_official_header`, `WholeProofTemplate` unchanged).
+
+**Smoke test**: job 11682216 (2 trapped problems, max_rounds=4) submitted before the real 55x32 run
+per CLAUDE.md rule 5 / this project's "smoke one cell before the full array" convention.
+
+**Two free CPU-only follow-ups requested, not yet done**: (a) reconcile F1's reported 18.9-23.6
+attempts-per-unsolved-cell (MECHANISM.md) against this session's pass@N recount's 1.94-mean
+propose-attempts — likely a "propose-only" vs "propose+refine" counting-definition difference, not
+a contradiction, but needs to resolve cleanly since F1 is the mechanical basis for the
+diversity-collapse story. (b) attempts-per-cell-by-budget table for all 4 model x benchmark
+combinations, methods-section material regardless of the calibration outcome.
