@@ -1913,3 +1913,27 @@ propose-attempts — likely a "propose-only" vs "propose+refine" counting-defini
 a contradiction, but needs to resolve cleanly since F1 is the mechanical basis for the
 diversity-collapse story. (b) attempts-per-cell-by-budget table for all 4 model x benchmark
 combinations, methods-section material regardless of the calibration outcome.
+
+## 2026-07-24 — Calibration smoke test PASSED; full 55x32 cell submitted, sharded
+
+Smoke (job 11682216, 2 trapped problems, max_rounds=4) COMPLETED clean, 1h11m: `stop_reason:
+"max_rounds"` (confirms max_rounds — not the token budget — is the real, exact stopping condition;
+tokens_spent 60771/66406 vs a 2,000,000 budget, nowhere near binding), `n_attempts: 4` matching
+max_rounds exactly, all attempts `kind: "propose"` (refinement correctly disabled), real Lean
+compile-error feedback (genuine verification, not mocked). Plumbing validated end to end.
+
+**GPU-hour estimate**: from smoke timing (~20min fixed vLLM+Lean-staging overhead, ~12.8min/round
+thereafter), worst case (a problem exhausts all 32 rounds unsolved) is ~6.8h/problem. Sharded 8-way
+(mirrors WS1.1's proven pattern) with ~6.9 problems/shard, safely under n_workers=8 so every shard
+gets full within-shard parallelism -> worst-case wall-clock per shard ~7h (fits the 12h `short` cap
+in one shot, no resume cycles expected) but **worst-case aggregate GPU-hours across 8 shards is
+~54h — over CLAUDE.md's 50 GPU-h ask-before line.** Flagging explicitly per convention even though
+this exact cell was already authorized ("Run it") — this is a conservative upper bound (assumes
+literally zero early solves across all 55 samples-of-32 trapped problems, implausible given the
+whole point of the run is testing whether plain resampling recovers some of them); real cost is
+expected to be well under this ceiling. Per `feedback_gpuh_limit_flexible`, not truncating scope to
+duck under 50 given the finding this buys.
+
+**Submitted**: `sbatch --array=0-7 slurm/sweep_array.sh configs/calibration_trapped32_goedel_minif2f.yaml
+calibration_trapped32_goedel_minif2f`, `--exclude=ins082,ins087,ins089,ins091` (known-bad nodes),
+`ATP_NSHARDS=8`. Job ID and monitoring to follow in PROGRESS.md.
