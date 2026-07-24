@@ -1782,3 +1782,14 @@ NVML-herd node-exclude fix; see PROGRESS.md cont.9-25). `phase4_perseed.py` and
 **This is the input to Gate G1** (PLAN_NEXT.md WS1, "end of WS1"): one-paper-vs-two-paper call.
 Per PLAN_NEXT.md §0 ground rules and the WS1.1 pre-registration, **this is the user's call, not
 this session's** — presenting evidence via AskUserQuestion, not deciding unilaterally.
+
+## 2026-07-21 — Gate G1 resolved: ONE-PAPER world
+
+User call (per Gate G1, PLAN_NEXT.md WS1): **one-paper world**. Phase 4's allocation result folds
+into WS2 as the constructive section, honestly scoped as model-dependent — strong/robust for
+Goedel (+26% +/- 7%), noise-dominated/inconclusive for DeepSeek even at n=8 (+10% +/- 24%, within
+1sigma of zero). WS3 (standalone online-policy paper) is NOT being spun out.
+
+This does not reopen WS2 for writing — the paper (`paper/floor/`) remains paused per the
+2026-07-16 PLAN_NEXT.md update until the user explicitly says to resume writing. This entry only
+records the structural decision so it's ready when WS2 does reopen.
