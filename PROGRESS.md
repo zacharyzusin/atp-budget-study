@@ -3874,3 +3874,11 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   another TIMEOUT. Cell count 925, up from 634 (big jump as completed shards flushed final results).
   Resubmitted remaining indices 0,2,4 as job 11650652.
   WS2 (paper/floor/) untouched.
+
+### 2026-07-21 (cont. 25) — WS1.1: ALL 8 SHARDS COMPLETED
+
+- Shard-indices 0,2,4 completed cleanly in job 11650652 (no further TIMEOUT). Combined with
+  1,3,5,6,7 from 11641972, all 8 distinct shard-indices (seeds) are now COMPLETED. Final cell
+  count 931. DeepSeek-Prover-V2-7B x ProofNet# power-up from 3->8 seeds is DONE.
+  Next: re-run phase4_perseed.py and scripts/analyze_allocation.py on the full 8-seed pool.
+  WS2 (paper/floor/) untouched.
