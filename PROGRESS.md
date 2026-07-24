@@ -3882,3 +3882,40 @@ false-alarm-queueing + a genuine but caught-before-harm time-limit oversight.
   count 931. DeepSeek-Prover-V2-7B x ProofNet# power-up from 3->8 seeds is DONE.
   Next: re-run phase4_perseed.py and scripts/analyze_allocation.py on the full 8-seed pool.
   WS2 (paper/floor/) untouched.
+
+## 2026-07-24 — External calibration critique: 3 CPU-only checks complete
+
+Per user-authorized bounded calibration sprint (no GPU spend yet), ran 3 CPU-only checks against
+Phase 0 baselines. Full detail: `results/phase0/PASS_AT_N_RECOUNT.md`,
+`results/phase0/TRUNCATION_AND_TIMEOUT_AUDIT.md`, `results/phase6/STAGE_A_FORMAT_DIFF.md`
+(script: `scripts/phase0_calibration_checks.py`).
+
+1. **pass@N recount**: Goedel x miniF2F's 128k-token budget = median 1 / mean 1.94 / max 14 propose
+   attempts (refinement eats the budget) -> empirical pass@N plateaus at N~8 (75.0%) purely because
+   no (problem,seed) ever got more samples, NOT because of real saturation. Cannot currently
+   determine if pass@32 would be higher. DeepSeek similar (max 12-19). Strengthens the case for the
+   pre-registered GPU calibration cell (2026-07-21 DECISIONS.md entry) rather than resolving the
+   question CPU-only.
+2. **Truncation/heartbeat**: token-cap truncation low (0.09-8.37%, not a dominant driver). BUT
+   heartbeat-timeout contamination of REFINEMENT steps is material: 17.80% (Goedel) / 17.75%
+   (DeepSeek) of miniF2F refine steps were fed a spurious heartbeat-timeout error as their failure
+   reason (vs 1.6-3.4% on ProofNet#) - far above the 1.1% terminal-flip rate the 2026-07-16 audit
+   found (which only checked trapped-core final state, not intermediate refinement). **Correction
+   to SYNTHESIS.md's verifier-soundness section**: the missing maxHeartbeats setting is NOT purely a
+   scoring correction on miniF2F - it materially distorted agent trajectories via wrong Lean error
+   feedback in ~1/6 refinement steps. Phase 2's mechanism findings (F1-F5), mined from these same
+   traces, may partly reflect this harness artifact rather than pure model capability, on miniF2F
+   specifically.
+3. **Stage A format diff**: prompt wrapper is byte-identical to inference (train/inference
+   reimplementation-bug hypothesis REFUTED). Real divergence found instead: training label is
+   code-only with zero plan text, while the prompt explicitly requests a proof plan before code -
+   verified against a live training example. Plausible (not proven) explanation for the -12 to -20pp
+   Stage A regression: SFT may be training away a load-bearing reasoning step, not just changing
+   style. Needs a raw pre-SFT harvest completion check to confirm plan prose existed and was
+   stripped - not done this pass.
+
+Data caveat: 28/732 (3.8%) of Goedel x miniF2F's agent_states files unreadable, excluded from these
+3 checks; does not affect headline pass@B numbers (separate intact summary files).
+
+**Not yet done**: the GPU calibration cell (pre-registered 2026-07-21, thresholds set, awaiting
+explicit go-ahead). WS2 paper pause still in effect; this is validation only.
