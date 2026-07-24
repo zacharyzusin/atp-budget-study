@@ -3919,3 +3919,28 @@ Data caveat: 28/732 (3.8%) of Goedel x miniF2F's agent_states files unreadable, 
 
 **Not yet done**: the GPU calibration cell (pre-registered 2026-07-21, thresholds set, awaiting
 explicit go-ahead). WS2 paper pause still in effect; this is validation only.
+
+## 2026-07-24 (cont.) — Two more free CPU-only checks: F1 reconciled, 2k-budget characterization issue found
+
+`results/phase2/F1_ATTEMPT_COUNT_RECONCILIATION.md`: **F1's "18.9-23.6 attempts" claim is CORRECT,
+no contradiction with the pass@N recount.** Different population + counting convention: F1 = TOTAL
+(propose+refine) attempts on UNSOLVED cells only; recount's 1.94 mean = PROPOSE-only across ALL
+cells (most solve on attempt 1). Directly recomputed unsolved-cell means from the same agent_states
+data both draw from: 18.90/23.63, matching MECHANISM.md's 18.9/23.6 exactly; solved-cell means
+2.14/6.30 also match. F1's diversity-collapse mechanism is unaffected by any of this session's
+findings.
+
+`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`: sanity-checked against the published curve (Goedel x
+miniF2F 128k: 75.0% recomputed vs 74.9% reported — matches). New finding: **at budget=2000, the
+median cell across all 4 model x benchmark combinations completes ZERO full propose attempts** — the
+first generation call itself typically doesn't finish inside a 2k budget. The 2k point on every
+headline pass@B curve is measuring "did a truncated first attempt happen to already contain a
+correct proof," not "did the model get a real try." Also: solve rate saturates much faster than
+attempt count grows on miniF2F (59.8%->75.0% solved from 8k->128k while propose attempts only go
+0.82->1.94; refinement's share of solves grows 0%->~15%); ProofNet# never saturates (propose
+attempts climb 0.16->4.71 while solved% barely moves 4.8%->14.3%). Another Phase-0 characterization
+item for the eventual writeup, independent of the GPU calibration outcome.
+
+GPU smoke test (job 11682216, 2 trapped problems, official-header template, max_rounds=4) still
+RUNNING at 23min elapsed (vLLM startup + Lean env staging typical for this harness). Awaiting
+completion before submitting the real 55x32 calibration cell.
