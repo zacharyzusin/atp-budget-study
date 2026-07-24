@@ -1824,3 +1824,36 @@ its published miniF2F number. **This is already resolved, not assumed** — re-c
 **Verdict on external-critique check #2: closed, does not implicate our harness.** Proceeding to
 checks #1 (pass@N recount) and #3 (finish-reason/heartbeat-in-refinement audit), CPU-only, per the
 user's explicit "no GPU yet" scoping — full writeup once those land.
+
+## 2026-07-21 — Pre-registration: Goedel-V2 calibration cell (GPU, NOT YET RUN)
+
+Per the external calibration critique, pre-registering the read BEFORE running the one GPU cell it
+requires (per user instruction — thresholds written down first, cell not yet authorized/run):
+
+**Cell:** Goedel-Prover-V2-8B, miniF2F-test, 32 independent samples per problem, temp 0.7,
+max_tokens 30000, OFFICIAL header/instruction (no budget meter, no refinement loop — plain
+best-of-32 sampling), on our existing verified Lean pin (v4.9.0-rc1 / mathlib `2f65ba7`, see prior
+entry — pin itself is not in question).
+
+**Two reference anchors** (not one — per the critique, the paper's own 84.6% is not the only
+legitimate comparison point; GAR's independent re-evaluation implies a base pass@32 nearer ~78% for
+this model family):
+
+- **≥ ~82%** → serving/harness is fine. The critique collapses to a methods-section fix: state the
+  budget-vs-pass@N axis distinction explicitly in the writeup; the agent-loop-vs-plain-sampling delta
+  becomes a small side finding, not a defect.
+- **~78–82%** → consistent with independent (GAR-anchored) reproduction. Report the calibration
+  number in the paper as the reference point used, move on — no harness fix needed.
+- **< ~76%** → real defect. The trapped-core definitions (used throughout Phases 2-7's mechanism
+  claims) need regenerating on a fixed harness, and the "Goedel carries the one positive Phase-4
+  result" concern must be resolved before that result is written up.
+
+**Scope guardrail (explicit, per user instruction):** this cell is validation of already-committed
+results, not a new experimental arm. It does not reopen the intervention space (no decomposition
+axis, no new scaffolding component), does not lift the WS2 paper-writing pause, and has a defined
+stop: this cell plus the CPU-only checks already in flight (pass@N recount, finish-reason/heartbeat
+audit, Stage A format diff). Phase 8 regeneration is an explicitly separate, larger decision to be
+made AFTER this calibration lands, not bundled into it.
+
+**Status: NOT YET RUN.** Awaiting the CPU-only checks' results and explicit user go-ahead for the
+GPU spend (small — 244 problems × 32 samples on one model, single cell, not a sweep).
