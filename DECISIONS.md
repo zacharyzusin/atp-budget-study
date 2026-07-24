@@ -1793,3 +1793,34 @@ Goedel (+26% +/- 7%), noise-dominated/inconclusive for DeepSeek even at n=8 (+10
 This does not reopen WS2 for writing — the paper (`paper/floor/`) remains paused per the
 2026-07-16 PLAN_NEXT.md update until the user explicitly says to resume writing. This entry only
 records the structural decision so it's ready when WS2 does reopen.
+
+## 2026-07-21 — External calibration critique: check #2 (Lean/mathlib version) resolved from existing evidence
+
+A detailed external critique (relayed by the user) raised the possibility that our Lean v4.9.0-rc1 /
+mathlib `2f65ba7` pin is a year+ older than what Goedel-Prover-V2 and DeepSeek-Prover-V2 were actually
+trained/evaluated against, and that this (not a code bug) could explain Goedel's apparent ~10pp gap vs
+its published miniF2F number. **This is already resolved, not assumed** — re-checking prior entries:
+
+- The 2026-06-04 pin-lock entry (line ~74-84 above) verified our mathlib commit by reading
+  Goedel-Prover-V2's OWN repo `.gitmodules` + root submodule pointer directly (not copied from a
+  guess): it resolves to `xinhjBrant/mathlib4@2f65ba7…`, the exact commit we pin. The official
+  upstream mathlib API 404s on this SHA, confirming it's fork-specific to Goedel's own training/eval
+  environment, not a coincidence.
+- A second, independent cross-check (2026-06-17, line ~1362 above) walked DeepSeek-Prover-V1.5's own
+  `.gitmodules` via the GitHub Contents API and got the SAME commit — consistent with Goedel-Prover
+  being built on top of DeepSeek-Prover-V1.5-Base and inheriting its mathlib fork rather than
+  re-pinning.
+- So our pin is not "a reasonable choice," it is **the exact commit read out of the model authors'
+  own repos** for the model family our Goedel-V2/DeepSeek-V2 checkpoints descend from. This rules out
+  "we verified against a newer, incompatible mathlib" as an explanation for any Goedel-specific
+  underperformance. (It does NOT rule out that a *published* number like 84.6% was measured by a
+  third party on a different/newer pin than the authors' own training env — that's a claim about the
+  external paper's methodology, not about ours, and isn't checkable from this repo.)
+- Known, already-documented, non-explanatory-of-the-asymmetry limitation: `grind` (Lean's newer
+  automation tactic) is Lean>=4.14 and not available on our v4.9.0-rc1 pin (DECISIONS.md
+  2026-06-1x, Phase 3 hammer-probe prep). This affects both models identically (same pin), so it
+  cannot explain a Goedel-specific gap, only a possible modest downward bias on both.
+
+**Verdict on external-critique check #2: closed, does not implicate our harness.** Proceeding to
+checks #1 (pass@N recount) and #3 (finish-reason/heartbeat-in-refinement audit), CPU-only, per the
+user's explicit "no GPU yet" scoping — full writeup once those land.
