@@ -3944,3 +3944,12 @@ item for the eventual writeup, independent of the GPU calibration outcome.
 GPU smoke test (job 11682216, 2 trapped problems, official-header template, max_rounds=4) still
 RUNNING at 23min elapsed (vLLM startup + Lean env staging typical for this harness). Awaiting
 completion before submitting the real 55x32 calibration cell.
+
+## 2026-07-24 (cont.) — Calibration cell: smoke passed, full run submitted (job 11682365)
+
+Smoke test (11682216) validated the new plumbing end-to-end (see DECISIONS.md same date for detail).
+Full 55-problem x 32-sample Goedel x miniF2F trapped-core calibration cell submitted as job
+**11682365**, 8-way sharded (~7 problems/shard, `short` partition, A6000, exclude
+ins082/087/089/091), config `configs/calibration_trapped32_goedel_minif2f.yaml`. Worst-case GPU-h
+~54 (flagged, see DECISIONS.md), expected wall-clock ~7h/shard if no resume cycle needed. Currently
+PENDING. WS2 (paper/floor/) still untouched throughout.
