@@ -3953,3 +3953,9 @@ Full 55-problem x 32-sample Goedel x miniF2F trapped-core calibration cell submi
 ins082/087/089/091), config `configs/calibration_trapped32_goedel_minif2f.yaml`. Worst-case GPU-h
 ~54 (flagged, see DECISIONS.md), expected wall-clock ~7h/shard if no resume cycle needed. Currently
 PENDING. WS2 (paper/floor/) still untouched throughout.
+
+## 2026-07-24 (cont.) — Calibration job 11682365: all 8 shards healthy, early
+
+All 8 shards RUNNING (14-57min elapsed), no failures, spread across ins088/086/080/092/085 (no
+overlap with excluded nodes). Well within the ~7h worst-case wall-clock window. Continuing hourly
+checks.
