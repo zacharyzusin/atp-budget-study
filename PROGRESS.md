@@ -3959,3 +3959,8 @@ PENDING. WS2 (paper/floor/) still untouched throughout.
 All 8 shards RUNNING (14-57min elapsed), no failures, spread across ins088/086/080/092/085 (no
 overlap with excluded nodes). Well within the ~7h worst-case wall-clock window. Continuing hourly
 checks.
+
+## 2026-07-24 (cont.) — Calibration job 11682365: 2h check, all healthy
+
+All 8 shards RUNNING (1h15m-1h58m elapsed), no failures, same nodes as before. Continuing hourly
+checks.
