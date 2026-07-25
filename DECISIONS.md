@@ -2108,3 +2108,79 @@ not yet done). DeepSeek's trapped cores — logging as a known scope limit (mini
 effect is small; DeepSeek's own baselines already match published numbers) rather than a to-do. F2's
 taxonomy re-derivation against raw Lean error codes — still the one substantive open item from the
 original critique, CPU-only, not yet started.
+
+## 2026-07-25d — ProofNet# calibration cell: NO-GO. Three free substitutes done. Gate 1 reasoning corrected. Self-correction on my own gate-2 leverage math.
+
+**No-go, confirmed and closed.** Per user: leverage math doesn't justify the spend at any reasonable
+sample count in a one-paper world, for a null that isn't the headline. Not running it.
+
+**Design-advice reversal, logged for the record (per user's request not to leave it stale):** last
+round's "breadth over depth" (150×16 or 150×12) was right when coverage looked like ~1 attempt/problem
+(the overall-population average). It is wrong now that ProofNet#'s trapped core specifically already
+has broad shallow coverage (see the correction below) — depth, not breadth, is what would add
+information if this were ever revisited. Correct design would be ~40 problems × 32 samples, not
+150 × 12-16.
+
+**Self-correction — gate 2's "4× gap" (median 4 vs 1.94 propose attempts) was computed over ALL
+cells in `ATTEMPTS_PER_BUDGET_TABLE.md`, not the trapped population specifically.** Recomputed
+directly from `results/{baseline,proofnet_baseline}/agent_states/*.json`, restricted to the actual
+trapped-core problem lists, summed propose attempts across all 3 baseline seeds per problem:
+
+- **miniF2F trapped (n=55):** mean=11.89, median=11, min=5, max=35 combined propose attempts.
+- **ProofNet# trapped (n=150):** mean=14.71, median=13, min=6, max=47 combined propose attempts.
+
+These are close, not a 4× gap — the earlier gate-2 comparison used the wrong (unrestricted) baseline.
+Corrected leverage: the miniF2F calibration cell's real leverage over existing coverage was **32/11.89
+≈ 2.7×**, not the ~10× implied by "union of ~3." To match that same 2.7× leverage on ProofNet#
+(coverage 14.71) requires **N≈40 samples**, not 64 — pricing at **≈157 GPU-h** (150×40, scaled from job
+11682365's observed ≈46 GPU-h / (55×32) rate), not ≈250 GPU-h. Still ~3.1× the 50-GPU-h ask-first line
+and still not worth it for one of eight converging nulls in a one-paper world — **the no-go stands**,
+but the number backing "5×" in the prior message was itself built on the same uncorrected baseline and
+should be read as ≈3×. Corrected figures are the ones on the record from here.
+
+**Free substitute #1 — fold Check B's flips into Phase 7's denominator.** All 3 Goedel×ProofNet#
+heartbeat-reverify flips (`Ireland__Rosen__exercise_12_12`, `Rudin__exercise_4_4b`,
+`Rudin__exercise_5_5` — `results/audit/AUDIT_FINDINGS.md` Task B) are confirmed members of the
+150-problem `trapped_proofnet.txt` list. **Phase 7's trapped-core population is 147, not 150** —
+3 of the reported "0/150" were already known-recoverable before Phase 7 even ran, via a scoring fix
+unrelated to re-grounding. Correcting SYNTHESIS.md's Phase 7 section to state 0/147 (with the 3
+pre-known exclusions named), not 0/150.
+
+**Free substitute #2 — token-matched resampling control for Phase 7 (and, by the same shape, for
+Phase 5).** No ProofNet# calibration cell exists to build a matched-budget control the way Step C got
+one, but the trapped-core definition itself already IS a resampling control: by construction, these
+147 problems went unsolved across 3 independent baseline seeds contributing a combined median of 13
+independent propose attempts each (above). Phase 7's re-grounding modes 3/4 found 0 recoveries on top
+of that — so the honest statement is "0/147 additional recoveries beyond ~13 independent proposals
+already on record," converting Phase 7's null from "didn't beat zero" to "didn't beat ~13-sample
+resampling," the same conversion Step C got. **Phase 5's pilot gets the identical treatment**: on
+closer check, Phase 5's "Goedel 1, DeepSeek 0" result was a **10-cell-per-model PILOT SUBSAMPLE of the
+ProofNet# trapped core** (not miniF2F, not the full 150 — problem names in the pilot log
+`Herstein_3_2_21`, `Rudin_3_2a`, `Artin_10_6_7`, `Rudin_5_17` are all ProofNet#-style; SYNTHESIS.md's
+terse "Phase 5 ... (Goedel 1, DeepSeek 0)" line doesn't currently say this). Same ~13-attempt baseline
+coverage applies as the resampling control; the 1 solve came from EXTENDING the existing trajectory
+past 128k (a different mechanism than fresh resampling), so it isn't in tension with "0 clean
+resampling recoveries" — it's a different lever (more of the same attempt) that also found little.
+
+**Free substitute #3 — coverage stated explicitly for the eventual writeup:** miniF2F trapped ≈ 11
+median independent proposals (3 seeds combined) before the calibration cell found 2 clean / 1
+contaminated recoveries at N=32 (2.7× leverage). ProofNet# trapped ≈ 13 median independent proposals
+already on record, untested beyond that (Phase 7's re-grounding is a different lever, not resampling).
+miniF2F's ≥11% at N=32 should be read as a weak upper bound on ProofNet# contamination given the
+similar (not 4×-different) starting coverage and the modest (2.7×) leverage that produced it — not a
+confident estimate.
+
+**Gate 1 reasoning corrected.** "20.7% of solves used refinement" is a decomposition of where solves
+first appeared, not a counterfactual — it doesn't establish those solves wouldn't have come from fresh
+samples at equal tokens. Comparing it to the OFAT noise bar was a category error (that bar measures
+between-arm differences, not within-run attribution shares) — retracting that comparison. The
+load-bearing reason to not run the arm is Phase 1's own `budget_alloc__0` result: a wash at ≤32k,
+directionally harmful on ProofNet# (an actual counterfactual, not an attribution share). The 20.7%
+stands as a descriptive fact worth keeping, with this caveat attached. Per the user, Goedel-V2's own
+self-correction mode reportedly nets ~+2pp at pass@32 — logging as a **user-provided, not
+independently verified in this repo**, sanity anchor for the right order of magnitude of refinement's
+counterfactual value (consistent with 20.7% being an overstatement of causal contribution).
+
+**Status**: F2's taxonomy re-derivation (the one remaining substantive item) dispatched to a fork —
+see next entry when it returns. Phase 5's re-tally is now done (above, folded into substitute #2).
+DeepSeek's trapped cores remain a logged scope limit, not a to-do.
