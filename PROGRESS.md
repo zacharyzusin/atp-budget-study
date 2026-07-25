@@ -4163,3 +4163,19 @@ Paper compiles clean throughout (pdflatex, now 11 pages). Remaining `\todo{}`s: 
 adaptive-allocation prior art + Leanabell-Prover-V2's exact bib metadata), and 3 figures (pass@B grid,
 Step C diversity panel, allocation frontier) that need their generation scripts run and embedded —
 all "ordinary writing," not calibration or analysis work, and the natural next session's task.
+
+## 2026-07-25 (WS6 session) — Plan committed, 3 items substantively landed same day
+
+Planned and committed WS6 (`PLAN_NEXT.md`, memory `atp-ws6-plan.md`), 2026-08-08 stopping rule for
+items 1/2-free/6a-c. Same-session progress:
+- 6a pass@32 reconciliation: done (195/244≈80%, closes the calibration question).
+- 2-free contamination correlation: done, NULL, wrong direction (trapped problems slightly MORE
+  similar to training corpus, not less) — paid mutation-probe escalation not triggered.
+- 1 equivalence bounds: Phase 1's 6 scaffolding components × both benchmarks done. Found a real
+  surprise (predicted by the user): miniF2F retrieval's bootstrap CI on one run is entirely positive,
+  contradicted by an independent replication — folded in as a methods lesson about run-to-run vs.
+  within-run variance. Stage B / Step C bounds still open.
+
+All three landed items are compiled into `paper/floor/main.tex` (12 pages, clean build) and logged in
+DECISIONS.md 2026-07-25o/p/q. Remaining WS6 work: item 1's Stage B/Step C extension, item 3's
+decomposition-arm go/no-go, items 4/5/6b/6c.
