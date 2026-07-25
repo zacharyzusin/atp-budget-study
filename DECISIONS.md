@@ -2366,3 +2366,28 @@ Doesn't reverse F2's headline (deep-reasoning failure still dominates the termin
 sharpens the encountered-premise-error story from correction #6 — worth one sentence in the paper's
 limitations section distinguishing "prover trained against a stale/foreign API surface" from "prover
 inventing lemmas that never existed in any mathlib version." CPU-only, no GPU spend, ~5 min.
+
+## 2026-07-25k — Header-confound puzzle RESOLVED: 4/6 genuine, 2/6 header-dependent
+
+Job 11684122 completed (9m03s, rc=0). Re-verified the 6 Goedel×miniF2F calibration-cell recoveries
+under a simulated OLD (pre-2026-07-06) Lean verifier that omits `set_option maxHeartbeats 0`:
+
+| problem | current (lenient) | old (strict default) | verdict |
+|---|---|---|---|
+| aime_1988_p8 | True | True | genuine |
+| aime_1997_p9 | True | False | header-dependent |
+| algebra_apbon2pownleqapownpbpowon2 | True | False | header-dependent |
+| amc12a_2021_p8 | True | True | genuine |
+| amc12b_2021_p18 | True | True | genuine |
+| imo_1968_p5_1 | True | True | genuine |
+
+**4/6 (67%) are genuine sampling recoveries** — they verify even under the strict old default
+heartbeat setting, so plain pass@32 resampling found real new proofs, not verifier-leniency
+artifacts. **2/6 (33%) are header/verifier-fix recoveries** — `algebra_apbon2pownleqapownpbpowon2`
+is confirmed to be the same problem Check B already flipped independently (two separate detection
+methods agreeing), and `aime_1997_p9` is a newly-identified second header-dependent case.
+
+This closes the interpretive puzzle opened in the 2026-07-25h reopen message: the ~33-union-proposal
+coverage finding does NOT mean the 6 recoveries are mostly artifacts — most (4/6) are real. Folded
+into SYNTHESIS.md correction #3 and `CALIBRATION_FINDINGS.md`. No further action needed on this
+thread; WS2 writing continues unblocked.

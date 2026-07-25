@@ -271,10 +271,33 @@ itself is still untouched (WS2 pause holds until you reopen it).
    retrieval kill decision, which rests on Phase 1's direct BM25 ablation (−36 net
    flips), independent evidence this correction doesn't touch.
 
+## Post-closure addendum (WS2 reopened 2026-07-25h, writing in progress)
+
+The sprint was formally closed above, but the reopen message raised one more item that
+has since resolved, plus writing work now underway:
+
+- **Header-confound puzzle: RESOLVED (2026-07-25k).** Re-verified the 6 Goedel×miniF2F
+  calibration-cell recoveries under a simulated old (pre-2026-07-06) Lean verifier
+  omitting `maxHeartbeats 0` (job 11684122). **4/6 are genuine sampling recoveries**
+  (verify even under the strict old default); **2/6 are header/verifier-fix
+  recoveries** (`aime_1997_p9`, and `algebra_apbon2pownleqapownpbpowon2` — the latter
+  confirmed as the same problem Check B already flipped, two independent methods
+  agreeing). Full table in DECISIONS.md 2026-07-25k, folded into SYNTHESIS.md
+  correction #3.
+- F2/retrieval framing narrowed directly in `paper/floor/main.tex` (BM25-specific
+  failure, neural retrieval stated as untested), per the reopen message's request.
+- New bounded characterization written into the paper's limitations section: 20
+  sampled ProofNet# unknown-identifier names checked against current upstream
+  mathlib4 — 17/20 absent entirely, leaning toward genuine model/API mismatch over
+  simple version skew (DECISIONS.md 2026-07-25j).
+- Both flagged "contributions" (pass@budget-vs-pass@N gap; heartbeat-timeout methods
+  warning) written into the Setup and Methodology sections respectively.
+
 ## Residuals (logged as known scope limits, not to-dos)
 
 - DeepSeek's trapped cores remain uncalibrated on both benchmarks — the miniF2F result
   suggests the effect is small, and DeepSeek's own baselines already match published
   numbers.
-- No edits to `paper/floor/` — sprint is closed; **recommending WS2 reopen** (per
-  DECISIONS.md 2026-07-25g), awaiting your confirmation.
+- `paper/floor/` (WS2) is reopened and actively being written; remaining `\todo{}`s
+  (citations, Figure 1 generation, PINS.md repro appendix) are ordinary writing work,
+  not calibration items.
