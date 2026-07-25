@@ -4076,3 +4076,52 @@ All items from the original critique and every follow-on are now resolved, run, 
 reasoning, or logged as a scope limit. SYNTHESIS.md has 6 marked/dated corrections with full audit
 trail. `CALIBRATION_FINDINGS.md` updated to reflect closure. **Sprint formally CLOSED
 (DECISIONS.md 2026-07-25g). Recommending WS2 (paper/floor/) reopen — awaiting user confirmation.**
+
+## 2026-07-25h — WS2 reopened; retraction logged; header-confound queued
+
+User confirmed reopening `paper/floor/` (WS2), paused for the whole calibration sprint. Also issued a
+retraction on their own earlier framing: "trapped core ≈ 6 effective samples" conflated the
+overall-population attempt-count median with the trapped-restricted one — trapped cells had ~33 union
+proposals across the 3 original seeds (parity with the calibration cell's N=32), so they were never
+attempt-starved. Logged verbatim in DECISIONS.md 2026-07-25h and folded as a precise clause into
+SYNTHESIS.md correction #1 (curve shape near the origin is attempt-starved; the flat tail past N≈14 is
+unmeasured but not because of undersampling).
+
+This reopened an interpretive puzzle: if ~33 proposals already existed, why did 32 fresh samples
+recover 6? Leading suspect: the calibration cell's official header + the unconditional
+`maxHeartbeats 0` fix at verify time (2026-07-06) — i.e. some of the 6 may be header-fix recoveries,
+not genuine sampling wins, same root cause as Check B's 2 confirmed flips. Direct lookup confirmed
+`algebra_apbon2pownleqapownpbpowon2` is both a Check B flip and one of the 6. Queued a free CPU-only
+re-verify (`scripts/header_confound_reverify.py` + `slurm/header_confound_reverify.sh`) to settle the
+rest, explicitly non-blocking per the user ("can run alongside writing").
+
+## 2026-07-25i/j — header-confound job submitted+fixed; F2/retrieval framing + mathlib-skew check written into paper/floor/main.tex
+
+Committed and submitted the header-confound Slurm job (11684091); first attempt failed fast
+(`data.use_novel_split=True but no novel_names provided`) because the script called `load_dataset`
+without first loading `data.novel_names_file` the way `eval/run.py` does. Fixed
+(`load_novel_names(config)` before `load_dataset`), re-verified the unit test still passes, resubmitted
+as job 11684122 (RUNNING as of this entry) — result still pending, folds back into SYNTHESIS.md
+correction #3 once done.
+
+While that job ran in parallel, wrote three of the sprint's outstanding items directly into
+`paper/floor/main.tex` (compiles clean, `pdflatex` 8 pages, no new errors):
+- Narrowed the retrieval-killed framing (intro contributions bullet, related-work \todo, and the F2
+  bullet in Section~\ref{sec:mechanism}): "nothing to retrieve" → BM25 specifically fails net of cost,
+  neural/ReProver-style retrieval stated as untested, with the corrected ProofNet# terminal-vs-
+  encountered split (51.9% encountered vs. ~0-1% terminal unknown-identifier) folded in.
+- Ran the requested bounded characterization: sampled 20/571 unique unknown-identifier names from
+  ProofNet# baseline attempts, checked each against a fresh shallow clone of upstream mathlib4 HEAD
+  (cloned to scratch, deleted after use). Only 3/20 (15%, all generic reused suffixes) found a
+  same-named declaration anywhere in current mathlib; 17/20 had no match at all, including the
+  corpus's most frequent unknown identifier (`IsGroupHomomorphism`, 27 occurrences) — leans toward
+  genuine API mismatch over simple version-skew. Written up as a new limitations paragraph
+  (DECISIONS.md 2026-07-25j has the full method/numbers).
+- Wrote up both flagged "contributions": the pass@budget-vs-pass@N gap (new Setup-section paragraph,
+  using `results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`'s exact attempt-count-by-budget numbers) and the
+  heartbeat-timeout methods warning (extended the existing Round-2 methodology paragraph with the
+  17.8%/17.75% refine-step distortion rate and an explicit warning for refinement-loop builders).
+
+Remaining: fold the header-confound result back into SYNTHESIS.md/CALIBRATION_FINDINGS.md once job
+11684122 finishes; continue filling the paper's remaining \todo{}s (citations, Fig 1 generation,
+PINS.md repro appendix) as the next writing pass.

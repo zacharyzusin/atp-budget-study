@@ -73,9 +73,10 @@ is currently confirmed (Section~\ref{sec:allocation}).
     budget$\to$solve relationship and its saturation asymmetry (Section~\ref{sec:passb}).
   \item A one-factor-at-a-time ablation of six agentic scaffolding components showing none is a net
     positive lever, and that two are actively harmful out-of-distribution (Section~\ref{sec:scaffolding}).
-  \item A four-part mechanism account (diversity collapse onto a deep-reasoning execution floor with
-    nothing to retrieve) culminating in a \emph{pre-registered, causally interventional} test that
-    confirms the mechanism directly rather than by correlation alone (Section~\ref{sec:mechanism}).
+  \item A four-part mechanism account (diversity collapse onto a deep-reasoning execution floor, on
+    which the one retrieval variant we tested empirically fails) culminating in a \emph{pre-registered,
+    causally interventional} test that confirms the mechanism directly rather than by correlation alone
+    (Section~\ref{sec:mechanism}).
   \item An exhaustion sweep across five further candidate levers --- hammer/SMT tactics, more budget on
     already-trapped problems, closing-likelihood SFT, lightweight post-hoc RL, and full-pipeline
     lab-scale RL across two matched training lineages --- all null, extending the floor from
@@ -94,8 +95,10 @@ is currently confirmed (Section~\ref{sec:allocation}).
 \todo{Position against: (1) the test-time-compute scaling literature (more samples / more search buys
 accuracy) --- we show this does not transfer to agentic scaffolding for whole-proof theorem proving;
 (2) agentic/tool-augmented LLM provers and retrieval-augmented provers (ReProver and successors) ---
-our mechanism finding (F2, Section~\ref{sec:mechanism}) explains why retrieval specifically should not
-help on this failure distribution; (3) step-by-step / search-based provers (BFS-Prover, HTPS,
+our ablation only tests BM25 retrieval, which fails on this failure distribution (F2,
+Section~\ref{sec:mechanism}); neural (ReProver-style) retrieval remains untested here and we say so
+explicitly, rather than let the BM25 result stand in for retrieval broadly; (3) step-by-step /
+search-based provers (BFS-Prover, HTPS,
 InternLM2.5-StepProver) --- out of scope by design (prior work found search $<$ Pass@1, and our
 Section~\ref{sec:mechanism} findings say the bottleneck is execution depth, not search breadth), we test whole-proof
 sampling only; (4) RL-for-reasoning post-training literature --- our Phase 6/8 results are a negative
@@ -128,6 +131,20 @@ under $\sim$1 baseline-$\sigma$ is treated as noise throughout (the ``noise bar'
 comparisons use paired flips (per-(problem, seed) solved/unsolved transitions), not mean deltas, since
 at $n=3$ seeds mean deltas can hide gains-equal-losses churn that a flip table exposes directly
 (Section~\ref{sec:methodology}, lesson 1).
+
+\textbf{pass@\emph{B} is not pass@\emph{N}.} We deliberately report pass@\emph{budget} (solved within a
+cumulative token ledger shared across propose and refine calls for one problem) rather than the
+test-time-compute literature's usual pass@\emph{N} (solved within $N$ independent, unrefined samples).
+The two are not interchangeable, and the gap is budget-dependent, not a fixed offset: at $B$=2k the
+\emph{median} cell across all four (model, benchmark) baselines completes zero full propose attempts
+--- the first generation call itself does not finish within budget for most cells, so the 2k point
+measures whether a truncated partial attempt happened to already contain a complete proof, not whether
+the model got a fair single try. Attempts-per-cell only approach one full independent sample by $B$=8k
+(mean propose count 0.82--0.87 across the four baselines) and keep climbing well past $N$=1 at every
+larger budget we report (mean propose count at 128k: 1.94/2.22 miniF2F, 4.71/5.85 ProofNet\#, Goedel/
+DeepSeek respectively; full table in \texttt{results/phase0/ATTEMPTS\_PER\_BUDGET\_TABLE.md}). Any
+claim that maps this paper's budget axis onto a literature pass@$N$ number should use this table, not
+assume $B$$\leftrightarrow$$N$ parity.
 
 \section{The pass@\emph{B} curve: budget saturation and the in-distribution / OOD asymmetry}
 \label{sec:passb}
@@ -223,10 +240,17 @@ not just correlation. Every finding below holds on both provers $\times$ both be
   \item[\textbf{F1}] \textbf{Diversity collapse.} On never-solved problems, the model tries only
     $\sim$1.8 distinct opening tactics across 18--33 attempts --- it loops on $\sim$2 approaches
     regardless of budget.
-  \item[\textbf{F2}] \textbf{Failure taxonomy.} Unsolved attempts fail at deep reasoning
-    (94--100\% \texttt{reasoning\_deep}), essentially never at a missing lemma
-    ($\sim$0\% \texttt{knowledge\_hallucinated\_lemma}). Premise retrieval cannot help because there is
-    nothing to retrieve --- this is why retrieval was killed, not merely deferred, as a direction.
+  \item[\textbf{F2}] \textbf{Failure taxonomy.} By our classifier's \emph{terminal} label (the single
+    most severe failure mode per cell, across its full attempt history), unsolved attempts fail at deep
+    reasoning (94--100\% \texttt{reasoning\_deep}) and almost never terminate on a missing lemma
+    ($\sim$0--1\% \texttt{knowledge\_hallucinated\_lemma}). Because the terminal label reports only the
+    last, most severe failure, it undercounts non-terminal premise/knowledge errors encountered earlier
+    in a cell's history: on ProofNet\#, an unknown-identifier error is \emph{encountered} in 51.9\% of
+    attempts even though it is almost never the terminal cause. Retrieval (as tested here, BM25 over a
+    fixed premise corpus) still fails to help net of its context-perturbation cost (F2$'$,
+    Section~\ref{sec:scaffolding}) --- but that failure is now better read as retrieval not solving a
+    problem it does encounter, not as a distribution with nothing to retrieve; whether a stronger,
+    neural retriever would fare differently is untested (Section~\ref{sec:related}).
   \item[\textbf{F3}] \textbf{Capability floor.} Unsolved attempts reach a median deepest step of
     26--53 and almost never stall at step 1: the model makes real progress into a proof but cannot
     \emph{close} it.
@@ -372,7 +396,17 @@ correction was found on re-verifying trapped-core failures under a Lean elaborat
 introduced after those results were generated; every flipped cell's proof was already present in the
 original generation, so the fix only ever widens what counts as solved and the reported floor is, if
 anything, a small upward correction, not an overturned result. \todo{fold the 13 corrected cells back
-into the affected pass@B curves once flowed --- arithmetic-only, not a new experiment.}
+into the affected pass@B curves once flowed --- arithmetic-only, not a new experiment.} This 13/1212
+figure is the \emph{final-scoring} blast radius, and understates the setting's live effect on the
+refinement loop itself: on miniF2F, 17.8\% of refine steps (both models, 550/3090 Goedel and
+718/4046 DeepSeek) were immediately preceded by a spurious Lean heartbeat timeout that the
+model then had to react to as if it were a real proof error --- a live trajectory distortion, not
+just a scoring artifact, that this paper has not attempted to quantify beyond the terminal-cell flip
+count. \textbf{Methods warning for refinement-loop builders:} an elaboration-heartbeat limit that is
+lenient at verification time but strict (or absent) during the same run's intermediate refine calls
+silently injects false negative feedback into the loop the model is conditioning on --- worth an
+explicit audit before trusting any refinement-based agent's feedback signal, independent of whether
+the final scoring bug it causes turns out to be small.
 
 \textbf{Lessons carried forward, with sharpest first:} (1)~paired flips beat mean-deltas at $n{=}3$
 seeds --- the flip table is what exposed retrieval as churn rather than signal. (2)~A second, harder,
@@ -417,6 +451,20 @@ test-time-compute and agentic-scaffolding literature that is shipping the same c
 (Section~\ref{sec:related}) this paper shows are null or actively harmful for whole-proof theorem
 proving specifically, with a causal (not correlational) mechanism account and two independently
 matched training-lineage negatives to back it.
+
+\textbf{``The mathlib pin is stale, so `unknown identifier' errors are really a harness artifact.''}
+Our verifier is pinned to a fixed mathlib4 snapshot (Section~\ref{sec:methodology}), and the prover
+does hit unresolved identifiers at a non-trivial rate on ProofNet\# (51.9\% of attempts encounter one,
+Section~\ref{sec:mechanism}), which invites this objection. We checked it directly: of 20 uniformly
+sampled unresolved identifier names from ProofNet\# baseline attempts, only 3/20 (15\%) have a
+same-named declaration anywhere in a fresh clone of current upstream mathlib4, and even those three
+are generic, commonly-reused lemma-name suffixes rather than confirmed matches in the right namespace.
+The remaining 17/20, including the single most frequent unresolved name in the corpus
+(\texttt{IsGroupHomomorphism}, 27 occurrences), have no match at all --- consistent with the model
+targeting an API surface (unbundled \texttt{Is*Hom} predicates) that mathlib4 has since replaced
+outright, not merely renamed. This sample leans toward genuine model/API mismatch over pin staleness,
+though it does not by itself distinguish training-data mathlib version from harness pin version as the
+source of that mismatch.
 
 \textbf{Open question.} The exposure-bias signature (Section~\ref{sec:exhaustion}, Phase~6 Stage~B) ---
 near-zero teacher-forced loss on a verified closing, yet autoregressive failure to reach it --- is this

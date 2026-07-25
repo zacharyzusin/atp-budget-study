@@ -2320,3 +2320,49 @@ recoveries vs. header-fix recoveries that plain resampling merely happened to su
 Lean re-verification, no new generation, same shape as Task B). Does not block WS2 writing — queued
 to run alongside it; result folds back into the ~11% caveat's phrasing (header correction vs. live
 methodological weakness) once done.
+
+## 2026-07-25i — WS2 writing: F2/retrieval framing narrowed in paper/floor/main.tex
+
+Applied the framing correction the user requested for §15/related-work: "retrieval was killed, not
+merely deferred" (main.tex line ~229, pre-edit) overclaimed from a BM25-only ablation. Edited three
+spots in `paper/floor/main.tex`:
+- Contributions bullet (intro): "nothing to retrieve" → "the one retrieval variant we tested
+  empirically fails."
+- Related-work \todo (retrieval positioning): now states neural (ReProver-style) retrieval is
+  untested here, explicitly distinct from the BM25 result.
+- F2 bullet (mechanism section): added the corrected terminal-vs-encountered split (ProofNet# 51.9%
+  encountered vs. ~0-1% terminal unknown-identifier), reframed as "retrieval not solving a problem it
+  does encounter" rather than "nothing to retrieve," and pointed the neural-retriever question at
+  related work as untested.
+
+This mirrors SYNTHESIS.md correction #6 and does not reverse the actual decision (BM25 ablation still
+shows net -36 flips, still the load-bearing evidence against shipping that specific component) --
+only narrows what the paper claims was tested. Header-confound Slurm job 11684091 submitted same
+session, running in parallel (does not block this edit).
+
+## 2026-07-25j — Bounded characterization: mathlib version-skew vs. genuine hallucination
+
+Per the user's request, sampled 20 of the 571 unique "unknown identifier"/"unknown constant" names
+seen in ProofNet# baseline attempts (`results/proofnet_baseline/agent_states/*.json`), uniform random
+(seed 20260725, `scratch/mathlib_skew_sample.json`), and checked each against a fresh shallow clone
+of upstream `leanprover-community/mathlib4` HEAD (2026-07-25, `--depth 1 --filter=blob:none`, cloned
+to scratch, deleted after use — 172M, not worth keeping on disk).
+
+Method: for each sampled name, stripped `.mpr`/`.mp`/`.1`/`.2` suffixes, took the final dotted
+component, and grepped current `Mathlib/` for a `theorem/lemma/def/abbrev/instance/structure/class`
+declaration with that base name anywhere in the tree (namespace-blind — a hit doesn't confirm the
+*same* namespace, only that a same-named declaration exists somewhere in current mathlib).
+
+Result: **3/20 (15%) found** a same-named base declaration somewhere in current mathlib
+(`Nat.Primes.ne_zero`, `Submodule.le_def`, `Subgroup.congr_arg`) — all three are generic,
+commonly-reused lemma-name suffixes (`ne_zero`, `le_def`, `congr_arg`), so even these are only
+*plausibly* renames/relocations, not confirmed ones. **17/20 (85%) had no matching declaration
+anywhere** in current mathlib, including the corpus's single most frequent unknown identifier,
+`IsGroupHomomorphism` (27 occurrences) — consistent with a real API removal (mathlib4 replaced
+unbundled `Is*Hom` predicates with bundled `MonoidHom`/`*Hom` structures), not a simple rename.
+
+Reading: this sample leans toward **genuine API mismatch/hallucination**, not mostly version-skew.
+Doesn't reverse F2's headline (deep-reasoning failure still dominates the terminal-failure count) but
+sharpens the encountered-premise-error story from correction #6 — worth one sentence in the paper's
+limitations section distinguishing "prover trained against a stale/foreign API surface" from "prover
+inventing lemmas that never existed in any mathlib version." CPU-only, no GPU spend, ~5 min.
