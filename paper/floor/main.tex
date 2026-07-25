@@ -547,6 +547,23 @@ audit grounds (Section~\ref{sec:exhaustion}) rather than let an untrustworthy nu
 claim --- so \textbf{full-pipeline RL across multiple training lineages remains untested here, not
 confirmed null}, and is the natural reopening lever for future work.
 
+\textbf{``The execution floor is really just where training-set recall ends.''} A natural alternative
+reading of this entire paper: perhaps solved problems are solved because they (or close variants)
+appear in training data, and the ``floor'' is a memorization boundary, not a capability ceiling. We
+tested this directly rather than leave it to a reviewer: using the exact TF-IDF disjointness machinery
+already built for Phase~6's training-corpus gate (Section~\ref{sec:exhaustion}), we correlated each
+miniF2F problem's textual similarity to the Lean-Workbook training corpus against its trapped/solved
+status. \textbf{The result points the wrong way for the recall-boundary reading to hold}: trapped
+problems are, if anything, marginally \emph{more} textually similar to the training corpus than solved
+problems (mean cosine 0.805 vs.\ 0.743, Mann-Whitney $p$=0.049 --- treat as marginal, not strong,
+evidence either direction) and have a \emph{higher} exact-statement-overlap rate (3.6\% vs.\ 1.6\%),
+not a lower one. If trapped problems were unsolved because the model had seen nothing like them
+during training, we would expect the opposite pattern. A plausible confound is that trapped and
+training-corpus problems share competition-math surface phrasing without that resemblance
+translating into an exploitable memorized proof --- consistent with, not contradicted by, F2/F3's
+reading of trapped failures as execution-depth failures, not recall gaps
+(\texttt{results/phase6/CONTAMINATION\_CORRELATION.md}).
+
 \textbf{``Scaffolding was implemented weakly.''} The Section~\ref{sec:stepc} manipulation check is the
 direct answer: the diversity intervention demonstrably fired (42--70\% more distinct openings,
 budget-matched) and still did not move solves.
@@ -554,6 +571,17 @@ budget-matched) and still did not move solves.
 \textbf{``miniF2F is saturated/contaminated.''} This is exactly why ProofNet\# carries the
 out-of-distribution claims in this paper; the saturation/still-hungry dichotomy between the two
 benchmarks is reported as a finding, not hidden as a limitation.
+
+\textbf{``Your Goedel baseline looks low vs.\ the model's own reported number.''} Our 128k-budget,
+3-seed miniF2F baseline is 74.9\% (Table~\ref{tab:passb}), against the model authors' reported 84.6\%.
+Union coverage across the 3 original seeds plus the 32-fresh-sample calibration cell on the trapped
+core (Section~\ref{sec:mechanism}) reaches 195/244 = 79.9\% $\approx$ 80\%, landing between the
+authors' number and a third-party reproduction of $\sim$78\% --- a believable band, not a harness
+discrepancy, once the sampling regime is matched more closely to what a pass@$N$-style headline
+number actually measures. This union figure is explicitly not a clean pass@$N$ run (it mixes 3
+original seeds with 32 additional trapped-core-only samples) and we do not report it as a headline;
+it exists only to close the calibration question raised during this project's own review process
+(\texttt{results/phase0/PASS\_AT\_32\_RECONCILIATION.md}).
 
 \textbf{``Negative results aren't contributions.''} We position this paper directly against an active
 test-time-compute and agentic-scaffolding literature that is shipping the same components

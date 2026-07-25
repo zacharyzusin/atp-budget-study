@@ -2502,3 +2502,46 @@ either model. Rewrote the abstract, intro contributions bullet, allocation secti
 it clears a significance bar).
 
 Full script: `scripts/phase4_bootstrap_ci.py`. Results: `results/phase4/bootstrap_ci.json`.
+
+## 2026-07-25o — WS6 post-draft strengthening sprint planned, stopping rule set
+
+Per the user's review of the WS2 draft, planned a 6-item strengthening sprint (full pre-registrations
+in `PLAN_NEXT.md`'s new WS6 section; index memory saved at
+`~/.claude/projects/.../memory/atp-ws6-plan.md`). Priority order: (1) equivalence-testing reframe for
+every reported null, free/CPU; (2) contamination-boundary correlation check, free half only, paid
+mutation-probe half explicitly NOT authorized pending signal; (3) decomposition arm, GPU, pre-
+registered bar (≥5/55 on Goedel×ProofNet# trapped core) set now but gated on item 2's outcome, not
+launched; (4) Phase 4 predictor improvement, opportunistic; (5) artifact release packaging,
+opportunistic; (6) housekeeping (pass@32 arithmetic reconciliation, Phase 7 to 3 seeds, DeepSeek
+miniF2F trapped-core calibration).
+
+**Stopping rule, explicit per the user's own caution about the prior sprint's scope creep**: items 1,
+2-free, and 6a/6b/6c close by 2026-08-08 (two weeks) regardless of outcome. Item 3 is a go/no-go
+decision after item 2, not before. Starting 1, 2-free, and 6a in parallel this session, drafting
+`paper/floor/main.tex` alongside per the user's explicit "draft in parallel, not sequentially"
+instruction.
+
+## 2026-07-25p — WS6 item 2 (free half) RESOLVED NULL, wrong direction for the recall-boundary reading; item 6a done
+
+**Item 2, free half (contamination-boundary correlation, CPU-only)**: extended the Phase 6 §0
+disjointness gate's TF-IDF machinery (`scripts/contamination_correlation.py`, new) from
+flag-only-near-duplicates to per-problem cosine scores across the full 244-problem miniF2F set,
+correlated against trapped (0/3 baseline seeds solve, n=55) vs. solved (≥1/3 seeds, n=189) status.
+Per the pre-registered decision rule (PLAN_NEXT.md WS6 item 2, committed before running): **NULL,
+and in the wrong direction for the recall-boundary reading to hold** — trapped problems are
+marginally MORE similar to the Lean-Workbook training corpus (mean cosine 0.805 vs. 0.743 solved,
+Mann-Whitney p=0.049, treat as marginal not strong) and have a HIGHER exact-overlap rate (3.6% vs.
+1.6%), not lower. If the floor were a memorization boundary we'd expect the opposite pattern. **The
+paid mutation-probe escalation (item 2's paid half) is NOT triggered.** Full result:
+`results/phase6/CONTAMINATION_CORRELATION.md`, `contamination_correlation.json`. Folded into
+`paper/floor/main.tex` as a new discussion objection ("The execution floor is really just where
+training-set recall ends").
+
+**Item 6a (pass@32 reconciliation, arithmetic-only)**: 189 baseline union-solved + 6 calibration
+recoveries = 195/244 = 79.9% ≈ 80%, between the model authors' 84.6% and a third-party ~78%
+reproduction. Closes the calibration question the original external review raised ("Goedel's baseline
+looks ~10pp low vs. published numbers") on the record. `results/phase0/PASS_AT_32_RECONCILIATION.md`,
+folded into `paper/floor/main.tex`'s discussion as a new objection response.
+
+Both items compiled clean into the paper (pdflatex, 11 pages). Two of the three 2026-08-08-deadline
+WS6 items are now substantively done; item 1 (equivalence-testing reframe) is next.

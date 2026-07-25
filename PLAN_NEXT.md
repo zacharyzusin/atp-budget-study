@@ -252,3 +252,97 @@ framing calibration before the archival submission, not a publication target in 
 - Base-rate check on any surprising number — high, low, or suspiciously clean (Lesson 7).
 - New config = new code path: write the failing test against real data first (Lesson 8).
 - PROGRESS.md dated entry per session; SYNTHESIS.md updated only at workstream close, not per-run.
+
+---
+
+## WS6 — Post-draft strengthening sprint (2026-07-25, user-directed, stopping rule set)
+
+Triggered by the user's review of the WS2 draft: six candidate additions, ranked by "changes what the
+paper can claim" not "tidies it." **Stopping rule (explicit, per the user's own caution about
+open-ended audit sprints): items 1, 2-free, and 6-arithmetic are written up and closed by
+2026-08-08 (two weeks) regardless of outcome — surprises get one follow-up round, not an open-ended
+chase.** Item 3 (decomposition) gets a go/no-go decision once item 2-free lands, not before. Items 4
+and 5 are opportunistic, not gated to the two-week window.
+
+### Priority order (this session starts on 1, 2-free, 6-arithmetic in parallel)
+
+1. **Equivalence-testing reframe for every reported null (free, CPU).** Replace "within noise" with a
+   paired-per-problem-bootstrap upper confidence bound on the true effect, for: all 7 Phase 1
+   scaffolding components (both benchmarks), Stage B (SFT exposure-bias), Step C (diversity
+   injection), and the Phase 4 realizable-vs-uniform comparisons already redone in WS2's last pass.
+   Generalizes `scripts/phase4_bootstrap_ci.py`'s clustered-by-problem bootstrap pattern to arbitrary
+   paired before/after flip data. Deliverable: a bound per intervention ("retrieval's true effect is
+   below +Xpp at 95% confidence") plus a flag on any intervention whose CI is unexpectedly loose (a
+   power problem worth knowing before a reviewer finds it). Script:
+   `scripts/equivalence_bounds.py` (new). Folds into `paper/floor/main.tex` Section 4
+   (scaffolding) and the mechanism/exhaustion sections as a table, replacing "noise bar" language.
+
+2. **Contamination-boundary test — free half only (CPU).** Test whether solve rate correlates with
+   miniF2F↔Lean-Workbook overlap score, using the already-built Phase 6 §0 disjointness machinery
+   (`scripts/phase6_disjointness.py`, `results/phase6/DISJOINTNESS.md`) extended from the trapped-core
+   subset to the FULL 244/186-problem eval sets. Decision rule pre-registered below. **The paid half
+   (MiniF2F-ALF-style mutation probes or a miniF2F-v2 re-run) is explicitly NOT authorized yet** — only
+   greenlit if the free correlation check shows signal (see decision rule).
+   - **Pre-registered decision rule**: compute overlap score (exact/near-exact match against the
+     Lean-Workbook corpus, reusing the existing §0 matcher) for every miniF2F problem; correlate
+     against per-problem solve rate (pooled over seeds, both models) and against trapped/not-trapped
+     status specifically. **Null (no reframe needed)**: overlap score is not a significant predictor of
+     trapped status (e.g. trapped problems are not disproportionately non-overlapping) — one paragraph
+     in limitations, already partially covered by the existing "10 exact overlaps" note.
+     **Signal (reframe + escalate)**: trapped problems are significantly less likely to be
+     high-overlap than solved problems (the "floor = recall boundary" reading) — triggers a go/no-go
+     conversation on the paid mutation-probe option before spending anything further.
+   - Deliverable: `results/phase6/CONTAMINATION_CORRELATION.md`.
+
+3. **Decomposition arm (GPU, gated on item 2's outcome, not started this session).** Pre-registration
+   drafted below so it's ready to launch on a go decision, not written from scratch under time
+   pressure. **Scope**: Goedel×ProofNet# trapped core (55 problems) only, not the full battery.
+   Model-generated subgoal decomposition (prompt the model to state intermediate `have` lemmas, then
+   attempt each subgoal independently against the Lean REPL, composing verified subgoal proofs into
+   the full proof), token-matched against the existing baseline's per-problem budget. **Pre-registered
+   bar** (set now, before running, per the user's explicit ask): material iff decomposition solves
+   $\geq$5/55 trapped problems (a level clearly above Step C's diversity-injection null and the
+   pass@32 calibration cell's 6/55, i.e. must beat what plain resampling already bought, not just tie
+   it) — anything below 5/55 is a null and folds into the existing exhaustion-sweep section, extending
+   near-comprehensiveness; $\geq$5/55 is a genuine positive requiring a new results subsection.
+   **Not launched this session** — GPU cost + new-agent-mode code path both argue for it going through
+   the standard test-first + smoke-before-scale discipline once item 2 resolves whether it's still the
+   most informative next spend.
+
+4. **Predictor improvement for Phase 4 (mostly CPU, opportunistic).** Current logistic-on-hand-features
+   predictor is 0.72-0.75 AUC, dominated by tokens_so_far. Untried signals available offline in
+   existing `agent_states/`: generation logprobs (if retained), verified-prefix depth trajectory,
+   error-type sequence (from the F2 taxonomy classifier), per-attempt token cost distribution.
+   Success metric pre-registered: if AUC clears 0.85 on the existing OOF CV protocol, recompute
+   `scripts/phase4_frontier.py`/`phase4_perseed.py`/the new bootstrap CI on the improved predictor; if
+   DeepSeek's CI then clears zero, the model-dependence caveat weakens materially. Below 0.85, report
+   the predictor experiment as a negative result in a footnote, not a rewrite.
+
+5. **Artifact release packaging (engineering, no research risk, opportunistic).** Three release
+   candidates: (a) the trapped-core problem lists as a benchmark subset with per-problem provenance
+   (which of the 8 interventions were tried against it, all null/withdrawn); (b) the verified-failed
+   attempt trace corpus (Lean feedback at scale) as potential closing-model training data; (c) the
+   harness + regression tests + corrections log as a documented bug-catalog artifact (four structural
+   bugs: hardcoded template, missing header reconstruction, missing heartbeat option, and the emergent
+   no_goal/header-reconstruction interaction). No pre-registration needed; standard anonymize-for-
+   release hygiene applies. Not started this session.
+
+6. **Housekeeping.**
+   - **6a — pass@32 reconciliation (free, arithmetic, do now)**: 189 baseline solves + 6 calibration
+     recoveries = 195/244 ≈ 79.9% $\approx$ 80% on Goedel×miniF2F pass@32-ish union coverage, between
+     the model authors' reported 84.6% and GAR's third-party ~78% reproduction. State with the
+     union-vs-single-run caveat (this is a union across the 3 original seeds plus 32 fresh calibration
+     samples, not one clean pass@32 run) and close the calibration question on the record.
+   - **6b — Phase 7 to 3 seeds (GPU, cheap, this window)**: currently single-seed on ProofNet#-only,
+     the project's strongest null (re-grounding). Widen to 3 seeds matching every other headline
+     result's protocol.
+   - **6c — DeepSeek trapped-core calibration on miniF2F (GPU, cheap, this window)**: 61 problems,
+     mirrors the already-run Goedel calibration cell. Closes the "DeepSeek's trapped cores are
+     uncalibrated" scope limit for at least one benchmark.
+
+### Anti-footgun note (per the user's own caution)
+
+This plan is explicitly bounded: three items on a two-week clock, one item gated behind a decision
+rule rather than run speculatively, two items opportunistic/unscheduled. Draft `paper/floor/main.tex`
+in parallel with 1/2-free/6, not after — per the user's own observation, writing surfaces which
+claims are load-bearing faster than further analysis does.
