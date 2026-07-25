@@ -74,10 +74,12 @@ def main() -> int:
 
     from atp.config import load_config
     from atp.data import load_dataset
+    from atp.data.contamination import load_novel_names
     from atp.lean import ReplBackend, Verifier
 
     config = load_config(args.config)
-    ds = load_dataset(config)
+    novel_names = load_novel_names(config) if config.data.use_novel_split else ()
+    ds = load_dataset(config, novel_names=novel_names)
     problems = ds.problems if hasattr(ds, "problems") else ds
     theorem_by_name = {p.name: p.to_theorem() for p in problems}
 
