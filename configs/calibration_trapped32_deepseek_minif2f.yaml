@@ -1,0 +1,52 @@
+# configs/calibration_trapped32_deepseek_minif2f.yaml — WS6 item 6c (2026-07-25).
+# DeepSeek-Prover-V2-7B analog of configs/calibration_trapped32_goedel_minif2f.yaml: its OWN
+# 61-problem miniF2F trapped core (scratch/phase2/trapped_minif2f_deepseek.txt, unsolved by every
+# baseline seed at 128k tokens), 32 independent samples, official protocol: no budget meter
+# (effectively uncapped), no refinement loop, official header (import Aesop + set_option
+# maxHeartbeats 0), DeepSeek's own project-wide temperature (1.0, matches every other deepseek_*
+# config — NOT Goedel's 0.7, which was Goedel-specific).
+#
+# Closes the "DeepSeek's trapped cores are uncalibrated" scope limit (PLAN_NEXT.md WS6 item 6c) for
+# miniF2F. Same pre-registered read as the Goedel cell (DECISIONS.md 2026-07-24), applied to n=61:
+#   0-4   -> trapped core sound, Phases 2/5/7's DeepSeek-side claims stand as reported.
+#   5-13  -> contamination real but bounded, needs a stated recovery-rate caveat (same proportional
+#            band as Goedel's 4-10/55).
+#   >13   -> trapped core needs regenerating at proper sample counts on DeepSeek too.
+
+defaults: deepseek_minif2f_baseline   # DeepSeek-Prover-V2-7B model/Lean/mathlib pins
+
+model:
+  prompt_template: whole_proof_official_header   # import Aesop + set_option maxHeartbeats 0
+  temperature: 1.0                               # DeepSeek's own project-wide setting (not Goedel's 0.7)
+  # sample_max_tokens left at default (max_model_len//2 = 16384 for DeepSeek's 32768 max_model_len,
+  # per deepseek_minif2f_baseline.yaml) -- same reasoning as the Goedel cell: widening risks breaking
+  # vLLM serving, and truncation rate at the current cap was not found to bind materially project-wide.
+
+data:
+  benchmark: minif2f
+  split: test
+  exclude_unprovable: true
+  use_novel_split: true
+  novel_names_file: scratch/phase2/trapped_minif2f_deepseek.txt   # 61-problem DeepSeek x miniF2F trapped core
+
+budget:
+  values: [2000000]     # effectively uncapped (32 * 16384 = 524288 max possible spend) -- max_rounds
+                         # below is the real, exact stopping condition, not the token ledger.
+
+eval:
+  seeds: [0]             # ONE trajectory per problem, 32 independent propose rounds within it.
+  n_workers: 8
+
+agent:
+  mode: whole_proof
+  max_rounds: 32
+  refinement: { enabled: false }
+  components:
+    memory:        { enabled: false }
+    reviewer:      { enabled: false }
+    retrieval:     { enabled: false }
+    tactic_skeletons: { enabled: false }
+
+# After running: `atp sweep --aggregate` for the summary; then compute the union-over-original-3-seeds
+# recovery count against scratch/phase2/trapped_minif2f_deepseek.txt per the pre-registered thresholds
+# above. Log to PROGRESS.md/DECISIONS.md.

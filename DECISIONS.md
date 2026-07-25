@@ -2600,3 +2600,22 @@ Both on `short` partition (11:55 cap, `--requeue` set) — original single-seed 
 cells, so 2 seeds may approach or exceed the wall-clock cap; requeue + per-cell resume handles that
 without data loss if it happens. Will check status and fold results into STEPWISE.md and the paper
 once both complete.
+
+## 2026-07-25s — WS6 item 6c launched: DeepSeek trapped-core calibration on miniF2F (smoke first)
+
+New config `configs/calibration_trapped32_deepseek_minif2f.yaml`, DeepSeek-Prover-V2-7B analog of
+the Goedel calibration cell (`defaults: deepseek_minif2f_baseline` for model/Lean pins;
+`whole_proof_official_header` template — confirmed model-agnostic, already validated for Goedel;
+DeepSeek's own project-wide temperature 1.0, not Goedel's 0.7; trapped-core file
+`scratch/phase2/trapped_minif2f_deepseek.txt`, 61 problems). Same pre-registered read as the Goedel
+cell, scaled to n=61 (0-4 sound / 5-13 bounded contamination / >13 needs regeneration).
+
+Smoke test first per CLAUDE.md rule 5 (mirrors the Goedel cell's own smoke-then-scale precedent):
+`configs/calibration_trapped32_deepseek_minif2f_smoke.yaml` (2 problems, max_rounds=4), job 11684257,
+`ATP_LEAN_ENV_NAME=deepseek-lean-env`. Will submit the full 61×32 sharded array once smoke passes,
+following the Goedel cell's exact `sbatch --array=0-7 slurm/sweep_array.sh ... ATP_NSHARDS=8` pattern.
+
+**GPU-hour flag (per convention, matching the Goedel cell's own flag)**: expected in the same ~50-60
+GPU-h range as the Goedel cell (over the 50 GPU-h ask-before line) — proceeding per the user's explicit
+"proceed as autonomously as you can" this session, [[feedback_gpuh_limit_flexible]], and this being
+directly inside the WS6 plan the user already reviewed and approved.

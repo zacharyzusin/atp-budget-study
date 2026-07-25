@@ -1,0 +1,17 @@
+# Smoke variant of calibration_trapped32_deepseek_minif2f.yaml -- 2 problems, max_rounds=4, before
+# committing GPU time to the real 61-problem x 32-sample cell. Per CLAUDE.md rule 5 / this project's
+# "smoke one cell (small data.limit) before the full array" convention -- mirrors
+# calibration_trapped32_goedel_minif2f_smoke.yaml exactly.
+
+defaults: calibration_trapped32_deepseek_minif2f
+
+data:
+  limit: 2          # applied AFTER the novel/trapped-core filter -> 2 of the 61 trapped problems
+
+agent:
+  max_rounds: 4      # just enough rounds to prove the propose-only loop + official header + stop
+                      # conditions all work end-to-end; not a real pass@N measurement
+
+eval:
+  seeds: [0]
+  n_workers: 2
