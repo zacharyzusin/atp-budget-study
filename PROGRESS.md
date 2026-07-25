@@ -3994,3 +3994,32 @@ All 8 shards COMPLETED (5h08m-6h37m, no failures/resubmits). Aggregated 55/55 ce
 bounded contamination, needs a stated recovery-rate caveat (not a regeneration). Full detail +
 token-matched Q1 comparison in DECISIONS.md same date. WS1's calibration sprint (Tier 0 CPU checks +
 this GPU cell) is now COMPLETE. WS2 (paper/floor/) still untouched.
+
+## 2026-07-25b — Fixed a mis-pairing bug in the calibration RESULT; corrected numbers land in the SOUND band at iso-compute
+
+External review caught that `amc12a_2021_p8`'s reported 131,653 tokens over 3 attempts implied
+~44k tokens/attempt, exceeding the cell's per-attempt cap — a real red flag. Root cause: my
+aggregation script paired the `tokens_to_solve` column against the wrong problem names (a zip bug);
+attempt counts were always correct. Re-verified all 6 recovered problems directly from
+`agent_states/*.json`. Corrected table + full re-derivation in DECISIONS.md 2026-07-25b.
+
+Consequence: the recovery result splits into two numbers, not one. **Iso-compute (≤128k tokens,
+the number governing Phase 2/5/7's "trapped by construction" claims): 3/55, possibly 4/55 — lands
+in the pre-registered 0-3 SOUND band**, not the 4-10 band originally (incorrectly) reported.
+**Uncapped pass@32 (the number governing comparison to published pass@N results): 6/55 = 10.9%,
+still the 4-10 band.** Also flagged: one of the 6 recoveries (`amc12a_2021_p8`, the cheapest/
+earliest) is a known miniF2F-Lean-Workbook overlap (Phase 6 §0 gate) — contamination-suspect.
+
+Did the two free re-analyses this enabled: (1) Step C's diversity-injection arm solves 2/55 on this
+exact population at 32k vs. a token-matched plain-resampling control of 1/55 (the contamination-
+flagged case) — converts the null from "didn't beat zero" to "didn't clearly beat resampling,"
+stronger and more defensible. (2) Phase 5's equivalent re-analysis flagged as a residual, not done.
+
+Applied all 4 previously-flagged corrections to SYNTHESIS.md as marked, dated inline notes plus a
+corrections log at the bottom of the file (audit trail preserved, no silent edits) — user approved
+doing this now as "documentation," not a `paper/floor/` edit. `CALIBRATION_FINDINGS.md` updated to
+match. WS2 still untouched.
+
+Two items now priced/flagged for the user: ProofNet# trapped-core calibration (~125 GPU-h estimate,
+over the 50h ask-first line) and the `alloc_split=0.0`@128k cell (new experimental arm, outside this
+sprint's authorization) — both awaiting a go/no-go.
