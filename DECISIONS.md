@@ -2062,3 +2062,49 @@ below).
 benchmarks (only Goedel x miniF2F has this control now); (2) F2's failure taxonomy re-derivation
 against raw Lean error codes is still undone; (3) Phase 5's equivalent token-matched re-analysis
 (same shape as Step C's, above) not yet done.
+
+## 2026-07-25c — Composition correction + two free gate tallies (alloc_split arm, ProofNet# cell)
+
+**Composition correction (per user):** the 3/55 (4/55 borderline) iso-budget recovery count
+undersells the contamination problem — `amc12a_2021_p8` (the Lean-Workbook overlap) is one of the 3.
+**Correct framing: 2/55 clean, uncontaminated iso-budget recoveries; 1/55 contaminated. 6/55 at
+uncapped pass@32 (still contamination-inclusive).** The Step C token-matched control's single win at
+32k (`amc12a_2021_p8`) is also the contaminated case — so the honest reading is **resampling
+recovered ZERO clean problems at 32k**, not one. Both 2/55 and 1/55 are noise at these counts; the
+re-analysis's value is making the null sentence defensible ("no clear improvement over resampling"),
+not that either arm showed a real effect. `CALIBRATION_FINDINGS.md` updated to state composition, not
+a single band verdict.
+
+**Gate 1 — alloc_split=0.0 arm, free tally from `results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`:**
+goedel_minif2f @128k: needed-refine=15.5pp of 75.0% solved = **20.7% of all solves used ≥1
+refinement step**. This is 7.8-15.5x the project's own OFAT noise bar (~1-3pp, DECISIONS
+2026-06-11) — a real, non-trivial effect size, not noise. Refinement is closing a meaningful share of
+solves under the current allocation. This doesn't *prove* alloc_split=0.0 would lose those solves
+(the reclaimed budget could buy enough extra independent samples to recover some/all of them — that's
+exactly what the calibration cell demonstrated is possible on the trapped core), but it bounds the
+downside as real rather than negligible, and combined with Phase 1's own directional finding
+(budget_alloc__0 harmful on ProofNet# at lower budgets), the prior now leans negative. **Recommend
+NOT running the GPU cell** — the free tally does what it needed to do (settle the arm as unlikely to
+be positive) without spending compute to confirm a low-probability positive.
+
+**Gate 2 — ProofNet# calibration cell, free tally from the same table:** goedel_proofnet @128k:
+propose mean/med/p90/max = **4.71/4/8/23** vs. goedel_minif2f @128k's **1.94/1/4/14** (the gap that
+motivated the miniF2F cell in the first place). ProofNet# already gets ~4x more independent propose
+attempts at the median than miniF2F did — the pass@budget vs. pass@N gap is real but meaningfully
+smaller than miniF2F's, not identical. This does not kill the case (median 4 of 32 target samples is
+still a large gap, and Phase 7's headline 0/150 null is high-stakes), but it means the miniF2F result
+(6/55, 10.9%) is likely an UPPER bound on what ProofNet# would show, not a same-magnitude estimate.
+
+**Revised design if the ProofNet# cell proceeds** (not yet authorized): breadth over depth, since the
+governing question is existence (does resampling close ANY problem Phase 7's re-grounding did not),
+not the recovery rate precisely. 150 problems x 16 samples (~62 GPU-h, still over the 50h line but
+closer) or x12 (~47 GPU-h, under the line) rather than x32 (~125 GPU-h). Pre-registered read: any
+clean recovery (excluding known overlaps) → Phase 7's null needs a stated resampling-control caveat;
+zero clean recoveries → 0/150 stands as reported, and is stronger for having been tested. **Awaiting
+user go/no-go and sample-count choice.**
+
+**Residuals restated per user**: Phase 5's token-matched re-analysis (same free tally as Step C's,
+not yet done). DeepSeek's trapped cores — logging as a known scope limit (miniF2F result suggests
+effect is small; DeepSeek's own baselines already match published numbers) rather than a to-do. F2's
+taxonomy re-derivation against raw Lean error codes — still the one substantive open item from the
+original critique, CPU-only, not yet started.
