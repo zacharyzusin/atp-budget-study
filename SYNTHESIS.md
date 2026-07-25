@@ -160,10 +160,12 @@ property. Still the clearest actionable finding in the whole project. (`results/
 Extending the ALREADY-trapped cells past 128k tokens (more of the SAME budget on the SAME problems):
 ~0 new solves (Goedel 1, DeepSeek 0). Budget helps when *reallocated across different problems*
 (Phase 4); it does not help by simply adding more of it to problems already known to be hard.
-**[CORRECTED — see Corrections log #3: same trapped-core recovery-rate caveat as Phase 2 Step C
-applies here. The token-matched re-analysis (does the recovered rate change under a comparable
-extension of resampling rather than refinement) has not been done yet — flagged as an open residual
-in `CALIBRATION_FINDINGS.md`.]**
+**[CORRECTED — see Corrections log #3: this was a 10-cell-per-model PILOT SUBSAMPLE of the
+ProofNet# trapped core (not miniF2F, not the full 150) — the text above doesn't currently say this.
+Those 10 problems already carried a combined ~13 independent propose attempts (3 baseline seeds) with
+zero solves before the extension pilot found 1 (Goedel, via extending the existing trajectory, a
+different lever than fresh resampling). No calibration cell touched this population; treat "Goedel 1,
+DeepSeek 0" as informative only about extension-past-cap, not about resampling.]**
 
 ## Phase 6 — Mechanism-targeted execution fine-tuning
 
@@ -184,11 +186,14 @@ in `CALIBRATION_FINDINGS.md`.]**
 Tests the Stage B exposure-bias hypothesis directly and training-independently: force the model to
 continue from a VERIFIED intermediate Lean state rather than free-running on its own generation.
 Modes 3/4, both models: resolved **NULL**. Re-grounding alone does not unlock the trapped core.
-(`results/phase7/STEPWISE.md`.) **[CORRECTED — see Corrections log #3: this ran on miniF2F's trapped
-core, which is ~89% sound at iso-compute per the 2026-07-25 calibration cell — the null stands close
-to as reported, but "the trapped core" should carry the same recovery-rate caveat as elsewhere. The
-ProofNet# trapped core (150 problems, carries this phase's 0/150 headline) has not yet been
-calibrated — see `CALIBRATION_FINDINGS.md` open question 1.]**
+(`results/phase7/STEPWISE.md`.) **[CORRECTED — see Corrections log #3: this ran on Goedel×ProofNet#'s
+150-problem trapped core (not miniF2F). 3 of those 150 are among the heartbeat-reverify flips (Check
+B, `results/audit/AUDIT_FINDINGS.md`) — pre-known recoverable via a scoring fix unrelated to
+re-grounding — so the honest denominator is 0/147, not 0/150. A calibration cell for this population
+was considered and declined (2026-07-25d, EV too low relative to cost in a one-paper world) — but
+Phase 7 already includes its OWN matched fresh-resample control (same 150 names, fresh session, zero
+re-grounding), which also found 0/150. So Phase 7's null already has a resampling control built in;
+it does not need the same "beat resampling, not zero" caveat Step C needed.]**
 
 ## Phase 8 — Model zoo: does full-pipeline, lab-scale RL move the floor?
 
@@ -396,10 +401,32 @@ more precise language before reuse in a writeup. Full derivation in `CALIBRATION
    - The Step C null specifically is better stated as "no clear improvement over token-matched plain
      resampling" — resampling's only matched-budget win is the contaminated case, so resampling
      recovered zero clean problems at 32k — rather than "no improvement over zero."
-   - Only Goedel×miniF2F has been calibrated this way. DeepSeek's trapped cores (both benchmarks) and
-     Goedel×ProofNet# (which carries Phase 7's 0/150 headline) remain uncalibrated — open items, see
-     `CALIBRATION_FINDINGS.md`.
+   - **Phase 7 is different**: it already includes its own matched fresh-resample control (0/150,
+     `results/phase7/STEPWISE.md`) — it does not need the Step C-style caveat. It does need the Check
+     B correction: 3/150 are pre-known recoverable via the heartbeat fix, independent of re-grounding
+     — denominator is 147, not 150.
+   - **Phase 5's "Goedel 1, DeepSeek 0"** was a 10-cell-per-model pilot subsample of the ProofNet#
+     trapped core (not miniF2F, not the full 150) — the phase's own text doesn't currently say this.
+     No resampling calibration touched this population; the 1 solve came from extending an existing
+     trajectory, a different lever than fresh sampling.
+   - A **calibration cell for the ProofNet# trapped core was considered and declined** (2026-07-25d):
+     leverage math (median ~13 independent proposals already on record per trapped problem, nearly
+     matching miniF2F's own ~11) means even a well-designed cell would only match the miniF2F cell's
+     modest 2.7× leverage at ~40 samples/problem, pricing near 157 GPU-h for one of eight converging
+     nulls in a one-paper world. Not run. Only Goedel×miniF2F has a dedicated resampling calibration
+     cell; DeepSeek's trapped cores (both benchmarks) remain a logged scope limit, not a to-do.
 
 4. **The 2k-token budget point** on every headline curve is attempt-starved: median ZERO full propose
    attempts complete within a 2k-token cap (`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`). Footnote it
    as such rather than treating it as a comparable point on the same curve as 8k/32k/128k.
+
+5. **Phase 1's `budget_alloc__0` OFAT result — not the "20.7% of solves used refinement" framing —
+   is the load-bearing reason `alloc_split=0.0` was never run at 128k** (a wash at ≤32k, directionally
+   harmful on ProofNet# — a real counterfactual). "20.7% of Goedel×miniF2F's solves at 128k used ≥1
+   refinement step" (`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`) is worth keeping as a descriptive
+   fact, but it is an attribution share (where solves first appeared), not a counterfactual (whether
+   fresh samples at equal tokens would have found them instead) — comparing it to the project's OFAT
+   noise bar was a category error (that bar measures between-arm deltas, not within-run attribution)
+   and has been retracted. Reported (not independently verified in this repo) as a sanity anchor:
+   Goedel-V2's own self-correction mode nets roughly +2pp at pass@32, the right order of magnitude for
+   refinement's true counterfactual value and consistent with 20.7% overstating it.
