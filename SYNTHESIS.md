@@ -128,12 +128,13 @@ four model×benchmark cells. Pre-registered prediction: diversity rises, solves 
    DeepSeek both 0/0%). Exactly **5 genuine verified flips across all four arms (0 on DeepSeek)**, within
    seed-std. → **Approach discovery is not the bottleneck; within-approach execution (the F2/F3 reasoning
    floor) is.** This closes F5's correlational gap with a causal experiment, on two independent provers.
-   **[CORRECTED — see Corrections log #3: on Goedel×miniF2F the trapped core recovers 3/55 (possibly
-   4/55) at iso-compute and 6/55 at uncapped pass@32; "trapped pass@... ≈ 0 everywhere" needs that
-   caveat. Also, restricted to the same 55-problem population, the "1.2%" @32k IS these 2 cells — a
-   token-matched plain-resampling control now exists: 1/55 (contamination-flagged), so the honest
-   statement is "no clear improvement over resampling at matched budget," not "no improvement over
-   zero."]**
+   **[CORRECTED — see Corrections log #3: on Goedel×miniF2F the trapped core recovers 3/55 within the
+   original budget (only 2/55 clean of a known training-set overlap) and 6/55 at uncapped pass@32;
+   "trapped pass@... ≈ 0 everywhere" needs that caveat. Also, restricted to the same 55-problem
+   population, the "1.2%" @32k IS these 2 cells — a token-matched plain-resampling control now exists:
+   1/55, and that single win is the contaminated problem, so resampling recovered ZERO clean problems
+   at 32k. Honest statement: "no clear improvement over resampling at matched budget," not "no
+   improvement over zero" — and neither arm showed a real (non-noise) effect at this sample size.]**
 3. **Forced diversity mildly *degrades* output:** last-attempt failures shift from `reasoning_deep`
    (38–88%) to majority `formalization_syntax` (62–74%) + `loophole_sorry` (23–36%); soundness-relevant
    rates creep up (loophole ~3×, syntax ~1.5–2×). Pushed for novelty, the model leaves its competent
@@ -379,9 +380,11 @@ more precise language before reuse in a writeup. Full derivation in `CALIBRATION
 3. **Trapped-core claims (Phase 2 Step C, Phase 5, Phase 7 — "trapped ⇒ 0% baseline by construction")**
    need a stated recovery-rate caveat, with two separate numbers, not one:
    - **Iso-compute (governs the claims as originally made):** on Goedel×miniF2F's 55-problem trapped
-     core, plain resampling at the *original 128k-token budget* recovers 3/55 (possibly 4/55 counting
-     one borderline case) — inside the pre-registered "sound" band. The claims stand close to as
-     reported.
+     core, plain resampling at the *original 128k-token budget* recovers 3/55, of which only **2/55
+     are clean** — the third is a known miniF2F↔Lean-Workbook overlap (below). 3/55 sits exactly on
+     the pre-registered 0–3/4–10 boundary and a borderline 4th case (1.03× over budget) tips it over
+     — report the composition (2 clean / 1 contaminated / 1 borderline), not a band label. The claims
+     stand close to as reported.
    - **Uncapped pass@32 (governs comparison to published pass@N results):** the same population
      recovers 6/55 (10.9%) under 32 independent samples with no budget cap. This is a different,
      weaker claim about compute availability, not about whether the 128k-budget agent loop was
@@ -391,8 +394,8 @@ more precise language before reuse in a writeup. Full derivation in `CALIBRATION
      (`results/phase6/DISJOINTNESS.md`) — footnote it as possible train/eval leakage when citing this
      number.
    - The Step C null specifically is better stated as "no clear improvement over token-matched plain
-     resampling" (2/55 vs. a 1/55 resampling control, the 1 being the contamination-flagged case above)
-     rather than "no improvement over zero."
+     resampling" — resampling's only matched-budget win is the contaminated case, so resampling
+     recovered zero clean problems at 32k — rather than "no improvement over zero."
    - Only Goedel×miniF2F has been calibrated this way. DeepSeek's trapped cores (both benchmarks) and
      Goedel×ProofNet# (which carries Phase 7's 0/150 headline) remain uncalibrated — open items, see
      `CALIBRATION_FINDINGS.md`.

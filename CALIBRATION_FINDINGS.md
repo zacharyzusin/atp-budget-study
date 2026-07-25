@@ -69,18 +69,19 @@ temp 0.7 — 32 independent samples per problem, no refinement, no budget meter
 | aime_1988_p8 | 23 | 317,328 | 2.5× over |
 | imo_1968_p5_1 | 27 | 428,775 | 3.4× over |
 
-**This result is two different findings, not one, and they answer two different
-questions:**
+**This result is two different findings, not one, and composition matters more than
+a band label — reporting the count alone (even "3/55") obscures that one of the three
+is a known training-set overlap:**
 
-- **Is the trapped core sound at iso-compute (the number that governs Phases 2/5/7's
-  "trapped by construction, baseline=0" claims)?** 3/55 clean, 4/55 counting the
-  borderline case — **lands in the pre-registered 0–3 "sound" band, not the 4–10 band
-  originally reported.** Phases 2/5/7 stand close to as reported; the corrections
-  below apply mainly to precision of language, not retraction.
-- **Is it trapped in the literature's pass@32 sense (uncapped compute, the number
-  that governs any comparison to published pass@N results)?** 6/55 = 10.9%, still the
-  4–10 band. This is a real but weaker claim than "trapped" — it's about compute
-  budget, not about whether the agent loop's refinement strategy is well-allocated.
+- **Iso-compute (governs Phases 2/5/7's "trapped by construction, baseline=0"
+  claims): 3/55 within the original 128k budget, of which only 2/55 are clean —
+  `amc12a_2021_p8` is a known miniF2F↔Lean-Workbook overlap (see below).** 3/55 sits
+  exactly on the pre-registered 0–3/4–10 boundary, and the borderline case
+  (`aime_1997_p9`, 1.03× over) tips it over — so this is not cleanly "band one."
+  Report the composition (2 clean / 1 contaminated / 1 borderline), not a band.
+- **Uncapped pass@32 (governs comparison to published pass@N results): 6/55 =
+  10.9%.** A real but weaker claim than "trapped" — about compute availability, not
+  about whether the agent loop's refinement strategy is well-allocated.
 
 **Token-matched comparison, corrected:** only 3 of the 6 recoveries (`aime_1997_p9`,
 `aime_1988_p8`, `imo_1968_p5_1`) needed more tokens than the original 128k baseline
@@ -108,20 +109,41 @@ diversity-injection arm, restricted to this same 55-problem population at
 budget=32000, solved **2/55** (`amc12b_2021_p18` at 19,743 tokens;
 `algebra_apbon2pownleqapownpbpowon2` at 3,893 tokens — this is the "1–2 cell blip"
 already logged as noise on 2026-06-18e). Plain resampling at the same ≤32k cumulative
-budget solves **1/55** (`amc12a_2021_p8`, contamination-flagged). This converts the
-Step C null from "didn't beat zero" to "didn't clearly beat resampling at matched
-budget" — a stronger, more defensible sentence, per the review's suggestion.
-Interestingly, diversity injection solved `algebra_apbon2pownleqapownpbpowon2` far
-more cheaply (3,893 tokens) than plain resampling ever did for the same problem
-(79,986 tokens at uncapped budget) — suggestive, but n=2 vs n=1 single-seed is nowhere
-near enough to overturn F5's symptomatic-not-causal verdict. The equivalent
-re-analysis for Phase 5 has not been done yet (residual).
+budget solves **1/55**, and that single win is `amc12a_2021_p8` — **the contaminated
+one.** So the honest reading is: **resampling recovered ZERO clean problems at 32k.**
+Both 2/55 and 1/55 are noise-level counts; the re-analysis's value is that "no clear
+improvement over resampling at matched budget" is now a defensible sentence to put in
+place of "no improvement over zero" — not that either arm discriminated a real effect.
+Diversity injection's cheap solve of `algebra_apbon2pownleqapownpbpowon2` (3,893
+tokens vs. plain resampling's 79,986-token solve of the same problem at uncapped
+budget) remains a suggestive n=1 data point, no more. The equivalent re-analysis for
+Phase 5 has not been done yet (residual).
+
+**Free gate #1 — the `alloc_split=0.0` arm is now settled without GPU spend.** From
+`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`: at 128k, `needed-refine=15.5pp` of
+Goedel×miniF2F's 75.0% solved — **20.7% of all solves used ≥1 refinement step**, a
+7.8–15.5× multiple of the project's own OFAT noise bar (~1–3pp). Refinement is doing
+real, non-trivial work under the current allocation. Combined with Phase 1's own
+directional finding (`budget_alloc__0` harmful on ProofNet# at lower budgets), the
+prior now leans negative enough that the GPU cell isn't worth running to confirm it.
+**Recommendation: do not run this arm.**
+
+**Free gate #2 — sizes the ProofNet# calibration cell's expected payoff before
+spending on it.** Same table: Goedel×ProofNet# @128k gets propose mean/med/p90/max =
+**4.71/4/8/23**, vs. miniF2F's **1.94/1/4/14** — the structural gap that motivated the
+whole calibration exercise. ProofNet# already gets ~4× more independent samples at the
+median than miniF2F did. This doesn't kill the case for running it (median 4 of a
+32-sample target is still a large gap, and Phase 7's 0/150 is high-stakes), but it
+means the miniF2F result (10.9%) is likely an **upper bound**, not a same-magnitude
+estimate, for what ProofNet# would show.
 
 ## Bottom line so far
 
 - **At iso-compute (the number governing Phases 2/5/7's "trapped by construction"
-  claims), the trapped core is sound: 3/55 (possibly 4/55) recover, inside the
-  pre-registered 0–3 band.** Phases 2/5/7 stand close to as reported.
+  claims), report composition, not a band: 3/55 within budget, only 2/55 clean of
+  known contamination, 1/55 borderline.** This sits on, not cleanly inside, the
+  pre-registered 0–3 boundary. Phases 2/5/7 stand close to as reported but the
+  precise number to cite is "2 clean," not "3" or "band one."
 - At uncapped pass@32 (the number governing comparison to published pass@N results),
   6/55 (10.9%) recover, and the recovery hazard is flat through N=32 — report as
   "≥11% at N=32, curve not yet flat," not a fixed contamination rate.
@@ -130,10 +152,18 @@ re-analysis for Phase 5 has not been done yet (residual).
   claim as originally made) and the pass@32 figure (governs any comparison to
   published work), not a single blended caveat.
 - The Step C null is now better stated as "no clear improvement over token-matched
-  plain resampling" (2/55 vs 1/55, the 1 being contamination-flagged) rather than "no
-  improvement over zero."
-- `amc12a_2021_p8`, one of the 6 pass@32 recoveries, is a known miniF2F↔Lean-Workbook
-  overlap (Phase 6 §0 gate) — footnote it specifically.
+  plain resampling" — and specifically, resampling's only matched-budget win is itself
+  contamination-flagged, so **resampling recovered zero clean problems** at 32k.
+- `amc12a_2021_p8` is a known miniF2F↔Lean-Workbook overlap (Phase 6 §0 gate);
+  footnote it wherever any of these recovery numbers are cited.
+- **The `alloc_split=0.0` GPU cell is not worth running** — free gate #1 above shows
+  refinement closes 20.7% of Goedel×miniF2F's solves, 7.8–15.5× the noise bar, and
+  Phase 1 already found the same lever directionally harmful on ProofNet#. Settled
+  without GPU spend.
+- **The ProofNet# calibration cell's expected payoff is smaller than miniF2F's** —
+  free gate #2 shows ProofNet# already gets ~4× more independent samples at the
+  median (4 vs. 1) than miniF2F did before recovering 10.9%. Treat miniF2F's number as
+  an upper bound, not a like-for-like estimate, when deciding whether to spend on it.
 - The heartbeat-bug framing in SYNTHESIS.md ("scoring-only") is inaccurate for
   miniF2F and needs correcting.
 - The "miniF2F saturates" language should be corrected to describe a data-exhaustion
@@ -149,30 +179,35 @@ itself is still untouched (WS2 pause holds until you reopen it).
 1. SYNTHESIS.md corrections — **applied**, as marked/dated corrections with a
    corrections log (documentation, not `paper/floor/`).
 
-## Open questions (yours to decide)
+## Resolved this round (part 2)
 
-1. **ProofNet# trapped core (150 problems) calibration cell.** Priced at roughly
-   3× miniF2F's cost by problem count (job 11682365 ran ~46 GPU-h aggregate across 8
-   shards; 150/55 scaling → **~125 GPU-h estimate**, well over the 50 GPU-h ask-first
-   line, same treatment as WS1.1). Worth running because Goedel×ProofNet# carries both
-   the project's one clean positive result (+26%±7%, Phase 4) and Phase 7's headline
-   null (0/150) — if plain resampling recovers a nontrivial fraction, that null needs
-   the same two-number treatment this miniF2F result got. Full 150 or skip — a
-   stratified subsample only estimates the rate, not the per-problem comparison
-   against Phase 7 that's the actual reason to run it. Your call on the spend.
-2. **`alloc_split=0.0` cell at B=128k (Goedel×miniF2F, 3 seeds)** — the minimal test
-   of "plain resampling beats the refinement loop at the budget where refinement
-   dominates spend," framed as extending an existing ablation (`budget_alloc__0`) to
-   the untested budget tier rather than a new arm. Cheap (existing config/code, no new
-   machinery) but it's compute spent on a new question, not validation of a committed
-   result — outside this sprint's original authorization. Flagging rather than
-   running it.
+2. **`alloc_split=0.0` cell — settled negative by free gate #1, GPU cell not
+   recommended.** Refinement closes 20.7% of Goedel×miniF2F's solves at 128k, 7.8–15.5×
+   the noise bar; Phase 1 already found the same lever directionally harmful on
+   ProofNet#. Not running it; revisit only if new evidence changes this prior.
+
+## Open question (yours to decide)
+
+1. **ProofNet# trapped core (150 problems) calibration cell — go/no-go and design.**
+   Free gate #2 sizes the expected payoff down (ProofNet# already gets ~4× more
+   independent samples at the median than miniF2F did), so treat miniF2F's 10.9% as an
+   upper bound, not a like-for-like estimate. If it proceeds, revise from "full 150 at
+   32 samples" (~125 GPU-h) to **breadth over depth**, since the governing question is
+   existence (does resampling close ANY problem Phase 7's re-grounding didn't), not a
+   precise rate: **150 × 16 samples (~62 GPU-h)** or **150 × 12 (~47 GPU-h, under the
+   50h line)**. Pre-registered read either way: any clean recovery (excluding known
+   overlaps) → Phase 7's 0/150 null needs a stated resampling-control caveat; zero
+   clean recoveries → the null stands, and is stronger for having been tested. Awaiting
+   your go/no-go and sample-count choice.
 
 ## Residuals (logged, not blocking)
 
 - DeepSeek's trapped cores remain uncalibrated on both benchmarks (only Goedel×miniF2F
-  has a resampling control now).
-- F2's failure taxonomy re-derivation against raw Lean error codes is still undone.
-- Phase 5's token-matched re-analysis (same shape as the Step C one above) not yet
-  done.
+  has a resampling control now) — logged as a known scope limit, not a to-do (the
+  miniF2F result suggests the effect is small, and DeepSeek's own baselines already
+  match published numbers).
+- F2's failure taxonomy re-derivation against raw Lean error codes is still undone —
+  the one substantive unchecked item from the original critique; CPU-only.
+- Phase 5's token-matched re-analysis (same free shape as the Step C one above) not
+  yet done.
 - No edits to `paper/floor/` (WS2 still paused).

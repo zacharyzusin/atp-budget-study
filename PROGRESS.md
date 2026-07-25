@@ -4023,3 +4023,28 @@ match. WS2 still untouched.
 Two items now priced/flagged for the user: ProofNet# trapped-core calibration (~125 GPU-h estimate,
 over the 50h ask-first line) and the `alloc_split=0.0`@128k cell (new experimental arm, outside this
 sprint's authorization) — both awaiting a go/no-go.
+
+## 2026-07-25c — Composition correction + two free gates settle alloc_split, size ProofNet# payoff
+
+Per user: the 3/55 (4/55) iso-budget count undersells contamination — one of the 3 is the
+Lean-Workbook overlap, so **2/55 clean, 1/55 contaminated, 1/55 borderline**. Also, Step C's
+token-matched resampling control's single win (1/55) is itself the contaminated problem — so
+resampling recovered ZERO clean problems at 32k, not one. Updated CALIBRATION_FINDINGS.md and
+SYNTHESIS.md's corrections log to report composition rather than a band label.
+
+Ran two free gates from `results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md` (no GPU) to settle both
+pending decisions:
+
+- **Gate 1 (alloc_split=0.0 arm):** needed-refine=15.5pp of Goedel×miniF2F's 75.0% solved @128k =
+  20.7% of all solves used refinement, 7.8-15.5x the OFAT noise bar. Combined with Phase 1's own
+  directional ProofNet# finding, settles the arm negative without GPU. **Not running it.**
+- **Gate 2 (ProofNet# calibration cell sizing):** Goedel×ProofNet# @128k already gets propose
+  mean/med/p90/max = 4.71/4/8/23 vs. miniF2F's 1.94/1/4/14 — ~4x more independent samples at the
+  median already. Doesn't kill the case (Phase 7's 0/150 is high-stakes) but means miniF2F's 10.9%
+  is likely an upper bound, not a like-for-like estimate. If it proceeds: revised to breadth-over-
+  depth, 150x16 (~62 GPU-h) or 150x12 (~47 GPU-h, under the ask-first line) instead of 150x32
+  (~125 GPU-h), since the governing question is existence not rate. Awaiting user go/no-go.
+
+Residuals restated: Phase 5 token-matched re-analysis (same free shape, not done); DeepSeek trapped
+cores logged as a known scope limit, not a to-do; F2 taxonomy re-derivation still the one
+substantive unchecked item, CPU-only, not started.
