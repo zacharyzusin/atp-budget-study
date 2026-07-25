@@ -296,14 +296,21 @@ and 5 are opportunistic, not gated to the two-week window.
 
 3. **Decomposition arm (GPU, gated on item 2's outcome, not started this session).** Pre-registration
    drafted below so it's ready to launch on a go decision, not written from scratch under time
-   pressure. **Scope**: Goedel×ProofNet# trapped core (55 problems) only, not the full battery.
-   Model-generated subgoal decomposition (prompt the model to state intermediate `have` lemmas, then
-   attempt each subgoal independently against the Lean REPL, composing verified subgoal proofs into
-   the full proof), token-matched against the existing baseline's per-problem budget. **Pre-registered
-   bar** (set now, before running, per the user's explicit ask): material iff decomposition solves
-   $\geq$5/55 trapped problems (a level clearly above Step C's diversity-injection null and the
-   pass@32 calibration cell's 6/55, i.e. must beat what plain resampling already bought, not just tie
-   it) — anything below 5/55 is a null and folds into the existing exhaustion-sweep section, extending
+   pressure. **Scope**: Goedel×miniF2F trapped core (55 problems) only, not the full battery.
+   **[CORRECTED 2026-07-25 — the original draft of this item said "Goedel×ProofNet#" while citing
+   the 55-count and the 6/55 calibration figure, both of which are miniF2F's, not ProofNet#'s
+   (ProofNet#'s trapped core is 150). Fixed to miniF2F throughout, which is also the ONLY benchmark
+   with an actual pass@32 calibration result on record to compare against — Goedel×ProofNet#'s
+   calibration cell was explicitly declined as NO-GO earlier in the sprint on cost grounds, so there
+   is no "what plain resampling already bought" number to beat there. Caught before any GPU spend,
+   not after.]** Model-generated subgoal decomposition (prompt the model to state intermediate
+   `have` lemmas, then attempt each subgoal independently against the Lean REPL, composing verified
+   subgoal proofs into the full proof), token-matched against the existing baseline's per-problem
+   budget. **Pre-registered bar** (set now, before running, per the user's explicit ask): material
+   iff decomposition solves $\geq$5/55 trapped miniF2F problems (a level clearly above Step C's
+   diversity-injection null and the miniF2F pass@32 calibration cell's 6/55, i.e. must beat what
+   plain resampling already bought on the SAME population, not just tie it) — anything below 5/55 is
+   a null and folds into the existing exhaustion-sweep section, extending
    near-comprehensiveness; $\geq$5/55 is a genuine positive requiring a new results subsection.
    **Not launched this session** — GPU cost + new-agent-mode code path both argue for it going through
    the standard test-first + smoke-before-scale discipline once item 2 resolves whether it's still the

@@ -2619,3 +2619,22 @@ following the Goedel cell's exact `sbatch --array=0-7 slurm/sweep_array.sh ... A
 GPU-h range as the Goedel cell (over the 50 GPU-h ask-before line) — proceeding per the user's explicit
 "proceed as autonomously as you can" this session, [[feedback_gpuh_limit_flexible]], and this being
 directly inside the WS6 plan the user already reviewed and approved.
+
+## 2026-07-25t — Caught before launch: WS6 item 3's pre-registration named the wrong benchmark
+
+While writing `scripts/phase_decomp_run.py`, re-checked the trapped-core file sizes directly
+(`scratch/phase2/trapped_proofnet.txt` = 150 lines, `scratch/phase2/trapped_minif2f.txt` = 55 lines)
+and found the WS6 item 3 pre-registration (`PLAN_NEXT.md`, `results/phase_decomp/DESIGN.md`) had
+named "Goedel×ProofNet#" while citing the 55-count and the 6/55 pass@32 calibration figure — both of
+which are miniF2F's, not ProofNet#'s. Goedel×ProofNet#'s own calibration cell was explicitly declined
+as NO-GO earlier in the sprint on cost grounds, so there is no established "what plain resampling
+already bought" number there to set a beat-resampling bar against; the ≥5/55 bar only makes sense
+against miniF2F, where 6/55 is on record. Fixed both docs to say miniF2F throughout, kept the ≥5/55
+bar and its reasoning (now internally consistent). Caught during implementation, before writing the
+run config or touching a GPU — exactly the kind of check the design-note discipline
+([[feedback_careful_before_gpu_spend]]) was meant to catch.
+
+`scripts/phase_decomp_run.py` targets `configs/phase0_baseline.yaml` (Goedel×miniF2F pin) +
+`scratch/phase2/trapped_minif2f.txt`, not the ProofNet# baseline. Smoke test next, per the design
+note's own stated order (implementation -> tests -> smoke config -> smoke run -> read all 5 listed
+risks -> only then consider the full array).
