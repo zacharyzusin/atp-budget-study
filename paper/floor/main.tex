@@ -241,28 +241,51 @@ baseline (max\_iters 4, alloc\_split 0.5, all Phase 1 components off): BM25 prem
 a failure-memory buffer, an LLM reviewer over Lean-failed attempts, tactic-skeleton hints, and two
 budget-allocation variants.
 
-\textbf{miniF2F: no component clears the noise bar.} Retrieval looked like a mover in an initial pass
-(+3.4pp@8k) but did not replicate under paired-flip inspection (+2.2/+0.7/$-0.8$pp at 2k/8k/32k; gains
-$\approx$ losses at every budget --- BM25 context perturbs sampling without injecting usable premises).
+\textbf{miniF2F: no component clears the noise bar, and one case shows why a single run's CI is not
+enough.} Retrieval looked like a mover in an initial pass (+3.4pp@8k) but did not replicate under
+paired-flip inspection in an independent re-run at the same nominal budget (+2.2/+0.7/$-0.8$pp at
+2k/8k/32k; gains $\approx$ losses at every budget --- BM25 context perturbs sampling without injecting
+usable premises). \textbf{This is a genuinely informative surprise from moving to equivalence-style
+bounds (Section~\ref{sec:setup}): a paired per-problem bootstrap 95\% CI computed on the initial run
+alone is [+0.82pp, +6.15pp] --- entirely positive, clearing zero with room to spare.} Taken on its own,
+that CI would read as a confirmed positive effect. It is not: an independently launched re-run at the
+same 8k budget (different vLLM generation campaign, same seeds) landed at +0.7pp, just outside that
+CI's lower edge, and by 32k the same comparison flips negative. \textbf{The lesson is explicit and
+belongs in the methods claim, not buried}: a per-problem bootstrap CI is a real improvement over a
+3-seed std --- it uses the right resampling unit and gives an honest bound on within-run sampling
+uncertainty --- but it cannot capture \emph{run-to-run} (generation-campaign) variance, which here is
+larger than the within-run CI implied. Where an independent replication exists, we report both and
+trust the replication; where it does not (every other cell below), we report the bootstrap bound as
+the best available uncertainty estimate and flag it as bounded by within-run variance only.
 
 \begin{table}[t]
   \centering
-  \caption{ProofNet\# paired flips vs.\ the no-frills baseline. On the harder benchmark two components
-  are directional, and both hurt.}
+  \caption{ProofNet\# paired flips vs.\ the no-frills baseline, with a paired per-problem bootstrap
+  95\% CI on the same comparison (Section~\ref{sec:setup}'s equivalence-bound framing) alongside the
+  raw flip counts. On the harder benchmark two components are directional and both hurt, now with a
+  CI that confirms the direction rather than resting on the flip count alone.}
   \label{tab:flips}
-  \begin{tabular}{lrrrl}
+  \begin{tabular}{lrrrlr}
     \toprule
-    Component & Gains & Losses & Net & Verdict \\
+    Component & Gains & Losses & Net & Verdict & 95\% CI (pp) \\
     \midrule
-    reviewer            & 13 & 10 & $+3$  & noise-like \\
-    budget\_alloc\_\_2   &  9 & 11 & $-2$  & noise-like \\
-    memory               &  8 & 10 & $-2$  & noise-like \\
-    tactic\_skeletons    &  9 & 12 & $-3$  & noise-like \\
-    budget\_alloc\_\_0   &  6 & 25 & $-19$ & \textbf{directional (hurts)} \\
-    retrieval             &  6 & 42 & $-36$ & \textbf{directional (hurts)} \\
+    reviewer            & 13 & 10 & $+3$  & noise-like & $[-1.25, +2.33]$ \\
+    budget\_alloc\_\_2   &  9 & 11 & $-2$  & noise-like & $[-2.15, +1.08]$ \\
+    memory               &  8 & 10 & $-2$  & noise-like & $[-1.79, +1.08]$ \\
+    tactic\_skeletons    &  9 & 12 & $-3$  & noise-like & $[-2.51, +1.25]$ \\
+    budget\_alloc\_\_0   &  6 & 25 & $-19$ & \textbf{directional (hurts)} & $\mathbf{[-5.78, -1.27]}$ \\
+    retrieval             &  6 & 42 & $-36$ & \textbf{directional (hurts)} & $\mathbf{[-9.68, -3.76]}$ \\
     \bottomrule
   \end{tabular}
 \end{table}
+
+Every ``noise-like'' ProofNet\# verdict now has a CI that crosses zero and is reasonably tight
+(within $\pm$2.5pp), so these are genuine equivalence results, not just under-powered comparisons ---
+we can say each of these four components' true effect is bounded within a narrow band around zero,
+not merely that we failed to detect one. The two ``directional (hurts)'' verdicts get a CI entirely
+on the harmful side, confirming the flip-count-based call independently rather than resting on raw
+counts alone (full table, all benchmarks, both directions:
+\texttt{scripts/equivalence\_bounds.py}, \texttt{results/EQUIVALENCE\_BOUNDS.md}).
 
 Table~\ref{tab:flips} sharpens the null on ProofNet\#: 4/6 components remain noise-like, but two are
 directional --- and both harmful. Front-loaded budget allocation (no escalation) and BM25 retrieval (42

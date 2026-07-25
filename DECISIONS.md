@@ -2545,3 +2545,40 @@ folded into `paper/floor/main.tex`'s discussion as a new objection response.
 
 Both items compiled clean into the paper (pdflatex, 11 pages). Two of the three 2026-08-08-deadline
 WS6 items are now substantively done; item 1 (equivalence-testing reframe) is next.
+
+## 2026-07-25q — WS6 item 1 (equivalence bounds): the predicted surprise found, on miniF2F retrieval
+
+Ran `scripts/equivalence_bounds.py` (paired per-problem bootstrap, 3000 replicates, same
+clustered-by-problem method as `phase4_bootstrap_ci.py`) on all 6 Phase 1 scaffolding components ×
+both benchmarks (12 comparisons). Full table: `results/EQUIVALENCE_BOUNDS.md`,
+`results/equivalence_bounds.json`.
+
+**The predicted surprise, found**: miniF2F retrieval's bootstrap CI on the ORIGINAL Phase 1 run
+(job 10436909) is **[+0.82pp, +6.15pp] — entirely positive**, i.e. a proper per-problem bootstrap on
+that one run's data alone would read as a statistically confirmed positive effect. It is not: an
+independently-launched re-run at the same nominal 8k budget (`configs/phase1_retrieval_budget.yaml`,
+already on record in `results/phase1/FINDINGS.md`, pre-dating this sprint) landed at +0.7pp — just
+outside that CI's lower edge — and the same comparison flips to −0.8pp by 32k. **Root cause: the
+bootstrap CI only captures within-run per-problem sampling variance; it cannot capture run-to-run
+(generation-campaign) variance, which here is larger.** This is exactly the power-limitation the user
+predicted checking for would surface, and it's a genuine methods point, not just a caveat: report the
+bootstrap bound, but where an independent replication exists, trust the replication over the CI.
+Folded into `paper/floor/main.tex`'s scaffolding section explicitly, not buried.
+
+**Everything else is confirmatory, not surprising**: all 4 ProofNet# "noise-like" verdicts get CIs
+crossing zero and tight (within ±2.5pp) — genuine equivalence results, not just failures to detect.
+Both "directional (hurts)" verdicts (retrieval −36 net flips, budget_alloc__0 −19) get CIs entirely on
+the harmful side ([−9.68,−3.76]pp and [−5.78,−1.27]pp respectively), independently confirming the
+flip-count-based calls. miniF2F's other 5 components all get CIs crossing zero and tight.
+
+Folded the ProofNet# CI column into the paper's existing flip table (Table~\ref{tab:flips}) and added
+the miniF2F retrieval within-run-vs-replication finding as an explicit paragraph in
+Section~\ref{sec:scaffolding}, framed as a methods lesson (bootstrap CIs bound within-run variance
+only) rather than a walkback of the existing "did not replicate" conclusion, which stands unchanged.
+
+Not yet done (deferred, not urgent given the 2026-08-08 window): Stage B and Step C equivalence
+bounds (the script currently only covers Phase 1; extending it to those two result sets is
+straightforward but the paired-cell data shape needs checking first — Stage B's exposure-bias metric
+isn't a simple solved/unsolved flip).
+
+Compiles clean, 12 pages.
