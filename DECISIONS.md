@@ -2274,3 +2274,49 @@ stated, quantified correction that doesn't touch the decision it partially motiv
 `paper/floor/` (WS2) remains untouched — this entry is a recommendation, not an action. **Awaiting
 user confirmation to reopen WS2**, at which point the corrections logged here become the input to the
 actual writing, not more calibration work.
+
+## 2026-07-25h — WS2 REOPENED. User retraction: trapped-core coverage was NOT starved; header-confound check queued
+
+**WS2 (paper/floor/) is reopened per explicit user instruction.** All calibration/audit work is
+folded into `paper/floor/main.tex` from here; `PROGRESS.md`/`DECISIONS.md` continue as the lab
+notebook underneath it.
+
+**User retraction, logged because it changes the sprint's conclusion in the trapped core's favor.**
+The "trapped core ≈ attempt-starved" framing (mine, carried across several rounds) conflated the
+OVERALL population's median-1-propose-attempt figure with the TRAPPED population specifically. By
+construction these are opposite: easy cells solve on attempt 1 and stop; trapped cells burn the full
+budget, which is exactly why the 2026-07-25c re-derivation found trapped miniF2F cells average ~11
+propose attempts PER SEED, not overall. **Union across 3 seeds ≈ 33 independent proposals — at
+parity with the calibration cell's N=32, not a 10x-undersampled population.** The trapped cores were
+never attempt-starved; they were already close to the literature's pass@32 standard before the
+calibration cell ran.
+
+**Consequence for Corrections log #1 (SYNTHESIS.md, the "saturates" → "plateau" language):** stands,
+but needs a precise clause. The flat pass@N tail past N=14 (the max propose-attempts any ORIGINAL
+cell reached under the refinement-heavy loop) is unmeasured, not demonstrated-saturated — that part
+is unchanged. But the CAUSE is not "everything was starved" — it's that the reported pass@N curve is
+capped by the EASY problems' low attempt counts (median 1 overall), while the HARD/trapped problems
+that would inform the tail were always getting many more attempts (~11/seed) and simply weren't
+solving. Both facts are true and don't contradict: the curve's shape near the origin is
+attempt-starved (few samples for easy cells); the curve's tail is under-measured for a different
+reason (trapped cells got plenty of attempts, this project just never plotted pass@B past the point
+where the refinement loop stopped generating fresh independent samples).
+
+**The resulting puzzle, and the free decisive check queued:** if trapped cells already had ~33 union
+proposals, N=32 fresh ones recovering 6 is not explained by sample count alone — something else
+changed between the baseline and the calibration cell. Two candidates point at the same place: the
+official header (`import Aesop` + `set_option maxHeartbeats 0`). Check B already flipped 2 distinct
+Goedel×miniF2F problems on the heartbeat fix alone (`algebra_apbon2pownleqapownpbpowon2` seed0,
+`amc12a_2020_p15` seed0+seed2) — and **`algebra_apbon2pownleqapownpbpowon2` is one of the 6
+calibration-cell recoveries**, confirmed by direct name match against `results/audit/AUDIT_FINDINGS.md`
+Task B (no new computation needed for this part). `amc12a_2020_p15` is NOT among the 6 (different
+problem from `amc12a_2021_p8`). Additionally 17.8% of miniF2F refine steps got spurious heartbeat
+timeouts — the baseline's ~11 proposals/seed were lower-quality than 11 clean ones would have been
+(trajectory contamination, not just terminal scoring).
+
+**Queued**: re-verify the proof text of all 6 calibration-cell recoveries under the OLD header
+(no `import Aesop` / no `set_option maxHeartbeats 0`) to determine which are genuine sampling
+recoveries vs. header-fix recoveries that plain resampling merely happened to surface. Free (CPU-only
+Lean re-verification, no new generation, same shape as Task B). Does not block WS2 writing — queued
+to run alongside it; result folds back into the ~11% caveat's phrasing (header correction vs. live
+methodological weakness) once done.
