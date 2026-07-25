@@ -4125,3 +4125,41 @@ While that job ran in parallel, wrote three of the sprint's outstanding items di
 Remaining: fold the header-confound result back into SYNTHESIS.md/CALIBRATION_FINDINGS.md once job
 11684122 finishes; continue filling the paper's remaining \todo{}s (citations, Fig 1 generation,
 PINS.md repro appendix) as the next writing pass.
+
+## 2026-07-25m/n — WS2: Phase 8 withdrawn, RL claims narrowed, allocation section rebuilt with paired bootstrap CI
+
+Large writing pass on `paper/floor/main.tex` per explicit user direction (cut Phase 8 rather than
+regenerate at ~150 GPU-h; the two-lineage RL claim isn't load-bearing given seven other converging
+confirmations):
+
+- Phase 8's "0.0%-everywhere corrected floor" withdrawn, not reported as null — explained via the
+  audit's A1-a mechanism (no_goal gate compares raw completion to a regex instead of the assembled
+  source, structurally always-empty for continuation-style templates, both Phase 8 lineages by
+  construction; published numbers for these checkpoints sit 50-60pp above the reported 0%).
+- Stage C RL narrowed from "capacity ceiling" to "consistent with an already-saturated policy" (KL
+  never exceeded 0.0021), corroborated by a Leanabell-Prover-V2 citation (bib entry added but flagged
+  unverified pending the citation pass).
+- Abstract/intro/contributions/discussion/conclusion rewritten off "hard execution floor, nothing
+  moves it" onto the narrower framing: test-time scaffolding is on the wrong axis, approach discovery
+  isn't the bottleneck, post-hoc adaptation on an already-saturated model doesn't help at the scale
+  tested, allocation policy is the strongest lever found. Title softened (dropped "or Training").
+- New consolidated Scope Limits itemized list in Discussion.
+- Retrieval/F2 framing tightened to "BM25 failed despite half of ProofNet# attempts hitting
+  unresolvable identifiers."
+- Phase 4 positioned against adaptive-allocation literature (verifier-grounded, rare-winnable regime
+  as the novelty vs. constrained-optimization/difficulty-proxy prior art — citations still TODO).
+- Found and fixed a real process gap: an already-resolved 8-seed DeepSeek×ProofNet# result
+  (DECISIONS.md 2026-07-21) had never been folded back into ALLOCATION.md or the paper's own `\todo`.
+- Wrote a paired per-problem bootstrap CI (`scripts/phase4_bootstrap_ci.py`) to replace the 1σ
+  seed-std gate per the user's explicit request. Result changed the paper's own confidence framing:
+  both ProofNet# 95% CIs cross zero (Goedel [-42.4%, +57.8%], DeepSeek [-14.8%, +41.8%]), materially
+  less settled than the 3-seed std implied. Rewrote the allocation section, abstract, and conclusion
+  to report this honestly — still "the strongest lever we found," no longer "one-model-robust."
+- Added `paper/floor/PINS.md` + a LaTeX appendix, filling the repro-pins `\todo`.
+- Promoted the pass@budget-vs-pass@N gap and the heartbeat-timeout finding into the contributions list.
+
+Paper compiles clean throughout (pdflatex, now 11 pages). Remaining `\todo{}`s: author list
+(anonymize-for-submission, deliberately left), the full citation pass (related work + Phase 4
+adaptive-allocation prior art + Leanabell-Prover-V2's exact bib metadata), and 3 figures (pass@B grid,
+Step C diversity panel, allocation frontier) that need their generation scripts run and embedded —
+all "ordinary writing," not calibration or analysis work, and the natural next session's task.

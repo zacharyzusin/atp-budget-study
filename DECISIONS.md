@@ -2460,3 +2460,45 @@ Next: retrieval-section polish (mostly done in 2026-07-25i, verify matches this 
 "BM25 failed despite half of attempts hitting unresolvable identifiers" framing), Phase 4 vs.
 adaptive-allocation literature positioning + bootstrap CI replacement for the seed-std gate,
 promote the two methods findings to headline contributions (partially done), then ordinary writing.
+
+## 2026-07-25n — Phase 4: found an un-flagged resolved 8-seed DeepSeek result + paired bootstrap CI reveals the allocation result is less settled than the seed-std framing implied
+
+While updating paper/floor/main.tex's allocation section for the WS2 writing pass, discovered
+`results/phase4/perseed.json` and `ALLOCATION_MECHANISM.json` were regenerated 2026-07-24 with
+DeepSeek×ProofNet# already at 8 seeds (0-7), not 3 — this is the WS1.1 GPU power-up the paper's own
+`\todo{}` was waiting on. Tracing back: it was correctly run and the RESULT was logged in DECISIONS.md
+2026-07-21 ("WS1.1 power-up RESOLVED") and used to make the Gate G1 one-paper-world call the same day
+— **but the regenerated files were never folded back into `results/phase4/ALLOCATION.md`'s own table,
+and the paper's `\todo{}` was never filled in**, so this real, already-decided result sat unused for 4
+days. Fixed: added a dated correction note to ALLOCATION.md, filled the paper's `\todo` with the
+resolved number (+10% ± 24%, 8 seeds, still crosses zero, still WEAK/model-dependent — no longer
+driven by a single catastrophic seed-2 collapse).
+
+Separately, wrote `scripts/phase4_bootstrap_ci.py` (CPU-only, no test file — matches sibling
+phase4_*.py scripts' convention of no dedicated test) implementing the paired per-problem bootstrap CI
+the user requested to replace the 1σ-seed-std gate: resamples PROBLEM IDENTITIES with replacement
+(not individual cells), pools each resampled problem's cells across every seed it appears in (a
+clustered/paired bootstrap — a problem's seeds move together), holds the already-fitted decision
+checkpoint c* and OOF predictor scores fixed, recomputes the realizable-saved-fraction statistic per
+replicate. Ran at n_boot=500 then n_boot=3000 (stable between the two, confirms convergence):
+
+| model × benchmark | point estimate | 95% bootstrap CI | pooled headline (unchanged) |
+|---|---|---|---|
+| goedel × proofnet_sharp | +29.7% | [-42.4%, +57.8%] | +30% |
+| deepseek × proofnet_sharp | +16.1% | [-14.8%, +41.8%] | +10-14% |
+| goedel × minif2f (contrast) | -32.7% | [-78.9%, -5.2%] | -16% |
+| deepseek × minif2f (contrast) | -16.4% | [-54.4%, +5.1%] | -16% |
+
+Point estimates match the already-committed pooled headline numbers almost exactly (strong sanity
+check the bootstrap machinery is correct — no bug). **The material finding: both ProofNet# CIs cross
+zero.** The 3-seed std (±7%) made Goedel's result look far more settled than a per-problem resampling
+distribution (186 problems) supports; the previous "STRONG, per-seed robust" language for Goedel and
+"one-model-robust" framing for the paper's headline positive result both overstated how settled this
+result is. The qualitative ordering (Goedel's point estimate is larger and more consistently positive
+than DeepSeek's) is unchanged, and this remains the strongest lever found in the whole project — but
+it is now reported as the best point estimate available, not a statistically confirmed positive on
+either model. Rewrote the abstract, intro contributions bullet, allocation section, and conclusion in
+`paper/floor/main.tex` accordingly (all still say "the one lever that moves outcomes," none now claim
+it clears a significance bar).
+
+Full script: `scripts/phase4_bootstrap_ci.py`. Results: `results/phase4/bootstrap_ci.json`.

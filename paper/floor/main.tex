@@ -47,8 +47,10 @@ produces a 0\% outcome regardless of underlying model quality, so we report the 
 rather than a number the audit shows cannot be trusted. The one lever that reliably moves outcomes at
 fixed compute is \emph{how} a budget is allocated across a batch of \emph{different} problems, not any
 change to any single problem's search or training: a realizable, mechanism-informed allocation policy
-saves \todo{XX}\% of compute at 90\% of full-budget accuracy on one model (Goedel$\times$ProofNet\#,
-per-seed robust), though this positive result is not yet confirmed on a second model. We position this
+saves $\sim$30\% of compute at 90\% of full-budget accuracy on one model (Goedel$\times$ProofNet\#, the
+larger and more consistently positive of two point estimates), though a per-problem bootstrap CI on
+that same estimate crosses zero and the second model's result is weaker and also inconclusive at the
+95\% level --- reported as the strongest lever we found, not as a settled positive result. We position this
 as a definitive-negative result, narrowly scoped to test-time scaffolding and to the training
 interventions we could trust, against an active literature that treats scaffolding and test-time compute
 as reliable levers, and as a methodological case study in verifier auditing, symmetric skepticism of both
@@ -102,13 +104,23 @@ counterpoint scoped to what is currently confirmed (Section~\ref{sec:allocation}
     independent audit found a phase-specific verifier bug that forces a 0\% outcome mechanically,
     regardless of model quality (Section~\ref{sec:methodology}) --- we report the bug and its causal
     mechanism as a methods contribution in its own right, not the invalidated number.
-  \item A constructive counterpoint: compute-optimal budget allocation across problems, the one lever
-    that does move outcomes, reported honestly as one-model-robust (Section~\ref{sec:allocation}).
+  \item A constructive counterpoint: compute-optimal budget allocation across problems, the strongest
+    lever we found, reported with a paired per-problem bootstrap CI rather than a 3-8-seed std --- the
+    more conservative accounting this CI provides means we report the result as the best point estimate
+    available, not yet a statistically settled positive on either model (Section~\ref{sec:allocation}).
   \item A methodology contribution: a verifier-soundness audit protocol, and the discipline of applying
     the same base-rate skepticism to surprising nulls as to surprising positives, which caught two
     verifier bugs in opposite directions on the same experimental phase --- one that would have shipped
     a spurious ``training moves the floor'' positive, and a later one that would have shipped a
     spurious ``training never moves the floor'' 0\% null (Section~\ref{sec:methodology}).
+  \item Two transferable methods findings for anyone building similar agentic evaluation or refinement
+    pipelines, not just a caveat on our own numbers: (i) \textbf{pass@\emph{budget} is not
+    pass@\emph{N}} --- the two metrics diverge in a budget-dependent, not fixed-offset way, and we give
+    the attempts-per-budget table needed to convert between them (Section~\ref{sec:setup}); (ii) a Lean
+    elaboration-heartbeat setting that is lenient at verification time but was, for months, effectively
+    stricter during a refinement loop's own intermediate steps silently injected false-negative
+    feedback into 17.8\% of miniF2F refine steps --- a warning for any refinement-loop builder to audit
+    this specific failure mode before trusting their loop's feedback signal (Section~\ref{sec:methodology}).
 \end{itemize}
 
 \section{Related work}
@@ -141,7 +153,7 @@ Full citation pass pending.}
 \textbf{Models.} Two independently-trained whole-proof provers: Goedel-Prover-V2-8B
 (\texttt{Goedel-LM/Goedel-Prover-V2-8B}, Lean~v4.9.0-rc1 + mathlib4) and DeepSeek-Prover-V2-7B
 (\texttt{deepseek-ai/DeepSeek-Prover-V2-7B}, Lean~v4.9.0 + standard mathlib4). Pinned model
-revisions, Lean toolchains, and mathlib commits are given in \todo{repro/PINS.md}.
+revisions, Lean toolchains, and mathlib commits are given in Appendix~\ref{app:pins}.
 
 \textbf{Benchmarks.} miniF2F-test (244 audited problems; competition-style, in-distribution for both
 provers) and ProofNet\# (186 test; undergraduate-level, out-of-distribution). DeepSeek-Prover-V2
@@ -275,11 +287,12 @@ not just correlation. Every finding below holds on both provers $\times$ both be
     ($\sim$0--1\% \texttt{knowledge\_hallucinated\_lemma}). Because the terminal label reports only the
     last, most severe failure, it undercounts non-terminal premise/knowledge errors encountered earlier
     in a cell's history: on ProofNet\#, an unknown-identifier error is \emph{encountered} in 51.9\% of
-    attempts even though it is almost never the terminal cause. Retrieval (as tested here, BM25 over a
-    fixed premise corpus) still fails to help net of its context-perturbation cost (F2$'$,
-    Section~\ref{sec:scaffolding}) --- but that failure is now better read as retrieval not solving a
-    problem it does encounter, not as a distribution with nothing to retrieve; whether a stronger,
-    neural retriever would fare differently is untested (Section~\ref{sec:related}).
+    attempts even though it is almost never the terminal cause. \textbf{BM25 premise retrieval fails
+    net of its context-perturbation cost (F2$'$, Section~\ref{sec:scaffolding}) despite roughly half
+    of ProofNet\# attempts hitting an unresolvable identifier} --- a sharper finding than the original
+    reading: retrieval had a real problem to solve and still did not solve it, rather than facing a
+    distribution with nothing to retrieve. Whether a stronger, neural retriever fares differently on
+    that same encountered-but-unsolved population is untested here (Section~\ref{sec:related}).
   \item[\textbf{F3}] \textbf{Capability floor.} Unsolved attempts reach a median deepest step of
     26--53 and almost never stall at step 1: the model makes real progress into a proof but cannot
     \emph{close} it.
@@ -392,6 +405,22 @@ The one lever that moved anything in this project is not a change to any single 
 training at all, but a \emph{policy} for how a fixed total token budget is split across a batch of
 \emph{different} problems.
 
+\textbf{Positioning against adaptive-allocation prior art.} Compute-optimal allocation across a batch of
+problems is not a new idea: constrained-optimization framings of test-time compute allocation, and
+training-free difficulty proxies for routing budget toward easier or more promising instances, both have
+established prior art \todo{cite constrained-optimization test-time-compute allocation and training-free
+difficulty-proxy routing papers, full citation pass pending}. What is new here is the \emph{regime}: our
+predictor is verifier-grounded (trained and evaluated purely on Lean-verified attempt traces, not a
+proxy score), and it operates on a \textbf{rare-winnable} population --- $\sim$80\% of ProofNet\# cells
+never solve at any budget, so the responsive population the policy can actually move is thin, and the
+oracle-realizable gap (Section~\ref{sec:allocation}, below) is best read as a \emph{predictability cost}
+specific to this regime: with so few winnable-but-expensive cells, telling them apart from
+never-winnable ones this early is intrinsically harder than in a regime where most cells are eventually
+solvable and the question is only how much budget each one needs. This is a different problem shape
+than difficulty-routing over a mostly-solvable pool, and we position our contribution as evidence for
+\emph{this} regime specifically, not as a general claim that allocation beats other adaptive-compute
+methods everywhere.
+
 \begin{figure}[t]
   \centering
   \todo{F5: allocation result --- efficiency frontier (realizable vs.\ uniform vs.\ oracle),
@@ -405,17 +434,38 @@ On ProofNet\# ($\sim$80\% of cells never solve, so uniform allocation pours full
 provably-trapped core), a \emph{realizable} during-run policy --- abandon cells a logistic predictor
 flags as trapped at a decision checkpoint $c^*$, informed by the F2/F3 mechanism (elapsed spend, proof-
 depth plateau) --- saves substantial compute at near-equal accuracy on Goedel: \textbf{+26\% $\pm$ 7\%}
-saved at 90\% of full-budget accuracy, robust across all three independent seeds (+25/+18/+34). The same
-policy on DeepSeek is weak and fragile by comparison ($-13\% \pm 28\%$, driven by a seed-2 collapse to
-$-51\%$) --- \textbf{this positive result is one-model-robust, not yet a confirmed general property}.
-Our own post-hoc mechanism analysis (\texttt{ALLOCATION\_MECHANISM.md}) finds this fragility is better
-explained as a thin-population per-seed sampling artifact than a structural deficit in DeepSeek's
-population of exploitable cells, which motivates an 8-seed power-up \todo{report resolved DeepSeek
-result once WS1.1 GPU data lands} as the natural next confirmatory step. We report this result honestly
-scoped: the win is at a fractional-accuracy operating point (at 100\% accuracy the policy must keep
-almost every cell, since the costliest winnable cells are indistinguishable from trapped ones at the
-decision checkpoint, so the saving is $\sim$0 there by construction, not by tuning failure), and
-efficiency rather than raw fixed-compute accuracy is the robust axis.
+saved at 90\% of full-budget accuracy on the original 3 seeds (+25/+18/+34). DeepSeek's original 3-seed
+result was weak and fragile by comparison ($-13\% \pm 28\%$, driven by a seed-2 collapse to $-51\%$); an
+8-seed power-up (\texttt{results/phase4/perseed.json}, seeds 0--7) resolved this from noise-dominated
+toward a small positive: \textbf{+10\% $\pm$ 24\%}, no single catastrophic seed, but still crossing zero
+within 1$\sigma$ --- \textbf{one-model-robust and model-dependent, not a confirmed general property, even
+with the added seeds}.
+
+\textbf{From seed-std to a paired per-problem bootstrap.} A 1$\sigma$-seed-std gate is itself
+barely estimated at $n$=3--8 seeds, and treats each seed's pooled-population statistic as one
+independent draw when the real information is at the level of $\sim$186--244 individual problems. We
+therefore also report a paired per-problem bootstrap 95\% CI (2000+ resamples of problem identities,
+each resampled problem's cells pooled across every seed it appears in, decision checkpoint and OOF
+predictor held fixed, $n$=3000 resamples): Goedel$\times$ProofNet\# point estimate \textbf{+29.7\%},
+95\% CI \textbf{[$-$42.4\%, +57.8\%]}; DeepSeek$\times$ProofNet\# point estimate \textbf{+16.1\%}, 95\%
+CI \textbf{[$-$14.8\%, +41.8\%]} (\texttt{scripts/phase4\_bootstrap\_ci.py},
+\texttt{results/phase4/bootstrap\_ci.json}). The point estimates match the pooled headline numbers
+above almost exactly, but \textbf{both CIs cross zero} --- substantially wider than the seed-std
+framing implied, including for Goedel, whose 3-seed std ($\pm$7\%) made it look far more settled than
+the per-problem resampling distribution supports. This is an honest consequence of resampling at the
+problem level (186 problems) rather than averaging three already-aggregated seed statistics, and it
+changes how we scope the claim: \textbf{Goedel's point estimate is the larger and more consistently
+positive of the two, but neither model's realizable-policy gain clears zero at the 95\% level under
+this more conservative accounting} --- ``one-model-robust'' as previously stated overstates the
+Goedel result's own settledness, even though it remains the stronger of the two point estimates by a
+wide margin and the qualitative STRONG-vs-WEAK ordering between the two models is unchanged. Our own post-hoc mechanism analysis
+(\texttt{ALLOCATION\_MECHANISM.md}) finds DeepSeek's residual fragility is better explained as a
+thin-population sampling artifact (fewer solved cells per seed to route budget toward) than a structural
+deficit in its population of exploitable cells. We report this result honestly scoped: the win is at a
+fractional-accuracy operating point (at 100\% accuracy the policy must keep almost every cell, since the
+costliest winnable cells are indistinguishable from trapped ones at the decision checkpoint, so the
+saving is $\sim$0 there by construction, not by tuning failure), and efficiency rather than raw
+fixed-compute accuracy is the robust axis.
 
 \section{Methodology: auditing the verifier, and symmetric skepticism}
 \label{sec:methodology}
@@ -571,8 +621,10 @@ execution depth is. Post-hoc adaptation on an already-near-saturated policy does
 scale and method we could test and trust; a stronger training-time attempt at the same question is
 reported as withdrawn, with its causal mechanism, rather than as an invalidated null. The one lever that
 does reliably move outcomes at fixed compute is not a change to any single problem's search or training
-at all, but allocation policy across a batch of \emph{different} problems --- robust on one model,
-inconclusive on a second, reported honestly as such rather than rounded up. Alongside these results, two
+at all, but allocation policy across a batch of \emph{different} problems --- the strongest point
+estimate we found, larger and more consistently positive on one model than a second, but not a
+statistically settled positive on either under a per-problem bootstrap CI, reported honestly as such
+rather than rounded up. Alongside these results, two
 methods findings --- the gap between pass@budget and the literature's pass@$N$, and a verifier-timeout
 setting that silently distorts refinement feedback in a widely-used class of agent loop --- are, in our
 view, exactly the kind of transferable, checkable finding that makes a negative-results paper worth
@@ -583,5 +635,43 @@ negative-result reporting in this area more broadly.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
+
+\appendix
+\section{Reproducibility pins}
+\label{app:pins}
+
+Exact model revisions, Lean toolchains, and mathlib commits for every headline result in this paper
+(source of truth: \texttt{configs/base.yaml}, \texttt{configs/deepseek\_\{minif2f,proofnet\}\_baseline.yaml};
+cross-checked against \texttt{DECISIONS.md} 2026-06-04/2026-06-05; full detail in
+\texttt{paper/floor/PINS.md}).
+
+\textbf{Goedel-Prover-V2-8B} (main headline results). Model: \texttt{Goedel-LM/Goedel-Prover-V2-8B} @
+revision \texttt{dfd02e6271a58375dfbf3ece0175277cf6b6a89a} (pinned 2026-06-05). Lean toolchain:
+\texttt{leanprover/lean4:v4.9.0-rc1}. mathlib4: commit \texttt{2f65ba7f1a9144b20c8e7358513548e317d26de1}
+(2024-08-07), from the \textbf{fork} \texttt{xinhjBrant/mathlib4} (not upstream) --- the exact submodule
+pin Goedel-Prover-V2's own training/eval repository uses; custom-patched relative to upstream (its
+oleans are not hosted in mathlib's build cache), so mathlib was built from source.
+
+\textbf{DeepSeek-Prover-V2-7B} (main headline results). Model: \texttt{deepseek-ai/DeepSeek-Prover-V2-7B}.
+Lean toolchain: \texttt{leanprover/lean4:v4.9.0}. mathlib4: commit
+\texttt{f0957a7575317490107578ebaee9efaf8e62a4ab}, from \textbf{upstream}
+\texttt{leanprover-community/mathlib4} --- the pin DeepSeek-Prover-V2's own release verifies against.
+
+\textbf{Training-lineage models} (Phase 6/7/8): \texttt{deepseek-ai/DeepSeek-Prover-V1.5-\{Base,SFT,RL\}}
+and \texttt{Goedel-LM/Goedel-Prover-SFT} (Leanabell-Prover lineage) reuse the Goedel pin above, confirmed
+via each lineage's own \texttt{.gitmodules}/\texttt{lean-toolchain} at pin time.
+
+\textbf{Why two different mathlib snapshots.} Goedel-Prover-V2 and DeepSeek-Prover-V2 were released
+against their own labs' independently-chosen Lean/mathlib pins. We use each model's own release pin
+rather than forcing a shared snapshot, so any solve-rate gap between the two models
+(Section~\ref{sec:passb}) reflects the model, not an artificial Lean-version mismatch against
+training-time expectations. Both pins are materially older (2024-era) than mathlib4's current upstream
+HEAD; see the mathlib-version-skew discussion in Section~\ref{sec:discussion}.
+
+\textbf{Harness.} Verifier backend: \texttt{ReplBackend} (persistent Lean 4 REPL, mathlib preloaded) ---
+not \texttt{PantographBackend} (test/plumbing-only, never used for a reported result) and not
+\texttt{lean-dojo}. Full harness code: \texttt{src/atp/} at the git SHA recorded in each run's
+\texttt{run\_manifest.json} (git SHA, config hash, seed, model revision, mathlib commit, Lean version,
+hostname, timestamps).
 
 \end{document}
