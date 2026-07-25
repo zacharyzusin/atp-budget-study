@@ -3981,3 +3981,8 @@ All 8 shards RUNNING (4h18m-5h elapsed), no failures, no completions yet. Contin
 
 Shard 0 COMPLETED (5h08m, exit 0:0). Remaining 7 shards RUNNING (5h19m-6h elapsed), no failures.
 Continuing hourly checks.
+
+## 2026-07-25 (cont.) — Calibration job 11682365: 7/8 shards COMPLETED, shard 6 still running
+
+Shards 0,1,2,3,4,5,7 all COMPLETED clean (exit 0:0, 5h08m-6h21m each). Shard 6 still RUNNING at
+6h37m, no failure, within the 12h cap with margin. Awaiting its completion before aggregating.
