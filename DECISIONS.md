@@ -2638,3 +2638,18 @@ run config or touching a GPU — exactly the kind of check the design-note disci
 `scratch/phase2/trapped_minif2f.txt`, not the ProofNet# baseline. Smoke test next, per the design
 note's own stated order (implementation -> tests -> smoke config -> smoke run -> read all 5 listed
 risks -> only then consider the full array).
+
+## 2026-07-25u — WS6 item 3 smoke test submitted
+
+`slurm/phase_decomp_run.sh` (verbatim copy of `phase7_stepwise_run.sh`'s staging/vLLM-serve
+pattern, only the final script differs) + a 2-problem smoke trapped file
+(`scratch/phase2/trapped_minif2f_decomp_smoke.txt`). Added one extra guardrail-probe check beyond
+the standard true/false/norm_num triad: verifies the sketch-check's core semantic assumption
+(`backend.verify()` directly, bypassing `Verifier`'s loophole policy, ACCEPTS a sorry-filled have as
+structurally valid) against REAL Lean before spending any generation budget — the single most novel
+verification-semantics decision in this design, now checked against real Lean as part of the smoke
+job rather than deferred to an unstaged/risky login-node test.
+
+Job 11684261, `results/phase_decomp/smoke`, budget=20000, max_rounds=2, max_subgoal_rounds=2, seed 0,
+2 trapped miniF2F problems. Per DESIGN.md's own stopping rule: **will read the result against all 5
+listed risks before considering the full 55-problem array, not just check for exit code 0.**
