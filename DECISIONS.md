@@ -2582,3 +2582,21 @@ straightforward but the paired-cell data shape needs checking first — Stage B'
 isn't a simple solved/unsolved flip).
 
 Compiles clean, 12 pages.
+
+## 2026-07-25r — WS6 item 6b launched: Phase 7 Mode 3 + fresh-control extended to 3 seeds
+
+Both scripts (`scripts/phase7_stepwise_run.py`, `scripts/phase7_freshcontrol_run.py`) and their Slurm
+wrappers already supported multi-seed via `--seeds` and are resume-safe per-cell (same `run_sweep`
+harness as every other headline run), so no new code was needed — just launched seeds 1,2 into the
+existing seed-0 output dirs (safe: disjoint (name,seed) keys, matches the project's standard resume
+pattern). No smoke test re-run (reusing an already-validated pipeline, not a new code path).
+
+- Mode 3 (verified-state re-grounding): job 11684255, `results/phase7/goedel_proofnet_mode3_b32k_v2`,
+  seeds 1,2, budget 32000, matches the original seed-0 run's exact config/budget.
+- Fresh-resample control: job 11684256, `results/phase7/goedel_proofnet_freshcontrol`, seeds 1,2,
+  budget 32000.
+
+Both on `short` partition (11:55 cap, `--requeue` set) — original single-seed run took ~5.5h for 150
+cells, so 2 seeds may approach or exceed the wall-clock cap; requeue + per-cell resume handles that
+without data loss if it happens. Will check status and fold results into STEPWISE.md and the paper
+once both complete.
