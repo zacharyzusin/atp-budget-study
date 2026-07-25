@@ -2417,3 +2417,46 @@ Two corrections to how 2026-07-25k's result gets cited going forward:
 
 Both precisions folded into SYNTHESIS.md correction #3 directly (no separate corrections-log entry
 needed — this is a same-day tightening of 2026-07-25k, not a new finding).
+
+## 2026-07-25m — Phase 8 withdrawn from paper/floor/main.tex; overclaim walked back throughout
+
+Per the user's explicit recommendation (cut Phase 8, free, over the 150 GPU-h regenerate option),
+resolved the paper's one remaining open item. Changes to `paper/floor/main.tex` (compiles clean,
+9 pages):
+
+- **Phase 8 section**: rewritten from "corrected result is 0.0±0.0 everywhere" to an explicit
+  withdrawal — states the `no_goal` gate bug (audit finding A1-a: compares raw extracted completion
+  against a regex instead of the backend-assembled/compiled source, structurally always-empty for
+  continuation-style templates, both Phase 8 lineages by construction), notes affected completions
+  were not retained so the true number cannot be recovered without a re-run, and states published
+  numbers for these exact checkpoints sit 50-60pp above the reported 0%.
+- **Stage C (Phase 6 lightweight RL)**: reframed from "clean capacity-ceiling null" to "consistent
+  with an already-saturated policy" (mean KL never exceeded 0.0021, reward flat), corroborated by
+  citing Leanabell-Prover-V2's report of the same behavior on the same base model (added a flagged
+  `refs.bib` stub — bibliographic metadata NOT independently verified this pass, marked for the
+  citation pass, same discipline as SYNTHESIS.md correction #5's unverified Goedel-V2 anchor).
+- **Abstract, intro, contributions bullets, related-work \todo, "Only two models" discussion
+  objection, "Negative results aren't contributions" objection, Conclusion**: all updated to remove
+  Phase 8 from the list of confirmed nulls, state it as withdrawn-not-null, and walk back "eight
+  phases... all fail to move" to the narrower, defensible claim the user specified: test-time
+  scaffolding operates on the wrong axis; approach discovery is not the bottleneck; post-hoc
+  adaptation on an already-saturated model doesn't help (at the scale/method tested); allocation
+  policy is the one lever that works, one-model-robust.
+- **New consolidated "Scope limits" itemized list** in Discussion (previously scattered/absent):
+  hierarchical subgoal decomposition untested, hammer tested a tactic portfolio not a true
+  superposition-calculus backend, full-pipeline multi-lineage RL untested-not-null (the reopening
+  lever), DeepSeek's trapped cores uncalibrated, Phase 7 ProofNet#-only/single-seed, trapped-core
+  contamination ≥11% at N=32 with curve not flat, mathlib version skew plausible-but-minority
+  contributor to the unresolved-identifier rate.
+- **Title** softened: dropped "or Training" (the training claim is now too narrow/withdrawn-partial
+  to headline) — "Budget Allocation, Not Test-Time Scaffolding or Search, Moves Whole-Proof Theorem
+  Provers."
+
+Did not attempt the 150 GPU-h Phase 8 regeneration or the 10-15 GPU-h smoke test — per the user's own
+assessment, the two-lineage RL claim isn't load-bearing for the paper's thesis given seven other
+converging confirmations; the withdrawal-with-mechanism is reported as a methods contribution instead.
+
+Next: retrieval-section polish (mostly done in 2026-07-25i, verify matches this message's exact
+"BM25 failed despite half of attempts hitting unresolvable identifiers" framing), Phase 4 vs.
+adaptive-allocation literature positioning + bootstrap CI replacement for the seed-std gate,
+promote the two methods findings to headline contributions (partially done), then ordinary writing.

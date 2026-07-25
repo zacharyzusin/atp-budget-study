@@ -15,7 +15,7 @@
 % TODO markers for content not yet finalized (figures pending scripts/, citations pending a lit pass).
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 
-\title{The Execution Floor: Budget Allocation, Not Scaffolding, Search, or Training,
+\title{The Execution Floor: Budget Allocation, Not Test-Time Scaffolding or Search,
 Moves Whole-Proof Theorem Provers}
 
 \author{%
@@ -31,21 +31,28 @@ For a fixed whole-proof theorem prover, we ask whether test-time interventions -
 (premise retrieval, failure memory, an LLM reviewer, tactic-skeleton hints, forced approach diversity),
 additional search, or additional per-problem budget --- can move solve rate beyond what raw sampling
 already buys at a given token budget $B$. Across two independently-trained provers (Goedel-Prover-V2-8B,
-DeepSeek-Prover-V2-7B), two benchmarks (in-distribution miniF2F, out-of-distribution ProofNet\#), and
-eight experimental phases, we find a consistent negative result: none of the above move solve rate. A
-pre-registered, causally interventional test (forcing approach diversity on the fully-trapped problem
-core) confirms the mechanism directly --- diversity rises 42--70\% under a budget-matched manipulation
-check, yet solves stay flat and output quality mildly degrades. We extend the null to \emph{training}:
-neither closing-likelihood SFT, lightweight post-hoc RL, nor full-pipeline lab-scale RL (two independently
-matched Base$\to$SFT$\to$RL lineages) moves the floor either. The one lever that reliably moves outcomes
-at fixed compute is \emph{how} a budget is allocated across a batch of \emph{different} problems, not
-any change to any single problem's search or training: a realizable, mechanism-informed allocation policy
+DeepSeek-Prover-V2-7B), two benchmarks (in-distribution miniF2F, out-of-distribution ProofNet\#), we
+find that none of these test-time levers move solve rate. A pre-registered, causally interventional test
+(forcing approach diversity on the fully-trapped problem core) confirms the mechanism directly ---
+diversity rises 42--70\% under a budget-matched manipulation check, yet solves stay flat and output
+quality mildly degrades: \textbf{approach discovery is not the bottleneck; within-approach execution
+depth is}. We further test two training-time interventions on this same bottleneck: closing-likelihood
+SFT finds a diagnostic exposure-bias signature rather than a fix, and a lightweight post-hoc GRPO probe
+finds no gain on a policy that, by its own KL and reward-flatness signature, was already close to
+saturated --- consistent with, not contradicted by, an independent report of the same behavior on the
+same base model in the literature. A third, stronger training intervention (a lab-scale full
+Base$\to$SFT$\to$RL pipeline on two matched lineages) was attempted but its result is withdrawn here: an
+independent audit found a verifier bug specific to that phase's completion format that mechanically
+produces a 0\% outcome regardless of underlying model quality, so we report the finding and its cause
+rather than a number the audit shows cannot be trusted. The one lever that reliably moves outcomes at
+fixed compute is \emph{how} a budget is allocated across a batch of \emph{different} problems, not any
+change to any single problem's search or training: a realizable, mechanism-informed allocation policy
 saves \todo{XX}\% of compute at 90\% of full-budget accuracy on one model (Goedel$\times$ProofNet\#,
 per-seed robust), though this positive result is not yet confirmed on a second model. We position this
-as a definitive-negative result against an active literature that treats scaffolding and test-time
-compute as reliable levers, and as a methodological case study in verifier auditing, symmetric
-skepticism of both surprising positives and surprising nulls, and causal (not just correlational)
-mechanism testing.
+as a definitive-negative result, narrowly scoped to test-time scaffolding and to the training
+interventions we could trust, against an active literature that treats scaffolding and test-time compute
+as reliable levers, and as a methodological case study in verifier auditing, symmetric skepticism of both
+surprising positives and surprising nulls, and causal (not just correlational) mechanism testing.
 \end{abstract}
 
 \section{Introduction}
@@ -59,13 +66,23 @@ squeezing more solves out of a fixed model. We ask a narrower, falsifiable quest
 independently-trained whole-proof provers, at a fixed per-problem token budget $B$, what actually moves
 solve rate?
 
-We find an \emph{execution floor}: a ceiling on solve rate that eight different interventions, spanning
-search-time scaffolding, closing-tactic libraries, additional budget on already-attempted problems, and
-three distinct training interventions (SFT, lightweight RL, full-pipeline RL), all fail to move. The one
-exception is not a model or scaffold change at all, but a \emph{policy} question: given a fixed total
+We find an \emph{execution floor}: search-time scaffolding, closing-tactic libraries, and additional
+budget on already-attempted problems all fail to move solve rate, and a pre-registered causal test
+localizes why --- the bottleneck is within-approach execution depth, not approach discovery, so no
+lever that only changes \emph{which} approach is tried should be expected to help. We test this same
+bottleneck against two training-time interventions we could fully trust (closing-likelihood SFT and a
+lightweight post-hoc RL probe): neither moves it, though the RL probe's own signature (near-zero
+policy KL, flat reward) supports a narrower reading --- an already-saturated policy, not a proven
+capacity ceiling --- corroborated by an independent report of the same behavior on the same base model
+elsewhere in the literature. A third, stronger training intervention we attempted (full lab-scale
+Base$\to$SFT$\to$RL, two matched lineages) is withdrawn rather than reported: our own audit found a
+phase-specific verifier bug that mechanically forces a 0\% outcome independent of model quality, so we
+report the bug and its mechanism, not a number we know cannot be trusted. The one exception to the
+floor is not a model or scaffold change at all, but a \emph{policy} question: given a fixed total
 compute budget, how should it be split across a batch of different problems. This paper reports the
-floor as the headline finding, with the allocation result as a constructive counterpoint scoped to what
-is currently confirmed (Section~\ref{sec:allocation}).
+floor --- scoped to the interventions we could actually test and trust, not as a claim that nothing
+could ever move it --- as the headline finding, with the allocation result as a constructive
+counterpoint scoped to what is currently confirmed (Section~\ref{sec:allocation}).
 
 \textbf{Contributions.}
 \begin{itemize}
@@ -78,15 +95,20 @@ is currently confirmed (Section~\ref{sec:allocation}).
     causally interventional} test that confirms the mechanism directly rather than by correlation alone
     (Section~\ref{sec:mechanism}).
   \item An exhaustion sweep across five further candidate levers --- hammer/SMT tactics, more budget on
-    already-trapped problems, closing-likelihood SFT, lightweight post-hoc RL, and full-pipeline
-    lab-scale RL across two matched training lineages --- all null, extending the floor from
-    search-time to training-time interventions (Section~\ref{sec:exhaustion}).
+    already-trapped problems, closing-likelihood SFT, lightweight post-hoc RL, and verified-state
+    re-grounding --- all null, extending the floor from search-time to training-time interventions
+    (Section~\ref{sec:exhaustion}). A sixth, stronger candidate (full-pipeline lab-scale RL across two
+    matched training lineages) was attempted but is \textbf{withdrawn, not reported as null}: an
+    independent audit found a phase-specific verifier bug that forces a 0\% outcome mechanically,
+    regardless of model quality (Section~\ref{sec:methodology}) --- we report the bug and its causal
+    mechanism as a methods contribution in its own right, not the invalidated number.
   \item A constructive counterpoint: compute-optimal budget allocation across problems, the one lever
     that does move outcomes, reported honestly as one-model-robust (Section~\ref{sec:allocation}).
   \item A methodology contribution: a verifier-soundness audit protocol, and the discipline of applying
-    the same base-rate skepticism to surprising nulls as to surprising positives, which caught a
-    verifier bug that would otherwise have produced a spurious ``training moves the floor'' headline
-    (Section~\ref{sec:methodology}).
+    the same base-rate skepticism to surprising nulls as to surprising positives, which caught two
+    verifier bugs in opposite directions on the same experimental phase --- one that would have shipped
+    a spurious ``training moves the floor'' positive, and a later one that would have shipped a
+    spurious ``training never moves the floor'' 0\% null (Section~\ref{sec:methodology}).
 \end{itemize}
 
 \section{Related work}
@@ -101,10 +123,17 @@ explicitly, rather than let the BM25 result stand in for retrieval broadly; (3) 
 search-based provers (BFS-Prover, HTPS,
 InternLM2.5-StepProver) --- out of scope by design (prior work found search $<$ Pass@1, and our
 Section~\ref{sec:mechanism} findings say the bottleneck is execution depth, not search breadth), we test whole-proof
-sampling only; (4) RL-for-reasoning post-training literature --- our Phase 6/8 results are a negative
-data point against RL-moves-everything narratives, specifically for execution-limited domains; (5) the
-self-correction-negative-result lineage, as precedent for reporting a well-controlled null as a
-contribution in its own right. Full citation pass pending.}
+sampling only; (4) RL-for-reasoning post-training literature --- our Phase~6 Stage~C probe is a small, single-model
+result consistent with (not independent confirmation of) reports elsewhere that vanilla outcome-reward
+RL on an already-strong prover checkpoint saturates quickly; our stronger, lab-scale RL attempt
+(Phase~8) is withdrawn on audit grounds rather than reported, so we do not claim a negative data point
+against RL-moves-everything narratives at that scale, only at the lightweight-probe scale we could
+actually trust; (5) the self-correction-negative-result lineage, as precedent for reporting a
+well-controlled null as a contribution in its own right; (6) the verifier-bug-invalidates-a-headline
+precedent this paper itself sets for Phase~8 --- position against methods papers on RL verifier
+robustness/reward hacking that make a related but distinct point (verifier exploitation producing a
+false positive) to this paper's inverse case (a verifier bug producing a false, uniform negative).
+Full citation pass pending.}
 
 \section{Setup}
 \label{sec:setup}
@@ -319,24 +348,42 @@ know how to close a proof'' (yes) to ``why does it drift away from a closeable s
 free-running generation'' (open).
 
 \textbf{Lightweight post-hoc RL (Phase 6, Stage C).} A GRPO probe (LoRA $r$=16, DeepSeek-Prover-V2-7B,
-80 steps, direct outcome reward against the Lean verifier) is a clean capacity-ceiling null: held-out
-pass@1 moved $0.586 \to 0.570$ ($\Delta = -1.6$pp), training reward flat across all 80 steps, with
-manipulation checks confirming no reward-hacking or diversity collapse. RL, at LoRA scale, applied
-post-hoc, does not move the floor.
+80 steps, direct outcome reward against the Lean verifier) found no gain: held-out pass@1 moved
+$0.586 \to 0.570$ ($\Delta = -1.6$pp), training reward flat across all 80 steps and mean KL never
+exceeded 0.0021 --- the policy barely moved at all, not that it moved and failed. Manipulation checks
+confirm no reward-hacking or diversity collapse, so the flat reward is not a masked artifact. We read
+this as \textbf{consistent with an already-saturated policy on this specific checkpoint}, not as
+evidence of a general RL capacity ceiling: Leanabell-Prover-V2 independently reports vanilla
+outcome-reward RL producing no gain on DeepSeek-Prover-V2-7B specifically, attributing it to an
+already-saturated policy with a flat pass@$k$ slope, while a method-dependent variant (GAR) moves the
+same base model modestly \citep{leanabell-prover-v2}. ``This model is RL-saturated; post-hoc RL gives
+small, method-dependent gains'' is what this probe plus the corroborating literature support; ``there
+is a capacity ceiling'' is a stronger claim than a single small-LoRA probe can carry on its own, and we
+do not make it.
 
 \textbf{Verified-state re-grounding (Phase 7).} Tests the Stage~B exposure-bias hypothesis directly and
 training-independently: force continuation from a \emph{verified} intermediate Lean state rather than
 free-running generation. Both re-grounding modes tested, both models: null. Re-grounding alone does not
 unlock the trapped core.
 
-\textbf{Full-pipeline, lab-scale RL (Phase 8).} The strongest remaining candidate: not a lightweight
-post-hoc probe but a lab's own full Base$\to$SFT$\to$RL pipeline, tested on two independently matched
-training lineages (DeepSeek-Prover-V1.5 and Leanabell-Prover). This phase surfaced and fixed four real,
-independently confirmed harness bugs before its result could be trusted (Section~\ref{sec:methodology});
-after correction and a harness-sanity control (37/37 and 40/40 historically-solved proofs still verify
-under the patched backend), the corrected result is \textbf{0.0 $\pm$ 0.0 pass@$B$ at every training
-stage, every budget up to 32000, both benchmarks, both lineages} --- the originally reported
-Base\,$<$\,SFT\,$<$\,RL pattern was entirely a wiring-bug artifact and does not survive correction.
+\textbf{Full-pipeline, lab-scale RL (Phase 8) --- withdrawn.} We attempted the strongest remaining
+candidate: not a lightweight post-hoc probe but a lab's own full Base$\to$SFT$\to$RL pipeline, on two
+independently matched training lineages (DeepSeek-Prover-V1.5 and Leanabell-Prover). An initial pass
+surfaced and fixed four harness bugs and reported a corrected 0.0\% pass@$B$ at every training stage,
+every budget, both lineages. A subsequent, independent audit (Section~\ref{sec:methodology}) found a
+fifth bug specific to this phase: the verifier's \texttt{no\_goal} soundness gate compared a raw
+extracted completion against a regex, rather than the backend's actually-assembled/compiled source ---
+for continuation-style templates (both Phase~8 lineages, by construction), that comparison is
+structurally always empty regardless of correctness, so \texttt{no\_goal} fired on every attempt
+independent of whether the underlying proof was valid. This is not a small-magnitude correction like
+Task B's heartbeat fix: the affected completions from the original sweep were not retained, the bug
+mechanically explains a 0.0\%-everywhere outcome regardless of true model capability, and published
+numbers for these exact model checkpoints sit 50--60 points above 0. \textbf{We therefore withdraw
+Phase~8's headline rather than report a number the audit shows cannot be trusted either way}; a
+re-run under the fixed verifier is future work, not reported here. This leaves the RL question
+resting on Phase~6 Stage~C's lightweight post-hoc probe alone (above), whose claim we state narrowly
+there: no gain from a small LoRA GRPO probe on an already near-saturated policy, not a general
+capacity ceiling.
 
 \section{The constructive counterpoint: compute-optimal budget allocation}
 \label{sec:allocation}
@@ -416,27 +463,39 @@ independently trained model earns its cost: it turned a single-lab result into a
 generalizes and surfaced the in-distribution/OOD dichotomy. (4)~Distinguish the manipulation check from
 the outcome: Step~C's null is only interpretable because we first confirmed the intervention fired
 (budget-matched distinct-opening counts), not raw attempt-confounded diversity. (5)~\textbf{Apply the
-same base-rate skepticism to a surprising null as to a surprising positive.} Phase~8's
-0.0\%-everywhere floor looked like a genuine, clean Base$<$SFT$<$RL finding until it was checked against
-the models' own published pass rates and a byte-level prompt diff --- the discipline that would catch an
-implausibly high number should catch an implausibly low or implausibly perfect one with equal rigor. A
-cheap harness-sanity control against an unaffected reference model (Section~\ref{sec:exhaustion},
-Phase~8) should run \emph{before} trusting a dramatic null, not only before trusting a dramatic positive.
-(6)~A newly introduced model configuration exercises code paths existing tests never covered: all three
-Phase~8 structural bugs were latent in code that had shipped, and presumably passed review, for weeks,
-because no test exercised a template family other than \texttt{whole\_proof} until Phase~8 needed one at
-real scale --- add the new case as a failing test against real data \emph{first}.
+same base-rate skepticism to a surprising null as to a surprising positive.} Phase~8's original
+Base$<$SFT$<$RL result looked like a genuine, clean finding until it was checked against the models' own
+published pass rates and a byte-level prompt diff, correcting it to a 0.0\%-everywhere null --- and
+\emph{that} 0.0\%-everywhere null itself looked equally clean (it passed a harness-sanity control on an
+unaffected reference model) until a later, independent audit found a second, phase-specific verifier bug
+that mechanically forces exactly that outcome regardless of model quality. Two rounds of scrutiny on the
+same phase, in opposite directions, both caught real bugs --- the discipline that would catch an
+implausibly high number has to be applied again, not retired, once the number looks implausibly low or
+implausibly clean; a single sanity control passing is evidence, not proof. (6)~A newly introduced model
+configuration exercises code paths existing tests never covered: every Phase~8 structural bug was latent
+in code that had shipped, and presumably passed review, for weeks, because no test exercised a template
+family other than \texttt{whole\_proof} until Phase~8 needed one at real scale --- add the new case as a
+failing test against real data \emph{first}.
 
 \section{Discussion, limitations, and anticipated objections}
 \label{sec:discussion}
 
 \textbf{``Your harness is broken.''} Section~\ref{sec:methodology} is not an appendix afterthought: the
-Phase~8 bug-hunt, the 37/37 and 40/40 harness-sanity controls, and two independent verifier audits are
-reported in the main text because a floor result is only as credible as the verifier that produced it.
+Phase~8 bug-hunt (which ultimately led us to withdraw that phase's own headline), the 37/37 and 40/40
+harness-sanity controls, and two independent verifier audits are reported in the main text because a
+floor result is only as credible as the verifier that produced it --- including the discipline to
+retract a phase's own result when the verifier that produced it turns out not to be trustworthy for that
+specific case.
 
-\textbf{``Only two models.''} We additionally test four training lineages, including two matched
-Base/SFT/RL sequences (Section~\ref{sec:exhaustion}, Phase~8) --- precisely to test
-\emph{training-stage} effects, not merely to add datapoints to the pass@$B$ curves.
+\textbf{``Only two models, and the training-lineage claim is thinner than it looks.''} Both headline
+models (Section~\ref{sec:passb}) get the full scaffolding ablation and the causal mechanism test.
+Training-time interventions are tested more narrowly than we originally attempted: closing-likelihood
+SFT (Stage~A/B) is a two-model null on the two headline provers, and the lightweight post-hoc RL probe
+(Stage~C) is single-model. We did attempt a stronger, two-lineage full Base$\to$SFT$\to$RL pipeline
+(Phase~8) specifically to test training-stage effects beyond a single model, but withdrew its result on
+audit grounds (Section~\ref{sec:exhaustion}) rather than let an untrustworthy number stand in for that
+claim --- so \textbf{full-pipeline RL across multiple training lineages remains untested here, not
+confirmed null}, and is the natural reopening lever for future work.
 
 \textbf{``Scaffolding was implemented weakly.''} The Section~\ref{sec:stepc} manipulation check is the
 direct answer: the diversity intervention demonstrably fired (42--70\% more distinct openings,
@@ -449,8 +508,9 @@ benchmarks is reported as a finding, not hidden as a limitation.
 \textbf{``Negative results aren't contributions.''} We position this paper directly against an active
 test-time-compute and agentic-scaffolding literature that is shipping the same components
 (Section~\ref{sec:related}) this paper shows are null or actively harmful for whole-proof theorem
-proving specifically, with a causal (not correlational) mechanism account and two independently
-matched training-lineage negatives to back it.
+proving specifically, with a causal (not correlational) mechanism account backing the test-time null,
+plus a transparently reported instance where we chased that same rigor into withdrawing our own
+strongest training-time result rather than reporting an invalidated negative.
 
 \textbf{``The mathlib pin is stale, so `unknown identifier' errors are really a harness artifact.''}
 Our verifier is pinned to a fixed mathlib4 snapshot (Section~\ref{sec:methodology}), and the prover
@@ -466,6 +526,33 @@ outright, not merely renamed. This sample leans toward genuine model/API mismatc
 though it does not by itself distinguish training-data mathlib version from harness pin version as the
 source of that mismatch.
 
+\textbf{Scope limits.} Collected in one place rather than scattered through the results sections above:
+\begin{itemize}
+  \item \textbf{Hierarchical subgoal decomposition is untested.} This is the one major scaffolding axis
+    we never touched, and the axis current (2026) agentic-prover systems are largely built on; our
+    scaffolding ablation (Section~\ref{sec:scaffolding}) covers retrieval, memory, review, tactic
+    skeletons, and diversity injection, not subgoal decomposition.
+  \item \textbf{Hammer/SMT (Section~\ref{sec:exhaustion}) tested a same-pin tactic portfolio, not a
+    true superposition-calculus hammer} against an external ATP backend; the null rules out the cheaper
+    intervention only.
+  \item \textbf{Full-pipeline RL across multiple training lineages is untested, not confirmed null}
+    (withdrawn on audit grounds, Section~\ref{sec:exhaustion}) --- the natural reopening lever if this
+    line of work continues.
+  \item DeepSeek-Prover-V2-7B's trapped cores are uncalibrated on both benchmarks (the header-confound
+    and pass@32 calibration checks in Section~\ref{sec:mechanism}/\ref{sec:exhaustion} ran on Goedel
+    only); Goedel and DeepSeek agree on every other mechanism finding, so we expect but have not
+    confirmed the same calibration holds.
+  \item Phase~7's verified-state re-grounding result is ProofNet\#-only and single-seed per condition,
+    not the full cross-model/cross-benchmark/multi-seed protocol used elsewhere in this paper.
+  \item The trapped-core population's resampling-recovery rate is $\geq$11\% at $N$=32 fresh samples
+    (Section~\ref{sec:exhaustion}) with the recovery curve not yet flat at that $N$ --- the true
+    asymptotic recovery rate under unlimited fresh sampling is not established, only a lower bound.
+  \item Mathlib version skew against our $\sim$2024-era pin plausibly accounts for some, but on our
+    direct check likely a minority, share of the unresolved-identifier rate (above); we cannot cleanly
+    separate ``prover trained against a different mathlib era'' from ``prover hallucinating lemmas that
+    never existed in any mathlib version'' with the check we ran.
+\end{itemize}
+
 \textbf{Open question.} The exposure-bias signature (Section~\ref{sec:exhaustion}, Phase~6 Stage~B) ---
 near-zero teacher-forced loss on a verified closing, yet autoregressive failure to reach it --- is this
 project's most interesting unresolved thread and is analysis-, not training-, shaped; a drift
@@ -474,17 +561,25 @@ signature emerges, a natural follow-up.
 
 \section{Conclusion}
 
-Across eight phases, two independently trained provers, two benchmarks with an in-distribution/OOD
-asymmetry, and four training lineages including two matched Base$\to$SFT$\to$RL sequences, we find a
-consistent execution floor: agentic scaffolding, additional search, additional same-problem budget,
-closing-likelihood SFT, lightweight post-hoc RL, and full-pipeline lab-scale RL all fail to move solve
-rate, and a pre-registered causal intervention confirms directly that the bottleneck is within-approach
-execution depth, not approach discovery. The one lever that reliably moves outcomes at fixed compute is
-allocation policy across a batch of different problems --- reported honestly as one-model-robust, with
-its own mechanism account and a stated path to confirmation. We hope this serves both as a cautionary
-result for test-time-compute claims in formal mathematics specifically, and as a methodological template
---- verifier auditing, causal not correlational mechanism tests, and symmetric skepticism of nulls and
-positives alike --- for negative-result reporting in this area more broadly.
+We do not claim there is a hard execution floor that nothing could ever move --- that overclaims, and
+the scope limits above name concrete untested axes (hierarchical subgoal decomposition, a true
+superposition hammer, full-pipeline multi-lineage RL) that could still move it. What we do show, across
+two independently trained provers and two benchmarks with an in-distribution/OOD asymmetry: test-time
+scaffolding on a frozen whole-proof prover operates on the wrong axis, and a pre-registered causal
+intervention confirms directly why --- approach discovery is not the bottleneck, within-approach
+execution depth is. Post-hoc adaptation on an already-near-saturated policy does not help either, at the
+scale and method we could test and trust; a stronger training-time attempt at the same question is
+reported as withdrawn, with its causal mechanism, rather than as an invalidated null. The one lever that
+does reliably move outcomes at fixed compute is not a change to any single problem's search or training
+at all, but allocation policy across a batch of \emph{different} problems --- robust on one model,
+inconclusive on a second, reported honestly as such rather than rounded up. Alongside these results, two
+methods findings --- the gap between pass@budget and the literature's pass@$N$, and a verifier-timeout
+setting that silently distorts refinement feedback in a widely-used class of agent loop --- are, in our
+view, exactly the kind of transferable, checkable finding that makes a negative-results paper worth
+citing rather than worth skipping. We offer this as a narrower, better-supported claim than ``nothing
+moves it,'' and as a methodological template --- verifier auditing, causal not correlational mechanism
+tests, and symmetric skepticism applied to nulls and positives alike, including our own --- for
+negative-result reporting in this area more broadly.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
