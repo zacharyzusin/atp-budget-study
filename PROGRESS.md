@@ -3976,3 +3976,8 @@ All 8 shards RUNNING (3h17m-4h elapsed), no failures. Continuing hourly checks.
 ## 2026-07-24 (cont.) — Calibration job 11682365: 5h check, all healthy
 
 All 8 shards RUNNING (4h18m-5h elapsed), no failures, no completions yet. Continuing hourly checks.
+
+## 2026-07-25 — Calibration job 11682365: 6h check, first shard COMPLETED
+
+Shard 0 COMPLETED (5h08m, exit 0:0). Remaining 7 shards RUNNING (5h19m-6h elapsed), no failures.
+Continuing hourly checks.
