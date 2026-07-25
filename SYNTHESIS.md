@@ -108,6 +108,15 @@ finding below holds on **both provers × both benchmarks**. (Detail: `results/ph
 - **F2 — failure taxonomy (the spend gate).** Unsolved attempts fail at deep reasoning (94–100%
   `reasoning_deep`), essentially never at a missing lemma (~0% `knowledge_hallucinated_lemma`). → premise
   **retrieval cannot help** (nothing to retrieve); this is why ReProver was killed, not just deferred.
+  **[CORRECTED — see Corrections log #6: this is the cell's single DOMINANT terminal failure only.
+  Measured as "encountered anywhere in the cell's attempt history," genuine unknown-identifier/
+  unknown-constant errors show up in 51.9% of ProofNet# unsolved cells (243/455 `reasoning_*`-labeled
+  cells also hit one), vs. 8.0% on miniF2F. The <1%-on-ProofNet# figure is true only for the terminal
+  failure; premise gaps are common along the way, just rarely the last thing the model trips on. This
+  weakens the taxonomy-based case for "retrieval is doomed by construction" on ProofNet# specifically
+  — it does not reverse the actual retrieval decision, which rests on a stronger, more direct piece of
+  evidence (Phase 1's BM25 ablation: −36 net flips on ProofNet#, real experimental harm) that this
+  correction does not touch.]**
 - **F3 — capability floor.** Unsolved attempts reach a median deepest step of 26–53 and almost never stall
   at step 1 — the model makes real progress into proofs but cannot *close* them.
 - **F4 — no easy subfield.** ProofNet# solve rates are 21–33% across every subfield (Artin…Axler) — there
@@ -430,3 +439,20 @@ more precise language before reuse in a writeup. Full derivation in `CALIBRATION
    and has been retracted. Reported (not independently verified in this repo) as a sanity anchor:
    Goedel-V2's own self-correction mode nets roughly +2pp at pass@32, the right order of magnitude for
    refinement's true counterfactual value and consistent with 20.7% overstating it.
+
+6. **F2's failure taxonomy is accurate as "dominant terminal failure mode" but needs a stated
+   correction on ProofNet# for anything measured across a cell's full attempt history.** Independent
+   re-derivation against raw Lean error text (not just the classifier's own priority-ordered summary)
+   confirmed the classifier code is faithful to what's reported (re-running it unmodified reproduces
+   MECHANISM.md's exact numbers) — this is not a code bug. But because the cell-level label is only the
+   single highest-priority failure across ~15 attempts, it buries earlier premise errors that the model
+   recovered from into a different (also-failing) path. Measuring "did ANY attempt in this cell hit
+   `unknown identifier`/`unknown constant`" instead of "was it the LAST failure": **miniF2F 8.0% (14/176
+   unsolved cells)** — small, consistent with the 0.0% terminal figure being a reasonable rounding.
+   **ProofNet# 51.9% (248/478 unsolved cells; 243/455 of the `reasoning_*`-labeled cells also hit one)**
+   — vs. the reported 1.0% terminal "knowledge" bucket. Premise gaps are common along the way on
+   ProofNet# specifically, just rarely the last thing the model trips on. This weakens the
+   taxonomy-based justification for "retrieval is doomed by construction" — cite both the 1%-terminal
+   and 52%-encountered rates together, rather than the 1% alone. **It does not reverse the actual
+   retrieval decision**: Phase 1's BM25 ablation (−36 net flips on ProofNet#, real experimental harm)
+   is direct evidence, independent of this taxonomy, and stands on its own.

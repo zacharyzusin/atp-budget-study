@@ -1,7 +1,10 @@
 # External Calibration Sprint — Findings So Far
 
-**Status:** bounded validation sprint, still in progress. `paper/floor/` (WS2) remains
-PAUSED throughout — nothing here has been written into the paper yet.
+**Status: CLOSED (2026-07-25g).** Every item from the original critique and every
+follow-on the sprint surfaced is resolved, run, declined-with-reasoning, or logged as
+an explicit scope limit — see "Resolved this round" below. `paper/floor/` (WS2) was
+never touched during the sprint; reopening it is now a recommendation awaiting your
+confirmation, not something still blocked on more calibration work.
 
 ## Why this sprint happened
 
@@ -119,23 +122,80 @@ tokens vs. plain resampling's 79,986-token solve of the same problem at uncapped
 budget) remains a suggestive n=1 data point, no more. The equivalent re-analysis for
 Phase 5 has not been done yet (residual).
 
-**Free gate #1 — the `alloc_split=0.0` arm is now settled without GPU spend.** From
-`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`: at 128k, `needed-refine=15.5pp` of
-Goedel×miniF2F's 75.0% solved — **20.7% of all solves used ≥1 refinement step**, a
-7.8–15.5× multiple of the project's own OFAT noise bar (~1–3pp). Refinement is doing
-real, non-trivial work under the current allocation. Combined with Phase 1's own
-directional finding (`budget_alloc__0` harmful on ProofNet# at lower budgets), the
-prior now leans negative enough that the GPU cell isn't worth running to confirm it.
-**Recommendation: do not run this arm.**
+**Free gate #1 — the `alloc_split=0.0` arm is settled without GPU spend, on the right
+grounds.** Initial framing (refinement closes 20.7% of solves, compared to the OFAT
+noise bar) was a category error — that's an attribution share, not a counterfactual,
+and the noise bar measures between-arm deltas, not within-run attribution. Retracted.
+**The load-bearing reason is Phase 1's own `budget_alloc__0` result**: a wash at ≤32k,
+directionally harmful on ProofNet# — an actual counterfactual, and it points the same
+direction. 20.7% (`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`) stands as a
+descriptive fact with this caveat attached. Cross-check (reported, not independently
+verified in this repo): Goedel-V2's own self-correction mode nets ~+2pp at pass@32 —
+the right order of magnitude for refinement's true counterfactual value, consistent
+with 20.7% overstating it. **Not running this arm.**
 
-**Free gate #2 — sizes the ProofNet# calibration cell's expected payoff before
-spending on it.** Same table: Goedel×ProofNet# @128k gets propose mean/med/p90/max =
-**4.71/4/8/23**, vs. miniF2F's **1.94/1/4/14** — the structural gap that motivated the
-whole calibration exercise. ProofNet# already gets ~4× more independent samples at the
-median than miniF2F did. This doesn't kill the case for running it (median 4 of a
-32-sample target is still a large gap, and Phase 7's 0/150 is high-stakes), but it
-means the miniF2F result (10.9%) is likely an **upper bound**, not a same-magnitude
-estimate, for what ProofNet# would show.
+**Free gate #2 — corrected.** The original comparison (ProofNet# @128k propose
+mean 4.71 vs. miniF2F 1.94) used the OVERALL population, not the trapped-core
+population specifically — an apples-to-oranges error. Recomputed directly from
+`agent_states/*.json`, restricted to each benchmark's actual trapped-core problem
+list, summed propose attempts across all 3 baseline seeds per problem:
+
+| | n | mean | median | min | max |
+|---|---|---|---|---|---|
+| miniF2F trapped | 55 | 11.89 | 11 | 5 | 35 |
+| ProofNet# trapped | 150 | 14.71 | 13 | 6 | 47 |
+
+These are close, not a 4× gap. **Corrected leverage**: the miniF2F calibration cell's
+real leverage was 32/11.89 ≈ **2.7×** existing coverage, not the ~10× a "union of ~3"
+framing implied. Matching that leverage for ProofNet# needs **N≈40 samples**
+(32/11.89 × 14.71), pricing at **≈157 GPU-h** (150×40, scaled from job 11682365's
+observed rate) — not the ≈125 GPU-h (N=32) or ≈250 GPU-h (N=64) estimates floated
+earlier, both built on the same uncorrected baseline.
+
+**No-go, confirmed.** ≈157 GPU-h (≈3.1× the ask-first line) to put a caveat on one of
+eight converging nulls, in a one-paper world where Phase 7 isn't the headline — the EV
+isn't there. **Design-advice reversal, logged for the record**: last round's "breadth
+over depth" (150×16/150×12) was right when coverage looked like ~1 attempt/problem
+(the overall-population average, wrongly applied here). Now that the trapped
+population specifically already has broad shallow coverage (~13 attempts), depth is
+what would add information, not breadth — if this is ever revisited, ~40 problems ×
+32 samples (~33 GPU-h), not 150 × 12–16.
+
+**Free substitute — Phase 7 already has its own resampling control; no new work
+needed.** Checking `results/phase7/STEPWISE.md` found Phase 7's Mode 3 track already
+ran a "matched fresh-resample control (same names, fresh session, zero re-grounding)"
+on the full 150-problem population, specifically to rule out whether Mode 3's one raw
+solve was caused by re-grounding or a cold-start artifact. **That control got 0/150.**
+This is a real, already-existing, designed control — stronger evidence than anything
+a new inferred coverage argument could add. Phase 7's null does NOT need a Step
+C-style "beat resampling, not zero" caveat — it already tested resampling directly and
+found nothing. It DOES need the Check B correction below.
+
+**Free substitute — fold Check B's flips into Phase 7's denominator.** All 3
+Goedel×ProofNet# heartbeat-reverify flips (`Ireland__Rosen__exercise_12_12`,
+`Rudin__exercise_4_4b`, `Rudin__exercise_5_5` — `results/audit/AUDIT_FINDINGS.md` Task
+B) are confirmed members of the 150-problem trapped list. **Phase 7's population is
+147, not 150** — 3 were already known-recoverable via an unrelated scoring fix before
+Phase 7 ran.
+
+**Coverage stated explicitly for the eventual writeup**: miniF2F trapped ≈ 11 median
+independent proposals (3 seeds combined) before the calibration cell found 2 clean / 1
+contaminated recoveries at N=32 (2.7× leverage). ProofNet# trapped ≈ 13 median
+independent proposals, plus a dedicated single-sample fresh-resample control — both
+came back at/near zero. miniF2F's ≥11% at N=32 should be read as a weak upper bound on
+what deeper resampling might find on ProofNet#, given the similar (not 4×-different)
+starting coverage and the modest (2.7×) leverage that produced it — not a confident
+estimate, and not something worth spending ≈157 GPU-h to pin down more precisely.
+
+**Free re-analysis — Phase 5, corrected scope.** Checking further found Phase 5's
+"Goedel 1, DeepSeek 0" result was a **10-cell-per-model pilot subsample of the
+ProofNet# trapped core** (not miniF2F, not the full 150 — problem names in the pilot
+log, e.g. `Herstein_3_2_21`, `Rudin_3_2a`, are ProofNet#-style; SYNTHESIS.md's original
+one-line summary doesn't say this). Those 10 problems already carried ~13 independent
+propose attempts with zero solves before the pilot found 1 (Goedel, via extending an
+existing trajectory past 128k — a different lever than fresh resampling, so it isn't
+in tension with "0 clean resampling recoveries" elsewhere). No calibration cell
+touched this population.
 
 ## Bottom line so far
 
@@ -176,38 +236,45 @@ itself is still untouched (WS2 pause holds until you reopen it).
 
 ## Resolved this round
 
-1. SYNTHESIS.md corrections — **applied**, as marked/dated corrections with a
-   corrections log (documentation, not `paper/floor/`).
+1. **SYNTHESIS.md corrections — applied**, as marked/dated corrections with a
+   corrections log (documentation, not `paper/floor/`). Now 6 corrections total.
+2. **`alloc_split=0.0` cell — not run.** Original reasoning (20.7% vs. the OFAT noise
+   bar) was a category error, retracted. Load-bearing reason: Phase 1's own
+   `budget_alloc__0` result (a real counterfactual — wash at ≤32k, harmful on
+   ProofNet#). 20.7% kept as a descriptive fact with that caveat. Cross-checked
+   (user-reported, not independently verified here) against Goedel-V2's own
+   self-correction mode (~+2pp at pass@32) as the right order of magnitude.
+3. **ProofNet# trapped core calibration cell — NO-GO.** Gate #2's original "4× gap"
+   was computed over the wrong (overall, not trapped-restricted) population — corrected
+   to miniF2F trapped ≈11 vs. ProofNet# trapped ≈13 median independent proposals, a
+   small gap, not 4×. Real leverage of the miniF2F cell was 2.7×, not ~10×; matching it
+   for ProofNet# needs ~40 samples/problem (~157 GPU-h, not ~125 or ~250) — ~3× the
+   ask-first line for one of eight converging nulls in a one-paper world. Not running
+   it. Design-advice reversal logged: breadth-over-depth was right when coverage
+   looked like ~1/problem; now that the trapped population has ~13, depth (not
+   breadth) is what would add information if ever revisited.
+4. **Phase 7's null — already had a resampling control, corrected denominator.**
+   `results/phase7/STEPWISE.md` already ran a matched fresh-resample control (0/150) —
+   no new work needed; it does not need a Step C-style caveat. Denominator corrected to
+   147 (3 of the 150 are pre-known recoverable via Check B's heartbeat fix, unrelated
+   to re-grounding).
+5. **Phase 5's scope corrected.** "Goedel 1, DeepSeek 0" was a 10-cell-per-model
+   ProofNet# pilot subsample, not miniF2F, not the full 150 — logged and reflected in
+   SYNTHESIS.md; the 1 solve is a different lever (extension) than resampling.
+6. **F2's failure taxonomy re-derived against raw Lean error text.** Classifier code is
+   clean (reproduces the exact reported numbers). Real finding: F2's cell-level label
+   is the single dominant *terminal* failure, which buries earlier premise errors the
+   model recovered from. Measured across the full attempt history: miniF2F 8.0%
+   (consistent with the 0.0% terminal figure), **ProofNet# 51.9%** (vs. the reported
+   1.0% terminal figure) — a real, ProofNet#-specific correction to the taxonomy-based
+   case for "retrieval is doomed by construction." Does not reverse the actual
+   retrieval kill decision, which rests on Phase 1's direct BM25 ablation (−36 net
+   flips), independent evidence this correction doesn't touch.
 
-## Resolved this round (part 2)
+## Residuals (logged as known scope limits, not to-dos)
 
-2. **`alloc_split=0.0` cell — settled negative by free gate #1, GPU cell not
-   recommended.** Refinement closes 20.7% of Goedel×miniF2F's solves at 128k, 7.8–15.5×
-   the noise bar; Phase 1 already found the same lever directionally harmful on
-   ProofNet#. Not running it; revisit only if new evidence changes this prior.
-
-## Open question (yours to decide)
-
-1. **ProofNet# trapped core (150 problems) calibration cell — go/no-go and design.**
-   Free gate #2 sizes the expected payoff down (ProofNet# already gets ~4× more
-   independent samples at the median than miniF2F did), so treat miniF2F's 10.9% as an
-   upper bound, not a like-for-like estimate. If it proceeds, revise from "full 150 at
-   32 samples" (~125 GPU-h) to **breadth over depth**, since the governing question is
-   existence (does resampling close ANY problem Phase 7's re-grounding didn't), not a
-   precise rate: **150 × 16 samples (~62 GPU-h)** or **150 × 12 (~47 GPU-h, under the
-   50h line)**. Pre-registered read either way: any clean recovery (excluding known
-   overlaps) → Phase 7's 0/150 null needs a stated resampling-control caveat; zero
-   clean recoveries → the null stands, and is stronger for having been tested. Awaiting
-   your go/no-go and sample-count choice.
-
-## Residuals (logged, not blocking)
-
-- DeepSeek's trapped cores remain uncalibrated on both benchmarks (only Goedel×miniF2F
-  has a resampling control now) — logged as a known scope limit, not a to-do (the
-  miniF2F result suggests the effect is small, and DeepSeek's own baselines already
-  match published numbers).
-- F2's failure taxonomy re-derivation against raw Lean error codes is still undone —
-  the one substantive unchecked item from the original critique; CPU-only.
-- Phase 5's token-matched re-analysis (same free shape as the Step C one above) not
-  yet done.
-- No edits to `paper/floor/` (WS2 still paused).
+- DeepSeek's trapped cores remain uncalibrated on both benchmarks — the miniF2F result
+  suggests the effect is small, and DeepSeek's own baselines already match published
+  numbers.
+- No edits to `paper/floor/` — sprint is closed; **recommending WS2 reopen** (per
+  DECISIONS.md 2026-07-25g), awaiting your confirmation.

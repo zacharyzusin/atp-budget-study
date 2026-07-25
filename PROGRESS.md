@@ -4048,3 +4048,31 @@ pending decisions:
 Residuals restated: Phase 5 token-matched re-analysis (same free shape, not done); DeepSeek trapped
 cores logged as a known scope limit, not a to-do; F2 taxonomy re-derivation still the one
 substantive unchecked item, CPU-only, not started.
+
+## 2026-07-25d — Calibration sprint CLOSED: no-go on ProofNet#, F2 re-derived, sprint fully resolved
+
+Per user: no-go on the ProofNet# calibration cell — confirmed my own gate-2 leverage math was wrong
+(used overall-population attempt averages, not trapped-restricted; corrected: miniF2F trapped ≈11,
+ProofNet# trapped ≈13 median independent proposals, a small gap not 4x). Real miniF2F leverage was
+2.7x, not ~10x; matching it for ProofNet# needs ~40 samples (~157 GPU-h, not ~125/~250). Not worth it
+for one of eight nulls in a one-paper world. Design-advice reversal logged (breadth-over-depth was
+based on the wrong coverage number; depth would be right if ever revisited).
+
+Found Phase 7 already has its own fresh-resample control (0/150, `results/phase7/STEPWISE.md`) — self
+-corrected an earlier inline note that wrongly said Phase 7 ran on miniF2F (it's ProofNet#-only).
+Folded Check B's 3 confirmed flips into Phase 7's denominator (147, not 150). Corrected Phase 5's
+scope (10-cell ProofNet# pilot subsample, not a full-population miniF2F result). Retracted gate 1's
+noise-bar comparison (category error); kept Phase 1's `budget_alloc__0` counterfactual as the
+load-bearing reason not to run that arm.
+
+Dispatched F2's taxonomy re-derivation to a fork (raw Lean error text vs. the reported buckets).
+Result: classifier code is clean, but the cell-level label only captures the terminal failure, which
+buries earlier premise errors. Measured across full attempt history: ProofNet# hits unknown-
+identifier/constant in 51.9% of unsolved cells (vs. reported 1.0% terminal) — real correction to the
+taxonomy-based "retrieval doomed by construction" case, doesn't reverse the actual decision (rests on
+Phase 1's direct BM25 ablation, −36 net flips, independent evidence).
+
+All items from the original critique and every follow-on are now resolved, run, declined-with-
+reasoning, or logged as a scope limit. SYNTHESIS.md has 6 marked/dated corrections with full audit
+trail. `CALIBRATION_FINDINGS.md` updated to reflect closure. **Sprint formally CLOSED
+(DECISIONS.md 2026-07-25g). Recommending WS2 (paper/floor/) reopen — awaiting user confirmation.**
