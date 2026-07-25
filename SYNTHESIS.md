@@ -368,18 +368,28 @@ floor-number correction above as a known, quantified, non-blocking caveat.
 
 ## Corrections log (added 2026-07-25, does not modify the text above)
 
-An external calibration sprint (triggered by an outside review of the committed results) found four
-issues in how the numbers above are framed. None require retracting a headline result; all require
-more precise language before reuse in a writeup. Full derivation in `CALIBRATION_FINDINGS.md` and
-`DECISIONS.md` (2026-07-21 through 2026-07-25b).
+An external calibration sprint (triggered by an outside review of the committed results, closed
+2026-07-25g) found six issues in how the numbers above are framed, including one self-correction
+(#3's puzzle, below) and one retraction that came back in the trapped core's favor (#1). None require
+retracting a headline result; all require more precise language before reuse in a writeup. Full
+derivation in `CALIBRATION_FINDINGS.md` and `DECISIONS.md` (2026-07-21 through 2026-07-25h).
 
-1. **"miniF2F saturates to a ~72–75% ceiling"** is imprecise. The pass@N recount
-   (`results/phase0/PASS_AT_N_RECOUNT.md`) found that at 128k tokens the refinement loop consumes most
-   of the budget: median 1 independent propose attempt per cell (max 14). The plateau is *at least
-   partly* an artifact of the harness running out of independent attempts, not solely a demonstrated
-   capability ceiling of the model. Correct reading: "plateaus because the refinement-heavy agent loop
-   exhausts its independent-attempt budget before exhausting tokens," pending further work to isolate
-   how much of the plateau is genuine model ceiling vs. this artifact.
+1. **"miniF2F saturates to a ~72–75% ceiling"** is imprecise, with a precise clause needed (added
+   2026-07-25h after a user retraction — see below). The pass@N recount
+   (`results/phase0/PASS_AT_N_RECOUNT.md`) found that at 128k tokens the OVERALL population's median
+   propose-attempt count is 1 (max 14). It is tempting — and was an error made mid-sprint — to read
+   this as meaning the TRAPPED cells specifically were undersampled. They were not: by construction,
+   easy cells solve on attempt 1 and stop (pulling the overall median down), while trapped cells burn
+   the full budget across many attempts. Restricted to the trapped population, miniF2F cells average
+   **~11 propose attempts per seed** (`DECISIONS.md` 2026-07-25c), so the union across the original 3
+   baseline seeds is **~33 independent proposals — at parity with the calibration cell's N=32, not a
+   10×-undersampled population.** The trapped cores were never attempt-starved. Correct reading:
+   the pass@B curve's shape *near the origin* (2k/8k) is attempt-starved, because most cells there are
+   easy ones getting few samples; the curve's *flat tail* past N≈14 is genuinely unmeasured, but not
+   because of undersampling — it's because the harness never plotted pass@B past the point where the
+   refinement-heavy loop stopped generating fresh independent samples, even though the hardest cells
+   had already accumulated plenty of attempts without solving. Both clauses are needed; neither implies
+   the other.
 
 2. **"This is a scoring correction, not a new capability finding"** (the `maxHeartbeats` fix,
    Task B above) undersells the miniF2F effect specifically. The trajectory-distortion rate — REFINE
@@ -392,7 +402,18 @@ more precise language before reuse in a writeup. Full derivation in `CALIBRATION
    (`results/phase0/TRUNCATION_AND_TIMEOUT_AUDIT.md`.)
 
 3. **Trapped-core claims (Phase 2 Step C, Phase 5, Phase 7 — "trapped ⇒ 0% baseline by construction")**
-   need a stated recovery-rate caveat, with two separate numbers, not one:
+   need a stated recovery-rate caveat, with two separate numbers, not one. **Open puzzle (added
+   2026-07-25h): given correction #1's finding that trapped cells already had ~33 union proposals
+   before the calibration cell, N=32 fresh samples recovering 6 is not explained by sample count
+   alone.** The leading suspect is the official header fix (`maxHeartbeats 0`), not fresh sampling
+   per se: Check B already flipped `algebra_apbon2pownleqapownpbpowon2` on the heartbeat fix alone
+   (confirmed: this problem IS one of the 6 calibration-cell recoveries, direct name match against
+   `results/audit/AUDIT_FINDINGS.md` Task B), and 17.8% of miniF2F refine steps got spurious timeout
+   feedback (correction #2), meaning the baseline's ~11 proposals/seed were lower-quality than 11
+   clean ones. A CPU-only re-verify of all 6 recovered proofs under the OLD header is queued
+   (`DECISIONS.md` 2026-07-25h) to separate genuine sampling recoveries from header-fix recoveries
+   that resampling merely happened to surface — not yet run; the numbers below are as originally
+   reported and may need a further split once that check returns.
    - **Iso-compute (governs the claims as originally made):** on Goedel×miniF2F's 55-problem trapped
      core, plain resampling at the *original 128k-token budget* recovers 3/55, of which only **2/55
      are clean** — the third is a known miniF2F↔Lean-Workbook overlap (below). 3/55 sits exactly on
