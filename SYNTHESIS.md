@@ -6,6 +6,12 @@ result doc (`results/phase1/FINDINGS.md`, `phase2/MECHANISM.md`, `phase3/HAMMER_
 `phase4/ALLOCATION.md`, `phase6/{FINETUNE.md,STAGE_C_RESULT.md}`, `phase7/STEPWISE.md`,
 `phase8/ZOO.md`). This file is the consolidated story; those are the receipts.*
 
+> **⚠ Four corrections logged 2026-07-25, from an external-calibration sprint
+> (`CALIBRATION_FINDINGS.md`, `DECISIONS.md` 2026-07-24/25/25b). The original text below is left
+> intact; each affected claim is marked inline with a pointer to the "Corrections log" section at
+> the bottom of this file, which has the corrected numbers and full derivation. Do not delete the
+> original text — the audit trail is a deliberate asset.**
+
 ## The question
 
 For a fixed whole-proof theorem prover, how does solve rate scale with the per-problem **token budget**
@@ -33,10 +39,16 @@ whole-proof sampling at a given budget? And if not — **why** does budget satur
 | 32k  | 69.5% ± 0.6% | 67.1% ± 0.9% | 12.0% ± 0.6% | 18.3% ± 1.6% |
 | 128k | 74.9% ± 0.9% | 72.0% ± 0.5% | 14.3% ± 0.8% | 22.2% ± 1.7% |
 
+**[CORRECTED — see Corrections log #4: the 2k row is attempt-starved (median ZERO full propose
+attempts complete within 2k tokens); treat it as a floor/footnote point, not a comparable curve
+point.]**
+
 - **Same shape on both models.** miniF2F is steep early (≈+30pp over 2k→8k) then saturates to a ~72–75%
   ceiling by 128k; ProofNet# is ~3–5× harder at every budget and far flatter — it keeps buying proofs but
   the curve is still climbing at 128k from a low base. The budget-saturation *asymmetry* (in-distribution
   saturates; OOD stays budget-hungry) is not a Goedel artifact — it replicates on an independent prover.
+  **[CORRECTED — see Corrections log #1: "saturates to a ceiling" should read "plateaus because the
+  agent loop runs out of independent attempts," not a demonstrated capability ceiling.]**
 - **A cross-model dichotomy.** Goedel slightly edges DeepSeek in-distribution (−2 to −3pp on miniF2F), but
   **DeepSeek clearly beats Goedel on the harder OOD ProofNet# at every budget, and the gap widens with
   budget** (+8pp at 128k: 22.2 vs 14.3). This is a *training-distribution / recipe* difference, not a
@@ -116,6 +128,12 @@ four model×benchmark cells. Pre-registered prediction: diversity rises, solves 
    DeepSeek both 0/0%). Exactly **5 genuine verified flips across all four arms (0 on DeepSeek)**, within
    seed-std. → **Approach discovery is not the bottleneck; within-approach execution (the F2/F3 reasoning
    floor) is.** This closes F5's correlational gap with a causal experiment, on two independent provers.
+   **[CORRECTED — see Corrections log #3: on Goedel×miniF2F the trapped core recovers 3/55 (possibly
+   4/55) at iso-compute and 6/55 at uncapped pass@32; "trapped pass@... ≈ 0 everywhere" needs that
+   caveat. Also, restricted to the same 55-problem population, the "1.2%" @32k IS these 2 cells — a
+   token-matched plain-resampling control now exists: 1/55 (contamination-flagged), so the honest
+   statement is "no clear improvement over resampling at matched budget," not "no improvement over
+   zero."]**
 3. **Forced diversity mildly *degrades* output:** last-attempt failures shift from `reasoning_deep`
    (38–88%) to majority `formalization_syntax` (62–74%) + `loophole_sorry` (23–36%); soundness-relevant
    rates creep up (loophole ~3×, syntax ~1.5–2×). Pushed for novelty, the model leaves its competent
@@ -141,6 +159,10 @@ property. Still the clearest actionable finding in the whole project. (`results/
 Extending the ALREADY-trapped cells past 128k tokens (more of the SAME budget on the SAME problems):
 ~0 new solves (Goedel 1, DeepSeek 0). Budget helps when *reallocated across different problems*
 (Phase 4); it does not help by simply adding more of it to problems already known to be hard.
+**[CORRECTED — see Corrections log #3: same trapped-core recovery-rate caveat as Phase 2 Step C
+applies here. The token-matched re-analysis (does the recovered rate change under a comparable
+extension of resampling rather than refinement) has not been done yet — flagged as an open residual
+in `CALIBRATION_FINDINGS.md`.]**
 
 ## Phase 6 — Mechanism-targeted execution fine-tuning
 
@@ -161,7 +183,11 @@ Extending the ALREADY-trapped cells past 128k tokens (more of the SAME budget on
 Tests the Stage B exposure-bias hypothesis directly and training-independently: force the model to
 continue from a VERIFIED intermediate Lean state rather than free-running on its own generation.
 Modes 3/4, both models: resolved **NULL**. Re-grounding alone does not unlock the trapped core.
-(`results/phase7/STEPWISE.md`.)
+(`results/phase7/STEPWISE.md`.) **[CORRECTED — see Corrections log #3: this ran on miniF2F's trapped
+core, which is ~89% sound at iso-compute per the 2026-07-25 calibration cell — the null stands close
+to as reported, but "the trapped core" should carry the same recovery-rate caveat as elsewhere. The
+ProofNet# trapped core (150 problems, carries this phase's 0/150 headline) has not yet been
+calibrated — see `CALIBRATION_FINDINGS.md` open question 1.]**
 
 ## Phase 8 — Model zoo: does full-pipeline, lab-scale RL move the floor?
 
@@ -309,7 +335,13 @@ internal heartbeat limit was rejecting a small number of genuinely-correct proof
 compiling, and the Phase 0-7 execution floor was inflated by that amount. **This is a scoring correction,
 not a new capability finding** — every flipped cell's proof was already present in the ORIGINAL Phase 0-7
 generation; nothing new was generated, and the fix can only ever widen (never narrow) what counts as
-solved, so no reported number was an *over*-count. The corrected floor numbers (folding these 13 cells'
+solved, so no reported number was an *over*-count.
+**[CORRECTED — see Corrections log #2: "scoring correction" undersells the miniF2F effect. The
+2026-07-24 truncation/heartbeat audit found the missing `maxHeartbeats 0` setting affected 17.8-17.75%
+of REFINE steps on miniF2F (both models), i.e. it distorted the trajectory the refinement loop saw at
+the time, not just the final scoring of a handful of terminal cells. The final-flip count (13/1212)
+still stands as the *scoring* correction; the *trajectory-distortion* rate is a separate, larger number
+that hasn't been folded into any headline yet.]** The corrected floor numbers (folding these 13 cells'
 `tokens_to_solve` back into the affected curves) have not yet been recomputed — an arithmetic-only
 follow-up, not a new experiment, and not expected to change the thesis at this magnitude. Task B's Step 4
 (broadening the reverify to a sample of *all* near-frontier failures, not just the trapped core, to check
@@ -318,3 +350,53 @@ for a similar effect on the mid-curve) was not performed — flagged as a residu
 With Tasks A0-A2, B, C-G all terminal, this audit is closed and `PLAN_NEXT.md`'s WS1 (the Phase 4
 validation critical path, which reuses this exact harness) is unblocked, carrying the small pending
 floor-number correction above as a known, quantified, non-blocking caveat.
+
+## Corrections log (added 2026-07-25, does not modify the text above)
+
+An external calibration sprint (triggered by an outside review of the committed results) found four
+issues in how the numbers above are framed. None require retracting a headline result; all require
+more precise language before reuse in a writeup. Full derivation in `CALIBRATION_FINDINGS.md` and
+`DECISIONS.md` (2026-07-21 through 2026-07-25b).
+
+1. **"miniF2F saturates to a ~72–75% ceiling"** is imprecise. The pass@N recount
+   (`results/phase0/PASS_AT_N_RECOUNT.md`) found that at 128k tokens the refinement loop consumes most
+   of the budget: median 1 independent propose attempt per cell (max 14). The plateau is *at least
+   partly* an artifact of the harness running out of independent attempts, not solely a demonstrated
+   capability ceiling of the model. Correct reading: "plateaus because the refinement-heavy agent loop
+   exhausts its independent-attempt budget before exhausting tokens," pending further work to isolate
+   how much of the plateau is genuine model ceiling vs. this artifact.
+
+2. **"This is a scoring correction, not a new capability finding"** (the `maxHeartbeats` fix,
+   Task B above) undersells the miniF2F effect specifically. The trajectory-distortion rate — REFINE
+   steps immediately preceded by a spurious Lean heartbeat-timeout — is 17.80% (Goedel×miniF2F,
+   550/3090) and 17.75% (DeepSeek×miniF2F, 718/4046); ProofNet# is far less affected (3.35% and 1.64%).
+   The 13/1212 final-flip count is still the right number for "how many cells changed verdict," but
+   "scoring correction" implies the bug only touched final scoring — it also fed distorted feedback
+   into ~1 in 6 refinement steps on miniF2F, which could have steered trajectories away from solutions
+   that a correctly-scored refine step might have found. Not yet quantified; flagged, not corrected.
+   (`results/phase0/TRUNCATION_AND_TIMEOUT_AUDIT.md`.)
+
+3. **Trapped-core claims (Phase 2 Step C, Phase 5, Phase 7 — "trapped ⇒ 0% baseline by construction")**
+   need a stated recovery-rate caveat, with two separate numbers, not one:
+   - **Iso-compute (governs the claims as originally made):** on Goedel×miniF2F's 55-problem trapped
+     core, plain resampling at the *original 128k-token budget* recovers 3/55 (possibly 4/55 counting
+     one borderline case) — inside the pre-registered "sound" band. The claims stand close to as
+     reported.
+   - **Uncapped pass@32 (governs comparison to published pass@N results):** the same population
+     recovers 6/55 (10.9%) under 32 independent samples with no budget cap. This is a different,
+     weaker claim about compute availability, not about whether the 128k-budget agent loop was
+     well-allocated. The recovery hazard is flat through N=32 (solved-at-attempt: 3, 10, 18, 19, 23,
+     27) — report as "≥11% at N=32, curve not yet flat," not a fixed rate.
+   - One of the 6 pass@32 recoveries (`amc12a_2021_p8`) is a known exact miniF2F↔Lean-Workbook overlap
+     (`results/phase6/DISJOINTNESS.md`) — footnote it as possible train/eval leakage when citing this
+     number.
+   - The Step C null specifically is better stated as "no clear improvement over token-matched plain
+     resampling" (2/55 vs. a 1/55 resampling control, the 1 being the contamination-flagged case above)
+     rather than "no improvement over zero."
+   - Only Goedel×miniF2F has been calibrated this way. DeepSeek's trapped cores (both benchmarks) and
+     Goedel×ProofNet# (which carries Phase 7's 0/150 headline) remain uncalibrated — open items, see
+     `CALIBRATION_FINDINGS.md`.
+
+4. **The 2k-token budget point** on every headline curve is attempt-starved: median ZERO full propose
+   attempts complete within a 2k-token cap (`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`). Footnote it
+   as such rather than treating it as a comparable point on the same curve as 8k/32k/128k.

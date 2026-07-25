@@ -1992,3 +1992,73 @@ just documentation, not paper/floor/, arguably in scope of "validation" already 
 until WS2 formally reopens, and (b) whether the ProofNet# trapped core (150 problems, far less
 heartbeat-affected) still needs its own calibration cell per the original critique's suggestion, given
 the miniF2F result already answered the more urgent question.
+
+## 2026-07-25b — CORRECTION: tokens_to_solve was mis-paired against problem names in the RESULT entry above
+
+External review caught that `amc12a_2021_p8` at "131,653 tokens / 3 attempts" implied ~44k
+tokens/attempt, which exceeds the cell's own per-attempt cap (`sample_max_tokens` default =
+`max_model_len//2` = 8192 for this config's `max_model_len=16384`). Investigated: the attempt-count
+column in the 2026-07-25 entry was computed correctly per-problem, but the `tokens_to_solve` column
+was built from a separately-sorted list and zipped against the wrong problem names. Re-verified
+directly from `results/calibration_trapped32_goedel_minif2f/agent_states/*.json` (ground truth, one
+file per problem, `sum(a['completion_tokens'] for a in attempts)`):
+
+| problem | attempts (correct, unchanged) | tokens_to_solve (CORRECTED) |
+|---|---|---|
+| amc12a_2021_p8 | 3 | 18,023 |
+| amc12b_2021_p18 | 10 | 114,214 |
+| algebra_apbon2pownleqapownpbpowon2 | 18 | 79,986 |
+| aime_1997_p9 | 19 | 131,653 |
+| aime_1988_p8 | 23 | 317,328 |
+| imo_1968_p5_1 | 27 | 428,775 |
+
+No per-attempt cap violation exists — that was an artifact of the mis-pairing, not a real harness
+bug. Max single-attempt `completion_tokens` observed for `amc12a_2021_p8` is 6,558, well under 8,192.
+
+**This changes the iso-budget/pass@32 split** (external review's core point stands, corrected numbers
+make it *sharper*, not weaker): against the original 128,000-token baseline budget
+(`configs/base.yaml`), **3/55 recovered within budget** (`amc12a_2021_p8` 18,023; `algebra_apbon2...`
+79,986; `amc12b_2021_p18` 114,214), **1/55 borderline** (`aime_1997_p9` 131,653, ~1.03x over), **2/55
+clearly over-budget** (`aime_1988_p8` 317,328 = 2.5x; `imo_1968_p5_1` 428,775 = 3.4x).
+
+- **Iso-budget recovery (the number governing Phase 2/5/7's "trapped by construction" claims):
+  3/55, possibly 4/55 counting the borderline case — lands in the pre-registered 0-3 "sound" band**,
+  not the 4-10 band the original (mis-paired) entry reported. Phases 2/5/7 stand closer to as
+  reported than previously logged.
+- **pass@32-in-the-literature-sense recovery (uncapped compute, the number governing comparison to
+  published pass@N results): 6/55 = 10.9%, still the 4-10 band** — this is a genuinely different,
+  weaker claim ("trapped under a fixed 128k-token agent-loop budget" != "trapped under 32 independent
+  samples of any size"), and the caveat language should say so explicitly rather than conflating the
+  two.
+- Solve-attempt-index hazard (3, 10, 18, 19, 23, 27 out of 32 — two per third) is flat, not
+  decreasing — with n=6 this is weak evidence, but consistent with "32 samples is a lower bound, the
+  recovery curve has not started flattening." The ~11% figure should be reported as "≥11% at N=32,
+  curve not yet flat," not as a fixed contamination rate.
+- **`amc12a_2021_p8` (the cheapest, earliest recovery — solved at attempt 3, 18,023 tokens) is one of
+  the 10 exact miniF2F↔Lean-Workbook overlaps found by the Phase 6 §0 disjointness gate**
+  (`results/phase6/DISJOINTNESS.md`) — plausible train/eval leakage. Checked the other 5 recovered
+  problems against the same overlap list (`imo_1983_p6`, `amc12a_2021_p25`, `amc12a_2021_p8`,
+  `amc12b_2020_p2`, `algebra_absapbon1pabsapbleqsumabsaon1pabsa`): none of the other 5 match. Only
+  this one recovery is contamination-flagged, but it is worth footnoting given it's also the cheapest
+  and earliest solve.
+
+**Free re-analysis #1 (Step C token-matched control, done)**: checked what Phase 2 Step C's own
+diversity-injection arm solved on this exact 55-problem population at budget=32000
+(`results/diversity_minif2f/problems/*.json`, `solved=True and budget==32000`): **2/55**
+(`amc12b_2021_p18` at 19,743 tokens; `algebra_apbon2pownleqapownpbpowon2` at 3,893 tokens) — this is
+the "1-2 cell blip (0.6%/1.2%)" already logged as noise in the 2026-06-18e Step C entry. Matched
+against plain resampling at the same ≤32,000 cumulative-token budget (from this calibration cell's
+per-attempt token log): **only 1/55 solves within 32k under plain resampling**
+(`amc12a_2021_p8`, 18,023 tokens) — and that is the contamination-flagged problem. Diversity
+injection solved `algebra_apbon2pownleqapownpbpowon2` using only 3,893 tokens, far cheaper than plain
+resampling's 79,986-token solve of the same problem at uncapped budget — on this single case,
+diversity injection looks more sample-efficient than plain resampling, not just no-worse. This is
+n=2 vs n=1, single seed each, nowhere near enough to overturn F5's symptomatic-not-causal verdict, but
+it means the Step C null should be stated as "not clearly better than resampling at matched budget,"
+not "not better than zero." Same re-analysis for Phase 5 is flagged but NOT yet done (residual,
+below).
+
+**Residuals logged, not blocking**: (1) DeepSeek's trapped cores remain uncalibrated on both
+benchmarks (only Goedel x miniF2F has this control now); (2) F2's failure taxonomy re-derivation
+against raw Lean error codes is still undone; (3) Phase 5's equivalent token-matched re-analysis
+(same shape as Step C's, above) not yet done.
