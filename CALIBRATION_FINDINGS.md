@@ -276,14 +276,20 @@ itself is still untouched (WS2 pause holds until you reopen it).
 The sprint was formally closed above, but the reopen message raised one more item that
 has since resolved, plus writing work now underway:
 
-- **Header-confound puzzle: RESOLVED (2026-07-25k).** Re-verified the 6 Goedel×miniF2F
-  calibration-cell recoveries under a simulated old (pre-2026-07-06) Lean verifier
-  omitting `maxHeartbeats 0` (job 11684122). **4/6 are genuine sampling recoveries**
-  (verify even under the strict old default); **2/6 are header/verifier-fix
-  recoveries** (`aime_1997_p9`, and `algebra_apbon2pownleqapownpbpowon2` — the latter
-  confirmed as the same problem Check B already flipped, two independent methods
-  agreeing). Full table in DECISIONS.md 2026-07-25k, folded into SYNTHESIS.md
-  correction #3.
+- **Header-confound puzzle: RESOLVED (2026-07-25k, precisions 2026-07-25l).**
+  Re-verified the 6 Goedel×miniF2F calibration-cell recoveries under a simulated old
+  (pre-2026-07-06) Lean verifier omitting `maxHeartbeats 0` (job 11684122). **4/6
+  verify under the strict old default too** (rules out the scoring/verifier-leniency
+  explanation for those 4 — they are fresh, independently-generated proofs found under
+  clean generation conditions, not proof that sample count alone would have found
+  them, since the calibration cell also dropped the refinement loop and its 17.8%
+  spurious-timeout contamination); **2/6 are header/verifier-fix recoveries**
+  (`aime_1997_p9`, and `algebra_apbon2pownleqapownpbpowon2` — the latter confirmed as
+  the same problem Check B already flipped, two independent methods agreeing). Also
+  confirmed which side the known miniF2F↔Lean-Workbook overlap (`amc12a_2021_p8`)
+  lands on: the 4, not the 2 — so the **clean-condition recovery rate is 3/55
+  (5.5%)**, not 4/55. Full table in DECISIONS.md 2026-07-25k/l, folded into
+  SYNTHESIS.md correction #3.
 - F2/retrieval framing narrowed directly in `paper/floor/main.tex` (BM25-specific
   failure, neural retrieval stated as untested), per the reopen message's request.
 - New bounded characterization written into the paper's limitations section: 20

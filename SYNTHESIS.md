@@ -413,12 +413,23 @@ derivation in `CALIBRATION_FINDINGS.md` and `DECISIONS.md` (2026-07-21 through 2
    clean ones. **Resolved (2026-07-25k):** a CPU-only re-verify of all 6 recovered proofs under a
    simulated OLD header (no `maxHeartbeats 0` override; job 11684122,
    `scripts/header_confound_reverify.py`, `results/calibration_trapped32_goedel_minif2f/header_confound_result.json`)
-   found **4/6 are genuine sampling recoveries** (verify under the old strict default too:
-   `aime_1988_p8`, `amc12a_2021_p8`, `amc12b_2021_p18`, `imo_1968_p5_1`) and **2/6 are
-   header/verifier-fix recoveries** (`aime_1997_p9`, `algebra_apbon2pownleqapownpbpowon2` — the
-   latter confirmed as the same problem Check B already flipped). The puzzle is closed: most of the
-   recovery is real sampling signal, not a verifier-leniency artifact, and the one overlap with Check
-   B is now doubly confirmed rather than merely suspected.
+   found **4/6 verify under the strict old default too** (`aime_1988_p8`, `amc12a_2021_p8`,
+   `amc12b_2021_p18`, `imo_1968_p5_1`) and **2/6 are header/verifier-fix recoveries**
+   (`aime_1997_p9`, `algebra_apbon2pownleqapownpbpowon2` — the latter confirmed as the same problem
+   Check B already flipped). **Precision on what this establishes (2026-07-25l):** the re-verify
+   rules out the *scoring* explanation for the 4 — they are not artifacts of the more lenient
+   heartbeat setting. It does not by itself establish "more samples alone" as the cause, since the
+   calibration cell also changed generation conditions relative to the original 128k-budget agent
+   loop (no refinement loop, no timeout-distorted feedback, official inference temperature). The
+   correct claim is: **the 4 are fresh, independently-generated proofs found under clean generation
+   conditions**, not evidence that sample count alone (holding conditions fixed) would have found
+   them. The puzzle is closed on the scoring axis: most of the recovery is a real proof newly found
+   under clean conditions, not a verifier-leniency artifact, and the one overlap with Check B is now
+   doubly confirmed rather than merely suspected.
+   `amc12a_2021_p8` (the known miniF2F↔Lean-Workbook overlap, below) lands among the 4, not the 2 —
+   so of the 4 clean-condition recoveries, 1 is contaminated, giving a **clean-condition recovery
+   rate of 3/55 (5.5%)** on the 55-problem trapped core, consistent with (not double-counting) the
+   iso-compute 2/55-clean figure below.
    - **Iso-compute (governs the claims as originally made):** on Goedel×miniF2F's 55-problem trapped
      core, plain resampling at the *original 128k-token budget* recovers 3/55, of which only **2/55
      are clean** — the third is a known miniF2F↔Lean-Workbook overlap (below). 3/55 sits exactly on

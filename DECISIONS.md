@@ -2391,3 +2391,29 @@ This closes the interpretive puzzle opened in the 2026-07-25h reopen message: th
 coverage finding does NOT mean the 6 recoveries are mostly artifacts — most (4/6) are real. Folded
 into SYNTHESIS.md correction #3 and `CALIBRATION_FINDINGS.md`. No further action needed on this
 thread; WS2 writing continues unblocked.
+
+## 2026-07-25l — Two wording precisions on the header-confound result (user review)
+
+Two corrections to how 2026-07-25k's result gets cited going forward:
+
+1. **"Genuine sampling recovery" overclaims what the re-verify establishes.** Re-verifying under the
+   old header rules out the *scoring* explanation (verifier leniency) for the 4 non-header-dependent
+   recoveries — it does not isolate sample count as the cause, because the calibration cell also
+   changed generation conditions vs. the original 128k-budget agent loop: no refinement loop (so no
+   17.8%-of-refine-steps spurious-timeout contamination, correction #2), official inference
+   temperature, clean feedback throughout. Correct framing: the 4 are **fresh, independently-generated
+   proofs found under clean generation conditions**, not proof that more samples alone (conditions
+   held fixed) would have surfaced them. A reviewer holding the 17.8% number would ask exactly this;
+   worth stating precisely rather than letting "sampling win" imply more than it does.
+
+2. **`amc12a_2021_p8`'s side of the split, checked directly:** `header_confound_result.json` —
+   `verifies_current_lenient_heartbeat: true, verifies_old_default_heartbeat: true,
+   header_dependent: false`. It lands among the **4** (clean-condition), not the 2
+   (header-dependent). So of the 4 clean-condition recoveries, 1 (`amc12a_2021_p8`) is the known
+   miniF2F↔Lean-Workbook overlap — **clean-condition recovery rate is 3/55 (5.5%)**, not 4/55. This
+   is consistent with, and does not double-count against, the separately-tracked iso-compute figure
+   (2/55 clean at the original 128k budget, correction #3's first bullet) — different populations
+   (iso-budget vs. uncapped pass@32), same contaminated problem flagged in both.
+
+Both precisions folded into SYNTHESIS.md correction #3 directly (no separate corrections-log entry
+needed — this is a same-day tightening of 2026-07-25k, not a new finding).
