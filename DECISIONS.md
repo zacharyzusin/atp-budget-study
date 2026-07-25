@@ -2206,3 +2206,71 @@ null than Step C's, not a weaker one requiring the same caveat.
 Also correcting my own inline SYNTHESIS.md note (added 2026-07-25b as part of the marked corrections)
 which wrongly said Phase 7 "ran on miniF2F's trapped core" — Phase 7 is ProofNet#-only (150→147
 problems, confirmed in `results/phase7/STEPWISE.md`'s own header). Fixing that inline note now.
+
+## 2026-07-25f — F2 taxonomy re-derivation DONE: real, ProofNet#-specific correction found, retrieval decision unaffected
+
+Dispatched to a fork per the user's flagged residual (last substantive unchecked item from the
+original critique, CPU-only). Re-derived F2's failure taxonomy directly against raw Lean error text
+(`unknown identifier`/`unknown constant`/`type mismatch`/etc.) from `results/{baseline,
+proofnet_baseline}/agent_states/*.json`, independent of `scripts/analyze_mechanism.py`'s own
+classifier.
+
+**Classifier code check: clean.** Re-running `taxonomy()` unmodified reproduces MECHANISM.md's exact
+reported numbers (miniF2F 98.9%/1.1%/0.0%, ProofNet# 95.2%/3.8%/1.0%) — no bug, the code is faithful
+to what's documented.
+
+**The real finding is a metric-scope issue, not a bug.** F2's cell-level label is the single
+highest-priority failure across a cell's full attempt history (typically ~15 attempts on ProofNet#),
+almost always landing on `reasoning_deep`. This buries earlier premise errors the model encountered
+and recovered from (into a different, also-failing path). Measuring "did ANY attempt in this cell hit
+`unknown identifier`/`unknown constant`," not just the terminal one: **miniF2F 8.0% (14/176 unsolved
+cells)** — small, consistent with the reported 0.0% terminal figure. **ProofNet# 51.9% (248/478
+unsolved cells; 243/455 of the `reasoning_*`-labeled cells also hit one)** — vs. the reported 1.0%
+terminal figure.
+
+**Verdict: F2 holds up as "dominant terminal failure," needs a stated correction for ProofNet# on
+anything measured across the full trajectory.** This weakens (does not reverse) the taxonomy-based
+case for "retrieval is doomed by construction" — premise gaps are common along the way on ProofNet#,
+just rarely the last thing the model trips on. **The actual retrieval kill decision is unaffected**:
+it rests on Phase 1's direct BM25 ablation (−36 net flips on ProofNet#, real experimental harm), a
+stronger and independent piece of evidence this correction doesn't touch. Applied to SYNTHESIS.md as
+marked correction #6, same treatment as the others (inline note + corrections log, audit trail
+preserved).
+
+## 2026-07-25g — Calibration sprint CLOSED. Recommending WS2 (paper/floor/) reopen.
+
+All items from the original external critique and every follow-on the sprint surfaced are now
+resolved, run, declined-with-reasoning, or logged as an explicit non-blocking scope limit:
+
+- Tier 0 CPU checks (Lean/mathlib pin, pass@N recount, truncation/heartbeat audit, Stage A format
+  diff, F1 reconciliation, attempts-per-budget table) — done 2026-07-21/24.
+- Tier 1 GPU calibration cell (Goedel×miniF2F trapped core, pass@32) — done 2026-07-25, corrected
+  2026-07-25b/c after a mis-pairing bug and a composition-framing issue were caught by review.
+- ProofNet# calibration cell — considered, priced, declined 2026-07-25d/e on corrected leverage math;
+  substituted with three free items (Check B denominator fold-in, Phase 7's own pre-existing
+  resampling control, explicit coverage statement) that answer the same question without GPU spend.
+- alloc_split=0.0 arm — considered, settled negative by a free tally (`ATTEMPTS_PER_BUDGET_TABLE.md`)
+  plus Phase 1's own existing counterfactual result; not run.
+- F2 taxonomy re-derivation — done 2026-07-25f, found a real ProofNet#-specific correction, didn't
+  touch the underlying retrieval decision.
+- Phase 5's re-tally — done 2026-07-25d/e as part of the Phase 7 substitute work (scope correction:
+  10-cell ProofNet# pilot, not a full-population miniF2F result).
+- DeepSeek's trapped cores (both benchmarks) — logged as a known scope limit, not a to-do.
+
+Six marked, dated corrections are now in SYNTHESIS.md's corrections log (added 2026-07-25b, extended
+2026-07-25c/d/e/f), each with the original text preserved and an inline pointer — full audit trail,
+nothing silently rewritten. `CALIBRATION_FINDINGS.md` mirrors the same conclusions for anyone who
+wants the sprint narrative in one place.
+
+**Net effect on the project's evidentiary picture, per the user's own framing**: stronger than what
+the sprint started with, not weaker. The trapped cores survived contact with an external protocol
+(iso-compute: sound; pass@32: bounded, quantified, footnoted). The nulls that previously assumed a
+zero baseline now have resampling controls (Step C: token-matched, real but noise-level; Phase 7:
+already had one, 0/150). Two Phase 0 characterizations are corrected (the saturation-vs-plateau
+framing; the heartbeat bug's scope on miniF2F). One real, previously-undocumented finding is now on
+the record (heartbeat contamination of 17.8% of miniF2F refine-step feedback). F2's taxonomy has a
+stated, quantified correction that doesn't touch the decision it partially motivated.
+
+`paper/floor/` (WS2) remains untouched — this entry is a recommendation, not an action. **Awaiting
+user confirmation to reopen WS2**, at which point the corrections logged here become the input to the
+actual writing, not more calibration work.
