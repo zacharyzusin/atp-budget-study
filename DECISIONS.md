@@ -2184,3 +2184,25 @@ counterfactual value (consistent with 20.7% being an overstatement of causal con
 **Status**: F2's taxonomy re-derivation (the one remaining substantive item) dispatched to a fork —
 see next entry when it returns. Phase 5's re-tally is now done (above, folded into substitute #2).
 DeepSeek's trapped cores remain a logged scope limit, not a to-do.
+
+## 2026-07-25e — Self-correction: Phase 7 already has its own fresh-resample control; free substitute #2 above was redundant/wrong
+
+Checking `results/phase7/STEPWISE.md` before finalizing found that Phase 7's own Mode 3 track
+already ran "a matched fresh-resample control (same names, fresh session, zero re-grounding)" on the
+full 150-problem population, specifically to rule out whether Mode 3's one raw solve was caused by
+re-grounding or was a cold-start artifact. **Result: that control got 0/150** (the raw Mode 3 number
+was 1/150, traced to the same cold-start cell, ruled out as unrelated to the mechanism via this
+control). This is a real, already-existing, designed resampling control — better evidence than the
+inferred baseline-coverage argument in the 2026-07-25d entry above (which is still true and worth
+keeping as context on independent-attempt coverage, but was not needed as "free substitute #2"; that
+substitute already existed in the repo and I missed it).
+
+**Corrected Phase 7 statement**: 147/147 (after the Check B exclusion) show no closures under BOTH
+re-grounding (Modes 3/4) AND a matched single-sample fresh-resample control. The "doesn't beat
+resampling" caveat that applied to Phase 2 Step C does NOT apply to Phase 7 in the same way — Phase 7
+already tested resampling directly and it also found nothing on this population. This is a stronger
+null than Step C's, not a weaker one requiring the same caveat.
+
+Also correcting my own inline SYNTHESIS.md note (added 2026-07-25b as part of the marked corrections)
+which wrongly said Phase 7 "ran on miniF2F's trapped core" — Phase 7 is ProofNet#-only (150→147
+problems, confirmed in `results/phase7/STEPWISE.md`'s own header). Fixing that inline note now.
