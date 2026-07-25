@@ -1937,3 +1937,58 @@ duck under 50 given the finding this buys.
 **Submitted**: `sbatch --array=0-7 slurm/sweep_array.sh configs/calibration_trapped32_goedel_minif2f.yaml
 calibration_trapped32_goedel_minif2f`, `--exclude=ins082,ins087,ins089,ins091` (known-bad nodes),
 `ATP_NSHARDS=8`. Job ID and monitoring to follow in PROGRESS.md.
+
+## 2026-07-25 — Calibration cell RESULT: 6/55 recovered (4-10 band) — bounded, real contamination
+
+All 8 shards of job 11682365 COMPLETED clean (5h08m-6h37m each, no failures, no resubmits needed).
+Aggregated: 55/55 cells ran, pass@32 (uncapped budget, official header, temp 0.7, no refinement) =
+**10.9% (6/55)**.
+
+**Recovered** (solved under plain pass@32 that were "trapped" — unsolved by all 3 original seeds at
+128k tokens): `aime_1988_p8`, `aime_1997_p9`, `algebra_apbon2pownleqapownpbpowon2`, `amc12a_2021_p8`,
+`amc12b_2021_p18`, `imo_1968_p5_1`. Per-solve sample count: 23, 19, 18, 3, 10, 27 propose attempts
+(median 19) — **4 of 6 needed MORE independent samples than the ORIGINAL Phase 0 harness ever
+generated for ANY cell** (Goedel x miniF2F propose-attempt max was 14, per the pass@N recount). Only
+2 (3 and 10 attempts) were within reach of what the refinement-heavy budget-bounded loop could
+plausibly have sampled.
+
+**Applying the pre-registered threshold (DECISIONS.md 2026-07-24): 6 recovered falls in the 4-10
+band = contamination is real but bounded.** Verdict, per pre-registration: trapped-core-based claims
+(Phase 2 Step C, Phase 5, Phase 7) need a stated recovery-rate caveat (~11% of the "trapped" core is
+recoverable under plain, uncapped pass@32); they do NOT need to be retracted or regenerated (that was
+reserved for >10). This does not cross into the >10 "regenerate everything" band that would require
+flagging to the user as a fork — reporting as a finding.
+
+**Token-matched sampling-vs-agent-loop comparison (project's founding Q1, trapped-core level)**:
+recovered solves' tokens_to_solve = 18023, 79986, 114214, 131653, 317328, 428775. Compare to the
+ORIGINAL 128k-budget baseline's solved-cell distribution (n=548, median 2534.5, p90 24032, max
+118502 tokens_to_solve): **4 of 6 recovered solves cost MORE tokens than the original harness's
+single most expensive solve anywhere in the whole baseline run.** This is a genuine, if modest,
+positive finding for Q1: plain independent resampling reaches solutions the refinement-heavy,
+budget-capped agent loop structurally could not, not because of a token-budget difference alone (the
+calibration cell's effective spend on these 6 problems, ~1.2M tokens combined, exceeds what 128k x 3
+seeds = 384k would have allowed per problem anyway) but because MORE independent fresh samples beats
+fewer samples + more refinement iterations on the same samples, at least for this subset. Consistent
+with F5/F6's original finding (late solves come from re-sampling, not new approaches) — this extends
+it: sometimes you just need many more re-samples than 3 seeds x ~2 attempts ever produced.
+
+**Corrections this triggers for the eventual writeup (independent of the recovery-band verdict)**:
+1. SYNTHESIS.md §3's "miniF2F saturates (~72-75% ceiling by 128k)" language must be corrected to
+   describe a data-exhaustion plateau (median 1 propose attempt at 128k), not a demonstrated ceiling
+   — per the 2026-07-24 pass@N recount finding, independent of this cell's result.
+2. SYNTHESIS.md's verifier-soundness section's "this is a scoring correction, not a mechanism issue"
+   framing for the missing maxHeartbeats setting is inaccurate for miniF2F specifically (17.8% of
+   refine steps got spurious heartbeat-timeout feedback) — needs correcting to acknowledge trajectory
+   distortion, per the 2026-07-24 truncation/heartbeat audit.
+3. Trapped-core-based claims (Phase 2 Step C's "trapped pass@8k/32k ~ 0 everywhere," Phase 5, Phase 7)
+   need an explicit ~11% recovery-rate caveat added, not a retraction.
+4. The 2k-token budget point on every headline curve should be footnoted as attempt-starved (median
+   ZERO full propose attempts complete within 2k), per the attempts-per-budget table.
+
+**Status**: WS2 (paper/floor/) still NOT touched — these are findings logged for whenever writing
+resumes, not paper edits. All calibration/audit work (Tier 0 + the modified Tier 1 cell) is now
+complete. Awaiting user direction on whether to (a) apply corrections 1-4 to SYNTHESIS.md now (still
+just documentation, not paper/floor/, arguably in scope of "validation" already authorized) or hold
+until WS2 formally reopens, and (b) whether the ProofNet# trapped core (150 problems, far less
+heartbeat-affected) still needs its own calibration cell per the original critique's suggestion, given
+the miniF2F result already answered the more urgent question.
