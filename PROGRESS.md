@@ -3986,3 +3986,11 @@ Continuing hourly checks.
 
 Shards 0,1,2,3,4,5,7 all COMPLETED clean (exit 0:0, 5h08m-6h21m each). Shard 6 still RUNNING at
 6h37m, no failure, within the 12h cap with margin. Awaiting its completion before aggregating.
+
+## 2026-07-25 (cont.) — Calibration job 11682365 COMPLETE: 6/55 recovered, full result logged
+
+All 8 shards COMPLETED (5h08m-6h37m, no failures/resubmits). Aggregated 55/55 cells, pass@32 =
+10.9% (6/55 recovered from the "trapped" core). Falls in the pre-registered 4-10 band: real but
+bounded contamination, needs a stated recovery-rate caveat (not a regeneration). Full detail +
+token-matched Q1 comparison in DECISIONS.md same date. WS1's calibration sprint (Tier 0 CPU checks +
+this GPU cell) is now COMPLETE. WS2 (paper/floor/) still untouched.
