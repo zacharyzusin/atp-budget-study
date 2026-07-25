@@ -412,3 +412,29 @@ def test_elaborate_counts_error_severity():
     b = _backend(_import_then(resp))
     out = b.elaborate(THM, "theorem t : True := by\n  foo\n  sorry")
     assert out["errors"] == 1 and out["sorries"] == []
+
+
+def test_old_header_reverify_backend_omits_max_heartbeats_override():
+    # scripts/header_confound_reverify.py (DECISIONS.md 2026-07-25h) simulates the pre-2026-07-06
+    # verifier by NOT injecting `set_option maxHeartbeats 0` -- this locks that the subclass it
+    # builds actually omits it (the whole point of the diagnostic), while still stripping imports
+    # and reconstructing the theorem header exactly like the real (current) backend does.
+    import importlib.util
+    import pathlib
+
+    script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "header_confound_reverify.py"
+    spec = importlib.util.spec_from_file_location("header_confound_reverify", script_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    cfg = load_config(BASE_CONFIG)
+    old_backend = mod.build_old_header_backend(cfg, ReplBackend)
+    src = old_backend._build_repl_source(THM, "trivial")
+    assert "set_option maxHeartbeats" not in src
+    assert "theorem t : True := by" in src
+    assert "trivial" in src
+
+    # Sanity: the CURRENT (real) backend still always injects it -- the two backends must diverge
+    # on this exact axis, or the diagnostic proves nothing.
+    current_backend = ReplBackend(cfg, transport=ScriptedReplTransport(lambda cmd: {}))
+    assert "set_option maxHeartbeats 0" in current_backend._build_repl_source(THM, "trivial")
