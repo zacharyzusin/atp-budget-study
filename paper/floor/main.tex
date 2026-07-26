@@ -248,15 +248,20 @@ paired-flip inspection in an independent re-run at the same nominal budget (+2.2
 usable premises). \textbf{This is a genuinely informative surprise from moving to equivalence-style
 bounds (Section~\ref{sec:setup}): a paired per-problem bootstrap 95\% CI computed on the initial run
 alone is [+0.82pp, +6.15pp] --- entirely positive, clearing zero with room to spare.} Taken on its own,
-that CI would read as a confirmed positive effect. It is not: an independently launched re-run at the
-same 8k budget (different vLLM generation campaign, same seeds) landed at +0.7pp, just outside that
-CI's lower edge, and by 32k the same comparison flips negative. \textbf{The lesson is explicit and
-belongs in the methods claim, not buried}: a per-problem bootstrap CI is a real improvement over a
-3-seed std --- it uses the right resampling unit and gives an honest bound on within-run sampling
-uncertainty --- but it cannot capture \emph{run-to-run} (generation-campaign) variance, which here is
-larger than the within-run CI implied. Where an independent replication exists, we report both and
-trust the replication; where it does not (every other cell below), we report the bootstrap bound as
-the best available uncertainty estimate and flag it as bounded by within-run variance only.
+that CI would read as a confirmed positive effect. It is not, and the replication run's own bootstrap
+CI (same method, independent generation campaign, same seeds; \texttt{results/RETRIEVAL\_REPLICATION\_CI.md})
+makes this a quantified contrast rather than a single-point disagreement: 2k
+$[+0.00,+4.51]$pp, 8k $[-1.78,+3.14]$pp, 32k $[-2.73,+1.09]$pp --- all three cross or touch zero, and
+the 8k interval does not overlap the original run's $[+0.82,+6.15]$pp at all. \textbf{The lesson is
+explicit and belongs in the methods claim, not buried}: a per-problem bootstrap CI is a real
+improvement over a 3-seed std --- it uses the right resampling unit and gives an honest bound on
+within-run sampling uncertainty --- but it cannot capture \emph{run-to-run} (generation-campaign)
+variance, which here is large enough to move a tight, entirely-positive CI to one that crosses zero.
+This generalizes beyond this one comparison: any paper reporting a bootstrap CI over a single
+generation run is bounding within-run variance only, not the uncertainty a reader would actually want.
+Where an independent replication exists, we report both and trust the replication; where it does not
+(every other cell below), we report the bootstrap bound as the best available uncertainty estimate and
+flag it as bounded by within-run variance only.
 
 \begin{table}[t]
   \centering
@@ -381,7 +386,15 @@ verified proof closings is a two-model null, but a diagnostically useful one: ne
 loss on the closing, yet the same model still fails when it has to \emph{generate} its own path there
 autoregressively --- an exposure-bias signature. This reframes the open question from ``does the model
 know how to close a proof'' (yes) to ``why does it drift away from a closeable state during its own
-free-running generation'' (open).
+free-running generation'' (open). Paired per-problem bootstrap CIs (both models, both benchmarks, 3
+seeds; \texttt{results/EQUIVALENCE\_BOUNDS.md}) sharpen this from a uniform ``flat'' read: generic RFT
+(Stage A) CIs are entirely negative on all four model$\times$benchmark combinations (it actively hurts,
+consistent with prior reporting), and closing-targeted SFT (Stage B) is a clean null on three of four
+(DeepSeek miniF2F/ProofNet\# and Goedel miniF2F all cross zero) but is entirely negative on Goedel
+ProofNet\# ($-1.97$pp, 95\% CI $[-3.76,-0.54]$pp) --- a small but statistically real harm on that one
+combination, not indistinguishable-from-flat as previously stated. This does not change the headline
+(closing-targeted SFT still does not lift pass@B on any combination we tested, so the pivot to Stage C
+stands), but the honest per-combination reading is ``null-to-mildly-harmful,'' not uniformly flat.
 
 \textbf{Lightweight post-hoc RL (Phase 6, Stage C).} A GRPO probe (LoRA $r$=16, DeepSeek-Prover-V2-7B,
 80 steps, direct outcome reward against the Lean verifier) found no gain: held-out pass@1 moved

@@ -55,6 +55,32 @@ def load_solved(run_dir: Path) -> dict[tuple[str, int], bool]:
     return out
 
 
+def load_solved_merged(run_dirs: list[Path]) -> dict[tuple[str, int], bool]:
+    """Merge per-seed run dirs (e.g. p6eval_g_mf_base + _s1 + _s2, each internally seed-homogeneous)
+    into one paired-cell dict keyed by (problem_name, seed) -- same shape load_solved returns for a
+    single multi-seed run dir."""
+    out: dict[tuple[str, int], bool] = {}
+    for d in run_dirs:
+        out.update(load_solved(d))
+    return out
+
+
+# Phase 6 Stage B (closing-targeted SFT) / Stage A (generic RFT) pilot: base vs A vs B, both models
+# (g=Goedel, d=DeepSeek), both held-out benchmarks (mf=miniF2F, pn=ProofNet#), 3 seeds each stored as
+# 3 separate single-seed run dirs (results/p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]).
+STAGE_B_COMPARISONS = [
+    (model, bench, arm)
+    for model in ("g", "d")
+    for bench in ("mf", "pn")
+    for arm in ("A", "B")
+]
+
+
+def _p6_dirs(model: str, bench: str, arm: str) -> list[Path]:
+    base = f"p6eval_{model}_{bench}_{arm}"
+    return [ROOT / "results" / base, ROOT / "results" / f"{base}_s1", ROOT / "results" / f"{base}_s2"]
+
+
 def paired_bootstrap_bound(baseline: dict, variant: dict, n_boot: int,
                             rng: np.random.Generator) -> dict | None:
     """Cluster-by-problem bootstrap on the paired per-cell delta (variant_solved - baseline_solved)."""
@@ -114,14 +140,36 @@ def main() -> None:
             res = paired_bootstrap_bound(base_solved, var_solved, args.n_boot, rng)
             if res is None:
                 continue
-            res.update({"benchmark": bench, "component": label})
+            res.update({"benchmark": bench, "component": label, "group": "phase1"})
             report.append(res)
             print(f"{bench:14s} {label:20s} n={res['n_problems']:3d}  "
                   f"point={res['point_delta_pp']:+.2f}pp  "
                   f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp")
 
+    stage_b_report = []
+    for model, bench, arm in STAGE_B_COMPARISONS:
+        base_dirs = _p6_dirs(model, bench, "base")
+        var_dirs = _p6_dirs(model, bench, arm)
+        if not all((d / "problems").exists() for d in base_dirs + var_dirs):
+            print(f"SKIP stageB {model}/{bench}/{arm}: missing a seed dir")
+            continue
+        base_solved = load_solved_merged(base_dirs)
+        var_solved = load_solved_merged(var_dirs)
+        res = paired_bootstrap_bound(base_solved, var_solved, args.n_boot, rng)
+        if res is None:
+            continue
+        model_label = "Goedel" if model == "g" else "DeepSeek"
+        bench_label = "miniF2F" if bench == "mf" else "ProofNet#"
+        arm_label = "A (generic RFT)" if arm == "A" else "B (closing-targeted SFT)"
+        res.update({"model": model_label, "benchmark": bench_label, "arm": arm_label,
+                    "group": "stage_b"})
+        stage_b_report.append(res)
+        print(f"stageB {model_label:9s} {bench_label:10s} {arm_label:25s} n={res['n_problems']:3d}  "
+              f"point={res['point_delta_pp']:+.2f}pp  "
+              f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp")
+
     out_json = ROOT / "results" / "equivalence_bounds.json"
-    out_json.write_text(json.dumps(report, indent=2))
+    out_json.write_text(json.dumps(report + stage_b_report, indent=2))
 
     lines = ["# Equivalence bounds for Phase 1 scaffolding components (WS6 item 1)", "",
              "Paired per-problem bootstrap (clustered by problem, all seeds of a problem resampled",
@@ -133,6 +181,17 @@ def main() -> None:
              "|---|---|---|---|---|---|"]
     for r in report:
         lines.append(f"| {r['benchmark']} | {r['component']} | {r['n_problems']} | "
+                      f"{r['point_delta_pp']:+.2f} | "
+                      f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
+                      f"{r['upper_bound_97_5_pp']:+.2f} |")
+    lines += ["", "## Phase 6 Stage A/B (SFT exposure-bias pilot), both models, both benchmarks, 3 seeds",
+               "", "Same paired per-problem bootstrap, base vs. each arm (A = generic RFT, "
+               "B = closing-targeted SFT), merged across 3 single-seed run dirs per arm "
+               "(`p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]`).", "",
+               "| model | benchmark | arm | n problems | point (pp) | 95% CI (pp) | upper bound (pp) |",
+               "|---|---|---|---|---|---|---|"]
+    for r in stage_b_report:
+        lines.append(f"| {r['model']} | {r['benchmark']} | {r['arm']} | {r['n_problems']} | "
                       f"{r['point_delta_pp']:+.2f} | "
                       f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
                       f"{r['upper_bound_97_5_pp']:+.2f} |")

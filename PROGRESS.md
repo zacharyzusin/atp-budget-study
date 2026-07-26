@@ -4239,3 +4239,47 @@ WS6 status now: items 1 (Phase 1 6-component bounds) DONE, 2-free DONE, 3 CLOSED
 DONE. Remaining: item 1's Stage B/Step C extension (optional), items 4/5 (opportunistic, unscheduled),
 paper write-up of items 3/6b (small additions to existing sections, no framing changes needed since
 both are nulls/negatives that fit the existing thesis).
+
+## 2026-07-26f — User review of the summary: 3 follow-ups actioned (item 2-free confirm, decomposition
+## promotion + DeepSeek probe, retrieval replication CI + Stage B/Step C extension)
+
+1. **Item 2-free confirmed to have run** (it had — the earlier summary undersold it): population-level
+   check (55 trapped vs 189 solved, Mann-Whitney p=0.0494, WRONG direction for the recall-boundary
+   reading) stands. Added a recovery-level cross-check per the user's specific evidence ("of the 9
+   calibration recoveries, 4 trace to heartbeat-fix-class harness artifacts, at least 1 to a known
+   training overlap"): confirmed 4/9 are harness artifacts (Goedel's 2 header-dependent + DeepSeek's 2
+   heartbeat-fix flips — both are literally `maxHeartbeats`-config-related) and exactly 1/9
+   (`amc12a_2021_p8`) is an exact training-corpus overlap. Binomial test against the trapped-population
+   base exact-overlap rate (3.6%): p=0.281 (n=9) / p=0.167 (n=5 genuine-only) --- NOT distinguishable
+   from the base rate. Verdict unchanged: item 2's NULL stands, this is a consistent (not new)
+   data point. Addendum in `results/phase6/CONTAMINATION_CORRELATION.md`.
+
+2. **Decomposition promoted from scope-limits to a mechanism-level claim** in `paper/floor/main.tex`
+   (scope-limits bullet rewritten: this is now a positive elicitation-failure finding, paired with
+   Phase 7's tactic-level decomposition null, not just "untested"). **Ran the same 4-round-strength
+   probe on DeepSeek-Prover-V2-7B** (new `slurm/phase_decomp_deepseek_run.sh`, config-driven model
+   identity + DeepSeek Lean env, reusing the already-tested `DecompositionAgent`/parser unchanged) to
+   make this a two-model claim rather than Goedel-only, per the user's explicit ask (~2 GPU-h, cheap
+   relative to what it buys). Job 11693853 submitted, using the already-validated few-shot prompt
+   directly (no need to re-derive through 4 rounds a second time). Result pending.
+
+3. **Retrieval replication CI computed** (new `scripts/retrieval_replication_ci.py`): the independent
+   replication run (`results/phase1_retrieval_budget`, job 10461442) gets its OWN paired bootstrap CI
+   at 2k/8k/32k: [+0.00,+4.51] / [-1.78,+3.14] / [-2.73,+1.09] pp --- crosses zero at every budget,
+   and the 8k interval does not overlap the original run's [+0.82,+6.15]pp at all. Quantifies the
+   within-run-vs-run-to-run methods lesson precisely instead of asserting disagreement without a
+   number. Folded into `paper/floor/main.tex`'s scaffolding section.
+
+4. **Stage B/Step C equivalence-bound extension — Stage B DONE, Step C not applicable.**
+   `scripts/equivalence_bounds.py` extended to cover Phase 6 Stage A/B (both models, both benchmarks, 3
+   seeds each, merged from `p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]`). Stage A (generic RFT): CIs
+   entirely negative on all 4 combinations (real harm, matches prior "hurts" reporting). Stage B
+   (closing-targeted SFT): null (CI crosses zero) on 3/4 combinations, but **Goedel x ProofNet# CI is
+   entirely negative** ($-1.97$pp, 95% CI $[-3.76,-0.54]$pp) --- a real, small harm on that one
+   combination, sharper than the previous uniform "flat" framing. Headline conclusion unchanged
+   (Stage B still doesn't lift pass@B anywhere), but the honest per-combination read is now
+   null-to-mildly-harmful, not uniformly flat. Folded into paper. **Step C is not directly comparable
+   via this machinery**: its "baseline" is the trapped population by construction (0/N for the
+   original 3 seeds), not a separately-sampled run with its own bootstrap-able variance, so it doesn't
+   have the within-run-vs-replication exposure Stage B/retrieval do. Existing raw solve-rate reporting
+   (0.6-1.2% across combinations, already read as "flat") stands as-is; no extension needed there.
