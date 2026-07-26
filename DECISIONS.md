@@ -2686,3 +2686,33 @@ edited anyway) — if 11684255/11684256 hit the same race, `--requeue` should se
 won't perfectly re-collide. Will check on completion.
 
 Resubmitting the decomp smoke with the fixed script.
+
+## 2026-07-25x — Confirmed + fixed the staging race across the whole phase7 script family
+
+Job 11684256 (Phase 7 fresh-control) failed for the same root cause suspected in 2026-07-25w,
+confirmed directly from its error log: mid-`cp -a` "No such file or directory" errors across dozens
+of mathlib files, consistent with job 11684255 (mode3, running concurrently, same node) executing its
+own `rm -rf "$LOCAL_ENV"` on the IDENTICAL fixed path while 11684256's copy was in flight. This is a
+real, now twice-confirmed bug, not a one-off — fixed properly rather than patched around:
+
+- `slurm/phase7_freshcontrol_run.sh` and `slurm/phase7_stepwise_run.sh` both switched to the
+  per-job-ID staging path (`atp-lean-env-j$SLURM_JOB_ID`), same fix already applied to
+  `slurm/phase_decomp_run.sh` (2026-07-25w) and already on record in
+  `slurm/header_confound_reverify.sh`. Both scripts pass `bash -n` syntax checks after the edit (one
+  had a dangling `fi` from the removed if/else reuse-check that needed cleanup too — caught before
+  submission, not after another failed job).
+- Did **not** touch the other ~10 scripts sharing the same historical fixed-path pattern
+  (`ablation.sh`, `sweep.sh`, `hammer_smoke.sh`, etc.) — none of them are running concurrently this
+  session, so the fix would be unmotivated scope expansion; flagging here for whichever future
+  session next runs two jobs from that family at once.
+- 11684255 (mode3) itself is unaffected by this fix — it was already past its staging phase (5h55m+
+  elapsed) when the edit landed; Slurm reads a submitted script from its own spool copy, not the live
+  repo file, so editing the source doesn't touch an already-dispatched job either way.
+- Resubmitted fresh-control as job 11684706 with the fixed script, same args as the original
+  11684256 (seeds 1,2, budget 32000).
+
+Lesson for the record: **running multiple jobs from the same historical Slurm-script family
+concurrently is exactly the condition that exposes a fixed-shared-path staging race** that single-job-
+at-a-time usage never triggered. Worth checking for this pattern explicitly before any future
+multi-job concurrent launch from an older script, not just assuming "it worked before" transfers to
+"it works run concurrently."
