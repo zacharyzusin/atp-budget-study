@@ -2667,3 +2667,22 @@ submissions through `sweep_array.sh` need an explicit `--array=0` (or `--array=0
 smoke population), not the plain default. Not fixed retroactively (jobs already mid-flight); logged
 so the full 61-problem array (which correctly wants all 8 shards) isn't submitted with the same
 oversight in reverse.
+
+## 2026-07-25w — Real bug caught and fixed: decomp smoke failed on a Lean-staging path race
+
+Job 11684261 (decomposition smoke) failed in 15s: `cp: cannot create directory
+'/local/zwz2000/atp-lean-env/.lake': File exists`, during the staging block's `cp -a` immediately
+after its own `rm -rf` + `mkdir -p` of that exact path. Root cause: `slurm/phase_decomp_run.sh` was
+copied verbatim from `slurm/phase7_stepwise_run.sh`, which stages to a FIXED path
+(`/local/$USER/atp-lean-env`, no job-ID). This session has 3 jobs from that same script family
+running/queued concurrently (Phase 7 mode3 job 11684255, Phase 7 fresh-control job 11684256, and this
+decomp smoke) — if two land on the same physical node, they race on `rm -rf` vs. a concurrent
+`cp -a` into the same directory. The project already has the correct fix on record
+(`slurm/header_confound_reverify.sh`'s per-job-ID path, `atp-lean-env-j$SLURM_JOB_ID`) — applied the
+same pattern to `slurm/phase_decomp_run.sh` (accepting one full re-stage per job instead of cross-job
+reuse, acceptable at this script's call volume). Did NOT retroactively patch
+`phase7_stepwise_run.sh` (an established, previously-validated script; the running jobs can't be
+edited anyway) — if 11684255/11684256 hit the same race, `--requeue` should self-heal since a retry
+won't perfectly re-collide. Will check on completion.
+
+Resubmitting the decomp smoke with the fixed script.

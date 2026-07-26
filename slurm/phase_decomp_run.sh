@@ -60,23 +60,24 @@ cd "$PROJ"
 
 [ -f "$PROJ/results/_lean_env_ready.txt" ] || { echo "FATAL: Goedel-pin Lean env not built"; exit 1; }
 
-# --- Stage the Lean env to node-local SSD (verbatim from slurm/sweep.sh) ---------------------------
+# --- Stage the Lean env to node-local SSD, PER-JOB-ID path (NOT the fixed-name pattern
+# phase7_stepwise_run.sh uses) — this session runs several jobs off that same fixed-name staging
+# block concurrently (Phase 7 mode3 + fresh-control + this one), and a fixed shared path races on
+# `rm -rf` vs. a concurrent `cp -a` if two such jobs land on the same physical node at once (this
+# exact race killed job 11684261's first attempt: "cp: cannot create directory: File exists").
+# Per-job-ID path (same fix already used in slurm/header_confound_reverify.sh, and the doc
+# reference_insomnia_compute_proxy/reference_lean_repl_cluster memory) removes the shared-path race
+# entirely at the cost of one full re-stage per job (no cross-job reuse) — acceptable here since this
+# script runs at most a handful of times, not a large sharded sweep.
 GPFS_ENV="$PROJ/scratch/lean-cache/atp-lean-env"
 LOCAL_BASE="${ATP_LOCAL_BASE:-/local/$USER}"; [ -d /local ] || LOCAL_BASE="/tmp/$USER"
-LOCAL_ENV="$LOCAL_BASE/atp-lean-env"
-N_GPFS="$(find "$GPFS_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-N_LOCAL="$(find "$LOCAL_ENV/.lake" -name '*.olean' 2>/dev/null | wc -l)"
-if [ -f "$LOCAL_ENV/.staged_ok" ] && [ "$N_LOCAL" = "$N_GPFS" ] && [ "$N_GPFS" -gt 0 ]; then
-    echo "[pdecomp] Lean env already staged on $(hostname) ($N_LOCAL oleans) — reusing."
-else
-    echo "[pdecomp] staging Lean env -> $LOCAL_ENV (cp $N_GPFS oleans)..."
-    rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"; t0=$SECONDS
-    cp -a "$GPFS_ENV/.lake" "$GPFS_ENV/lakefile.lean" "$GPFS_ENV/lake-manifest.json" \
-          "$GPFS_ENV/lean-toolchain" "$GPFS_ENV/AtpLeanEnv" "$LOCAL_ENV/" \
-        || { echo "FATAL: staging copy to $LOCAL_ENV failed"; exit 1; }
-    touch "$LOCAL_ENV/.staged_ok"
-    echo "[pdecomp] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
-fi
+LOCAL_ENV="$LOCAL_BASE/atp-lean-env-j${SLURM_JOB_ID:-$$}"
+mkdir -p "$LOCAL_BASE"
+rm -rf "$LOCAL_ENV"; mkdir -p "$LOCAL_ENV"; t0=$SECONDS
+echo "[pdecomp] staging Lean env -> $LOCAL_ENV ..."
+cp -a "$GPFS_ENV/." "$LOCAL_ENV/" \
+    || { echo "FATAL: staging copy to $LOCAL_ENV failed"; exit 1; }
+echo "[pdecomp] staged in $((SECONDS-t0))s ($(find "$LOCAL_ENV/.lake" -name '*.olean' | wc -l) oleans)."
 export ATP_LEAN_PROJECT="$LOCAL_ENV"
 
 echo "[pdecomp] Lean guardrail probe (cold Mathlib load ~2-3min)..."
