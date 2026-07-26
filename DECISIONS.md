@@ -2780,3 +2780,28 @@ Resubmitted with a larger budget (job 11690238, budget=60000, max_rounds=3, stil
 the full 128000 real-run budget) specifically to get at least one COMPLETE, untruncated generation on
 record before deciding on the full array — reading the smoke test carefully per the design note's own
 discipline, not rushing past an ambiguous result.
+
+## 2026-07-26b — WS6 item 6c RESULT: DeepSeek trapped-core calibration on miniF2F — sound (2/61 clean)
+
+All 8 shards of job 11684708 COMPLETED clean (3h38m-5h39m each). Aggregated (`atp sweep --aggregate`):
+61/61 cells ran, pass@32 (uncapped budget, official header, temp 1.0, no refinement) = **4.9% (3/61)**.
+
+Recovered: `mathd_numbertheory_495`, `amc12_2001_p21`, `imo_1962_p2`. Checked directly against the
+already-known Task B heartbeat-fix flip list (`results/audit/AUDIT_FINDINGS.md` row B, DeepSeek×miniF2F:
+`amc12_2001_p21`, `amc12a_2020_p15`, `imo_1962_p2`, 3 distinct problems) — **2 of the 3 recoveries
+(`amc12_2001_p21`, `imo_1962_p2`) are exact-name matches to already-known heartbeat-fix flips**, same
+pattern as the Goedel calibration cell's header-confound overlap. Only `mathd_numbertheory_495` is a
+genuinely new fresh-sampling recovery not already accounted for.
+
+**Applying the pre-registered decision rule** (`configs/calibration_trapped32_deepseek_minif2f.yaml`,
+0-4 sound / 5-13 bounded / >13 needs regeneration): raw 3/61 already sits in the sound band; the
+overlap-corrected clean-recovery rate is **1/61 (1.6%)**, even more solidly sound. **Verdict:
+DeepSeek's trapped-core claims on miniF2F stand as reported — closes the "DeepSeek's trapped cores are
+uncalibrated" scope limit for miniF2F** (WS6 item 6c done). ProofNet# remains uncalibrated for
+DeepSeek (out of scope for this item; DeepSeek×ProofNet# was Task B's ONE zero-flip core, which is
+itself weak indirect evidence of soundness there too, but not a substitute for a real calibration
+cell).
+
+Full detail: `results/calibration_trapped32_deepseek_minif2f/metrics.json`. Will fold into
+`paper/floor/main.tex`'s scope-limits list (narrow "uncalibrated on both benchmarks" to
+"ProofNet# only" for DeepSeek) in the next writing pass.
