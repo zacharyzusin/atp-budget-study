@@ -2653,3 +2653,17 @@ job rather than deferred to an unstaged/risky login-node test.
 Job 11684261, `results/phase_decomp/smoke`, budget=20000, max_rounds=2, max_subgoal_rounds=2, seed 0,
 2 trapped miniF2F problems. Per DESIGN.md's own stopping rule: **will read the result against all 5
 listed risks before considering the full 55-problem array, not just check for exit code 0.**
+
+## 2026-07-25v — Process note: smoke submission wasted ~6 extra shards (minor, not a bug)
+
+Submitted the DeepSeek calibration smoke (item 6c) via plain `sbatch slurm/sweep_array.sh <config>
+<name>` without `--array=0`. `sweep_array.sh` has a hardcoded `#SBATCH --array=0-7%8` default, so
+this launched all 8 shards regardless of the smoke's 2-problem population — 6 of them will find 0
+cells assigned and exit after paying the Lean-staging + vLLM cold-start overhead for nothing (~10-15
+min each, roughly 1 extra GPU-hour total, not large but avoidable). No correctness impact (shard 0's
+result, verified above, is exactly what the Goedel smoke's own validated pattern produced: real Lean
+feedback, `stop_reason=max_rounds`, correct token accounting). **Lesson for next time**: smoke
+submissions through `sweep_array.sh` need an explicit `--array=0` (or `--array=0-<n-1>` sized to the
+smoke population), not the plain default. Not fixed retroactively (jobs already mid-flight); logged
+so the full 61-problem array (which correctly wants all 8 shards) isn't submitted with the same
+oversight in reverse.
