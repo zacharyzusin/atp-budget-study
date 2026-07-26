@@ -639,10 +639,11 @@ source of that mismatch.
   \item \textbf{Full-pipeline RL across multiple training lineages is untested, not confirmed null}
     (withdrawn on audit grounds, Section~\ref{sec:exhaustion}) --- the natural reopening lever if this
     line of work continues.
-  \item DeepSeek-Prover-V2-7B's trapped cores are uncalibrated on both benchmarks (the header-confound
-    and pass@32 calibration checks in Section~\ref{sec:mechanism}/\ref{sec:exhaustion} ran on Goedel
-    only); Goedel and DeepSeek agree on every other mechanism finding, so we expect but have not
-    confirmed the same calibration holds.
+  \item DeepSeek-Prover-V2-7B's trapped core is calibrated on miniF2F (pass@32, uncapped budget,
+    official header: 3/61 recovered, and after checking against the already-known heartbeat-fix flip
+    list, only 1/61 is a genuinely new fresh-sampling recovery --- sound, same reading as Goedel's own
+    calibration cell) but \textbf{remains uncalibrated on ProofNet\#}, where DeepSeek's trapped-core
+    claims rest on Goedel's calibration result carrying over by analogy, not a direct check.
   \item Phase~7's verified-state re-grounding result is ProofNet\#-only and single-seed per condition,
     not the full cross-model/cross-benchmark/multi-seed protocol used elsewhere in this paper.
   \item The trapped-core population's resampling-recovery rate is $\geq$11\% at $N$=32 fresh samples
