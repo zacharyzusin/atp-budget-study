@@ -415,6 +415,28 @@ training-independently: force continuation from a \emph{verified} intermediate L
 free-running generation. Both re-grounding modes tested, both models: null. Re-grounding alone does not
 unlock the trapped core.
 
+\textbf{Compositional decomposition cannot be elicited (WS6).} If execution depth, not approach
+discovery, is the bottleneck, a natural lever is to make each execution step shorter: decompose the
+goal into \texttt{have} sub-lemmas, prove each independently, then splice the verified subproofs back
+together. We built the full pipeline (structural sketch check, per-subgoal proving, byte-level
+composition) and pre-registered a decision rule requiring at least one structurally valid decomposition
+before committing GPU budget to the trapped-core array. Across five independent prompting attempts on
+two models (four rounds on Goedel-Prover-V2-8B --- zero-shot, revised prompt, larger budget, few-shot
+with an explicit anti-degenerate instruction --- plus one round on DeepSeek-Prover-V2-7B using the
+already-matured prompt), \emph{neither model ever produced a genuine multi-\texttt{have}
+\texttt{sorry}-deferred decomposition on a problem it could not already solve}: both consistently
+either attempted a full inline solution with zero \texttt{sorry}s, or wrote one or more genuine
+intermediate \texttt{have}s but then closed with a bare \texttt{sorry} rather than a real tactic ---
+DeepSeek got closer on this second failure mode, producing three genuine sub-facts before still
+punting on the close. We spent $\sim$2.3 GPU-h across all five rounds rather than the full array, per
+the pre-registered rule. Paired with Phase~7's tactic-level re-grounding null above, this is a second,
+independent probe at a different decomposition granularity giving the same answer: these frozen
+whole-proof provers have no accessible mode for honest decomposition with acknowledged gaps, via
+prompting alone. That is a structural claim about the model class, not just a null on this
+intervention --- it is consistent with, and helps explain, why current agentic systems that
+\emph{train} for decomposition see gains scaffolding never bought a frozen whole-proof prover here.
+Whether targeted fine-tuning could elicit it remains open (Section~\ref{sec:discussion}).
+
 \textbf{Full-pipeline, lab-scale RL (Phase 8) --- withdrawn.} We attempted the strongest remaining
 candidate: not a lightweight post-hoc probe but a lab's own full Base$\to$SFT$\to$RL pipeline, on two
 independently matched training lineages (DeepSeek-Prover-V1.5 and Leanabell-Prover). An initial pass
@@ -642,20 +664,10 @@ source of that mismatch.
 
 \textbf{Scope limits.} Collected in one place rather than scattered through the results sections above:
 \begin{itemize}
-  \item \textbf{Hierarchical subgoal decomposition could not be elicited via prompting, so it was not
-    run at scale.} We designed and implemented a decompose-prove-subgoals-splice pipeline (structural
-    sketch check, per-subgoal proving, byte-level composition of verified subproofs) and pre-registered
-    a decision rule requiring at least one structurally valid decomposition before committing to the
-    trapped-core array. Across four independent prompting attempts (zero-shot, revised prompt, larger
-    budget, and a few-shot example with an explicit anti-degenerate instruction), Goedel-Prover-V2-8B
-    never produced a genuine multi-\texttt{have} \texttt{sorry}-deferred decomposition on trapped
-    (already-failed) problems --- it consistently either attempted a full inline solution with zero
-    \texttt{sorry}s or wrapped the entire goal in one degenerate \texttt{have} closed by a bare
-    \texttt{sorry}. We therefore did not spend the array's GPU budget on a pipeline whose input the
-    model would not reliably supply. This is a negative elicitation result, not a null on the
-    hypothesis itself: whether subgoal decomposition would help \emph{if} elicited (e.g., via targeted
-    fine-tuning rather than prompting) remains open, and is consistent with --- not in tension with ---
-    this paper's broader finding that execution, not approach discovery, is the bottleneck.
+  \item \textbf{Compositional decomposition, elicited via prompting alone, could not be tested at
+    scale on either model} (Section~\ref{sec:exhaustion}) --- both provers consistently fail to produce
+    a structurally valid sorry-deferred decomposition, so the trapped-core array was never run. Whether
+    a fine-tuned model would decompose successfully remains open.
   \item \textbf{Hammer/SMT (Section~\ref{sec:exhaustion}) tested a same-pin tactic portfolio, not a
     true superposition-calculus hammer} against an external ATP backend; the null rules out the cheaper
     intervention only.

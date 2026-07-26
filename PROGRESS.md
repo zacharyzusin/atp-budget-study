@@ -4283,3 +4283,23 @@ both are nulls/negatives that fit the existing thesis).
    original 3 seeds), not a separately-sampled run with its own bootstrap-able variance, so it doesn't
    have the within-run-vs-replication exposure Stage B/retrieval do. Existing raw solve-rate reporting
    (0.6-1.2% across combinations, already read as "flat") stands as-is; no extension needed there.
+
+## 2026-07-26g — DeepSeek decomposition probe RESULT: same NO-GO, now a two-model finding
+Job 11693853 completed clean, 0/6 sketch_accepted (same as Goedel). Failure shapes: `aime_1988_p8`
+attempt 0 zero-sorry full attempt; attempts 1-2 (byte-identical, deterministic repeat) THREE genuine
+haves closed by bare sorry -- closer to a real decomposition than Goedel ever produced, but still fails
+the anti-vacuous-sketch check correctly. `aime_1984_p7` attempt 0 truncated at the 16384-token sample
+cap in pure informal reasoning (never reached Lean code); attempts 1-2 (again identical) a full
+zero-sorry nested-have attempt. Full detail in `results/phase_decomp/DESIGN.md`.
+
+This closes WS6 item 3's DeepSeek extension the same way, making it a genuine two-model finding:
+neither Goedel-Prover-V2-8B nor DeepSeek-Prover-V2-7B can be prompted into a real sorry-deferred
+decomposition on a problem it can't already solve. Promoted this out of the paper's scope-limits list
+into `sec:exhaustion` as a full paragraph alongside Phase 7's tactic-level decomposition null (two
+independent probes, two granularities, same answer -- a structural claim about frozen whole-proof
+provers, not just a null on the intervention). Scope-limits bullet shrunk to a one-line pointer.
+Recompiled clean, 12 pages. Total WS6 item 3 spend: ~2.3 GPU-h across 5 smoke rounds (4 Goedel + 1
+DeepSeek) -- the pre-registered stopping-rule discipline worked exactly as intended twice over.
+
+WS6 status: items 1 (Phase1 + Stage B), 2, 3 (both models), 6a/6b/6c all fully closed. Remaining toward
+the 2026-08-09 date: item 4 (Phase 4 predictor improvement) only.
