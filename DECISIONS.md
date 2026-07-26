@@ -2761,3 +2761,22 @@ green (690 passed).
 Resubmitted smoke as job 11684726 (`results/phase_decomp/smoke2`) to check the revised prompt
 actually elicits a real closing step from the model, not just that the parser handles it correctly in
 the abstract.
+
+## 2026-07-26a — WS6 item 3: smoke2 result read carefully — budget too small to observe real behavior
+
+Smoke2 (job 11684726, revised prompt) still 0/2 parseable, but for informative reasons, not a repeat
+of the same bug: (1) `aime_1984_p7` was truncated mid-generation at exactly 20000 tokens (the smoke's
+total budget) — a single decompose call can legitimately ask for up to
+`sample_max_tokens=20480` (Goedel's `max_model_len//2`), so a 20000-token TOTAL budget can't even fit
+one complete generation; (2) `aime_1988_p8`'s two attempts show the model sometimes ignores the
+sorry-placeholder instruction entirely and instead writes a full brute-force nested-`have` proof with
+ZERO sorries (confirmed by reading the untruncated attempt text directly) — correctly returns `None`
+from the parser (no false positive), but means some fraction of decomposition rounds will "waste" a
+sample on non-decomposition behavior regardless of prompt wording. Neither is a parser/design bug;
+both are properties of real model behavior + smoke sizing that a 20000-token smoke was too small to
+distinguish from a real bug.
+
+Resubmitted with a larger budget (job 11690238, budget=60000, max_rounds=3, still ~2x smoke cost, not
+the full 128000 real-run budget) specifically to get at least one COMPLETE, untruncated generation on
+record before deciding on the full array — reading the smoke test carefully per the design note's own
+discipline, not rushing past an ambiguous result.
