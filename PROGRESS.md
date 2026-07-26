@@ -4179,3 +4179,63 @@ items 1/2-free/6a-c. Same-session progress:
 All three landed items are compiled into `paper/floor/main.tex` (12 pages, clean build) and logged in
 DECISIONS.md 2026-07-25o/p/q. Remaining WS6 work: item 1's Stage B/Step C extension, item 3's
 decomposition-arm go/no-go, items 4/5/6b/6c.
+
+## 2026-07-26c — WS6 item 6b: Phase 7 fresh-control extended to 3 seeds, Mode 3 result CONFIRMED NULL
+Fresh-control job 11684706 TIMED OUT at 11:55:00 with seed2 4/150 cells short (seed0+seed1 already
+complete: seed0 from an earlier Jul 4 run, seed1 finished during this run). `--requeue` did not
+auto-resubmit a plain TIMEOUT (only covers preemption/node-fail); manually resubmitted the identical
+command (job 11691660, resume-safe, skipped 296/300 already-done cells, finished the remaining 4 in 16
+min). All 450 cells (150 problems x 3 seeds) now complete for `goedel_proofnet_freshcontrol`.
+
+Full 3-seed fresh-control: pass@32k = 0.44% (2/450 cells: `Ireland__Rosen__exercise_12_12` seed1,
+`Munkres__exercise_18_8a` seed2) — 2 distinct problems, one seed each.
+Mode 3 (11684255, already complete): 5/450 cells (4 distinct problems: `Rudin__exercise_5_3` on ALL 3
+seeds, `Rudin__exercise_5_5` and `Axler__exercise_1_9` on seed2 only).
+
+No problem-name overlap between the two arms. Fisher exact on cell-level solve counts (5/450 vs 2/450):
+p=0.45. On distinct-problem counts (4/150 vs 2/150): p=0.68. Neither is remotely significant — Mode 3's
+raw solve count is statistically indistinguishable from what fresh re-sampling alone achieves with no
+state-grounding mechanism. This CONFIRMS (does not overturn) the existing Track 1 NULL verdict
+([[atp-phase7-plan]] / STEPWISE.md, originally resolved 2026-07-05 on 1 seed) at 3 seeds. The one
+qualitatively interesting pattern — Mode 3 solving `Rudin__exercise_5_3` on all 3 of its own seeds,
+vs. fresh-control never repeating a solve across seeds — is noted as a curiosity (consistent with Mode
+3's re-grounding state carrying over within a problem across seeds) but does not move the aggregate
+verdict given n this small; not worth a follow-up given the confirmed-null result and the 2026-08-08
+stopping rule.
+
+Item 6b CLOSED. Fold into paper's Phase 7 Track 1 discussion (currently 1-seed NULL) as "confirmed at
+3 seeds, Fisher exact p=0.45/0.68" — small paper edit, no framing change needed since it's already
+reported as a null.
+
+## 2026-07-26d — WS6 item 3: smoke3 decisive-negative, bounded final prompt iteration (smoke4 launched)
+smoke3 (11690238, budget=60000, max_rounds=3) completed cleanly, 0/2, all 6 decompose attempts
+unparseable in two consistent shapes: full brute-force zero-sorry attempts (`aime_1988_p8` all 3
+rounds) and a degenerate single-have-wraps-whole-goal-then-bare-sorry (`aime_1984_p7` round 3, not
+truncated). Full analysis + decision in `results/phase_decomp/DESIGN.md` amendment 2026-07-26. Not
+treating this as random noise — 3 independent smoke rounds now agree the model doesn't decompose
+without more encouragement. Added a concrete few-shot example + "use MORE THAN ONE have" instruction to
+`_DECOMP_PROMPT` (src/atp/agents/decomposition.py), fast suite re-verified green (20/20), submitted
+smoke4 (job 11691968). Pre-registered stopping rule set explicitly: if smoke4 doesn't produce at least
+one `sketch_accepted` attempt, item 3 closes as a documented NO-GO — no smoke5.
+
+Also closed WS6 item 6b this session (see 2026-07-26c): Phase 7 fresh-control finished at 3 seeds
+(job 11684706 timed out 4 cells short, resubmitted as 11691660, now complete); Mode 3's 5/450 vs
+fresh-control's 2/450 solved cells is not significant (Fisher exact p=0.45 cell-level, p=0.68
+distinct-problem level) — confirms the existing Track 1 NULL at 3 seeds.
+
+## 2026-07-26e — WS6 item 3 CLOSED: decomposition arm NO-GO (pre-registered rule triggered)
+smoke4 (11691968, few-shot prompt + explicit "use MORE THAN ONE have" instruction) still 0/2, zero
+`sketch_accepted` across all 6 attempts — same failure mode as smoke3 (full inline attempt, no sorry
+deferral), this time via a proof-by-contradiction skeleton on `aime_1988_p8`. Per the pre-registered
+stopping rule set in DESIGN.md's 2026-07-26 amendment ("if smoke4 doesn't produce at least one
+sketch_accepted, item 3 closes as a documented NO-GO — no smoke5"), item 3 is CLOSED. No 55-problem
+array launched. Full reasoning + all 4 smoke rounds' failure modes in
+`results/phase_decomp/DESIGN.md`. Total GPU spend on this item: ~2 GPU-h across 4 smoke rounds — well
+inside the budget discipline, and a real (if negative) finding: Goedel-Prover-V2-8B does not produce
+honest have-sorry decompositions via prompting alone on problems it can't already solve, consistent
+with (not contradicting) the project's existing execution-floor thesis.
+
+WS6 status now: items 1 (Phase 1 6-component bounds) DONE, 2-free DONE, 3 CLOSED (NO-GO), 6a/6b/6c
+DONE. Remaining: item 1's Stage B/Step C extension (optional), items 4/5 (opportunistic, unscheduled),
+paper write-up of items 3/6b (small additions to existing sections, no framing changes needed since
+both are nulls/negatives that fit the existing thesis).

@@ -629,10 +629,20 @@ source of that mismatch.
 
 \textbf{Scope limits.} Collected in one place rather than scattered through the results sections above:
 \begin{itemize}
-  \item \textbf{Hierarchical subgoal decomposition is untested.} This is the one major scaffolding axis
-    we never touched, and the axis current (2026) agentic-prover systems are largely built on; our
-    scaffolding ablation (Section~\ref{sec:scaffolding}) covers retrieval, memory, review, tactic
-    skeletons, and diversity injection, not subgoal decomposition.
+  \item \textbf{Hierarchical subgoal decomposition could not be elicited via prompting, so it was not
+    run at scale.} We designed and implemented a decompose-prove-subgoals-splice pipeline (structural
+    sketch check, per-subgoal proving, byte-level composition of verified subproofs) and pre-registered
+    a decision rule requiring at least one structurally valid decomposition before committing to the
+    trapped-core array. Across four independent prompting attempts (zero-shot, revised prompt, larger
+    budget, and a few-shot example with an explicit anti-degenerate instruction), Goedel-Prover-V2-8B
+    never produced a genuine multi-\texttt{have} \texttt{sorry}-deferred decomposition on trapped
+    (already-failed) problems --- it consistently either attempted a full inline solution with zero
+    \texttt{sorry}s or wrapped the entire goal in one degenerate \texttt{have} closed by a bare
+    \texttt{sorry}. We therefore did not spend the array's GPU budget on a pipeline whose input the
+    model would not reliably supply. This is a negative elicitation result, not a null on the
+    hypothesis itself: whether subgoal decomposition would help \emph{if} elicited (e.g., via targeted
+    fine-tuning rather than prompting) remains open, and is consistent with --- not in tension with ---
+    this paper's broader finding that execution, not approach discovery, is the bottleneck.
   \item \textbf{Hammer/SMT (Section~\ref{sec:exhaustion}) tested a same-pin tactic portfolio, not a
     true superposition-calculus hammer} against an external ATP backend; the null rules out the cheaper
     intervention only.
@@ -644,8 +654,12 @@ source of that mismatch.
     list, only 1/61 is a genuinely new fresh-sampling recovery --- sound, same reading as Goedel's own
     calibration cell) but \textbf{remains uncalibrated on ProofNet\#}, where DeepSeek's trapped-core
     claims rest on Goedel's calibration result carrying over by analogy, not a direct check.
-  \item Phase~7's verified-state re-grounding result is ProofNet\#-only and single-seed per condition,
-    not the full cross-model/cross-benchmark/multi-seed protocol used elsewhere in this paper.
+  \item Phase~7's verified-state re-grounding result is ProofNet\#-only, not the full
+    cross-model/cross-benchmark protocol used elsewhere in this paper. At 3 seeds, its raw solve count
+    (5/450 cells, 4 distinct problems) is statistically indistinguishable from a fresh-resampling
+    control run with no state-grounding mechanism at all (2/450 cells, 2 distinct problems; Fisher's
+    exact $p=0.45$ cell-level, $p=0.68$ distinct-problem level) --- consistent with, not overturning,
+    the single-seed null this paper already reports.
   \item The trapped-core population's resampling-recovery rate is $\geq$11\% at $N$=32 fresh samples
     (Section~\ref{sec:exhaustion}) with the recovery curve not yet flat at that $N$ --- the true
     asymptotic recovery rate under unlimited fresh sampling is not established, only a lower bound.
@@ -664,8 +678,9 @@ signature emerges, a natural follow-up.
 \section{Conclusion}
 
 We do not claim there is a hard execution floor that nothing could ever move --- that overclaims, and
-the scope limits above name concrete untested axes (hierarchical subgoal decomposition, a true
-superposition hammer, full-pipeline multi-lineage RL) that could still move it. What we do show, across
+the scope limits above name concrete untested axes (a true superposition hammer, full-pipeline
+multi-lineage RL, and subgoal decomposition under a training-time rather than prompting-only
+elicitation) that could still move it. What we do show, across
 two independently trained provers and two benchmarks with an in-distribution/OOD asymmetry: test-time
 scaffolding on a frozen whole-proof prover operates on the wrong axis, and a pre-registered causal
 intervention confirms directly why --- approach discovery is not the bottleneck, within-approach

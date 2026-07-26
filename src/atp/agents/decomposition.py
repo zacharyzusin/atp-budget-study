@@ -151,11 +151,23 @@ _DECOMP_PROMPT = """Write a Lean 4 proof for the following theorem.
 
 {statement}
 
-For any intermediate fact you need but cannot prove immediately, state it as its own step using \
-`have <name> : <proposition> := by sorry` and continue the proof past it. After stating every `have` \
-you need, write the REAL closing tactic(s) that finish the goal using those haves — do NOT leave the \
-final step as `sorry`; the closing step is expected to be short precisely because the `have`s did the \
-hard work. Respond with the complete Lean 4 proof only, in a single ```lean4 code block.
+Break the proof into genuine intermediate steps: for EACH fact you need but cannot prove immediately, \
+state it as its own `have <name> : <proposition> := by sorry` and continue past it. You must use MORE \
+THAN ONE such `have` unless the goal is genuinely a single step — do not collapse the whole goal into \
+one `have` that just restates it. After stating every `have` you need, write the REAL closing \
+tactic(s) that finish the goal using those haves — never leave the final step as `sorry`.
+
+Example of the expected shape (illustrative only, not the actual problem):
+```lean4
+theorem example_thm (a b c : ℕ) (h : a + b = c) : a + b + 0 = c := by
+  have step1 : a + b + 0 = a + b := by sorry
+  have step2 : a + b = c := by sorry
+  rw [step1, step2]
+```
+Note `step1` and `step2` each isolate one genuinely separate fact, and the closing `rw [step1, step2]` \
+is short because the `have`s did the hard work — it is NOT `sorry`.
+
+Respond with the complete Lean 4 proof only, in a single ```lean4 code block.
 """
 
 
