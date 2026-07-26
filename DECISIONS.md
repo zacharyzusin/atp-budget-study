@@ -2716,3 +2716,24 @@ concurrently is exactly the condition that exposes a fixed-shared-path staging r
 at-a-time usage never triggered. Worth checking for this pattern explicitly before any future
 multi-job concurrent launch from an older script, not just assuming "it worked before" transfers to
 "it works run concurrently."
+
+## 2026-07-25y — WS6 item 6c: smoke PASSED, full 61-problem array submitted
+
+Smoke (job 11684257, 2 trapped miniF2F problems, max_rounds=4) COMPLETED clean, both cells: real Lean
+compile-error feedback (genuine verification, e.g. "unknown constant 'Int.sub_floor'", deep
+mathematical error content, not mocked), `stop_reason=max_rounds` matching the exact override (4
+attempts each), token spend (29,072 / 32,629) nowhere near the 2M nominal budget — plumbing validated
+end to end, identical healthy pattern to the Goedel calibration cell's own smoke.
+
+**GPU-hour estimate**: from smoke timing (staging 96-248s + probe ~30s + vLLM startup, ~3.1-3.2
+min/round thereafter — much cheaper than Goedel's ~12.8min/round, plausibly DeepSeek's smaller
+max_model_len/sample_max_tokens and faster generations), worst case per problem (32 rounds unsolved)
+≈ 1.87h. Sharded 8-way (~7.6 problems/shard, n_workers=8 so full within-shard parallelism), worst-case
+wall-clock per shard ≈ 1.87h, aggregate ≈ **~15 GPU-h across 8 shards — comfortably under the 50
+GPU-h ask-before line**, no flag needed this time (unlike the Goedel cell's ~54h estimate).
+
+**Submitted**: `ATP_LEAN_ENV_NAME=deepseek-lean-env ATP_NSHARDS=8 sbatch --array=0-7
+--exclude=ins082,ins087,ins089,ins091 slurm/sweep_array.sh
+configs/calibration_trapped32_deepseek_minif2f.yaml calibration_trapped32_deepseek_minif2f` — job
+11684708, explicit `--array=0-7` this time (learned from the smoke's accidental 8-shard-for-2-problems
+waste, 2026-07-25v).
