@@ -2737,3 +2737,27 @@ GPU-h ask-before line**, no flag needed this time (unlike the Goedel cell's ~54h
 configs/calibration_trapped32_deepseek_minif2f.yaml calibration_trapped32_deepseek_minif2f` — job
 11684708, explicit `--array=0-7` this time (learned from the smoke's accidental 8-shard-for-2-problems
 waste, 2026-07-25v).
+
+## 2026-07-25z — WS6 item 3: real design finding from smoke test, redesigned around it, re-smoking
+
+Read the first decomp smoke (job 11684686) carefully against DESIGN.md's own risk list, per the
+"don't just check exit code 0" instruction — found a genuine one: Goedel-Prover-V2-8B ignored the
+custom `HAVE i:`/`MAIN:` delimited prompt format entirely on both smoke problems and instead wrote a
+normal Lean proof with real `have <name> : <stmt> := by sorry` placeholders (its natural trained
+behavior), leaving a bare `sorry` where the closing tactic should go. Both smoke completions scored
+`reason=unparseable` — the parser correctly rejected them (no false positive), but the PROMPT was
+fighting the model's native output shape rather than working with it.
+
+Redesigned rather than patched: prompt now asks for a normal proof using `have ... := by sorry`
+placeholders with an explicit instruction against a bare-sorry closing step; parser extracts real
+Lean have-sorry syntax directly; `Decomposition` now carries the model's own completion text and
+`build_composed_proof` does a targeted substitution rather than reconstructing from parts. Added an
+explicit reject-on-bare-sorry-MAIN check (load-bearing: a sorry MAIN would make the sketch check
+vacuous, since Lean accepts sorry as literally anything). Verified directly against the real smoke
+completion text (correctly returns `None` now, would have incorrectly attempted a decomposition round
+under the old design's looser checks). Test suite rewritten test-first (20 tests), full fast suite
+green (690 passed).
+
+Resubmitted smoke as job 11684726 (`results/phase_decomp/smoke2`) to check the revised prompt
+actually elicits a real closing step from the model, not just that the parser handles it correctly in
+the abstract.
