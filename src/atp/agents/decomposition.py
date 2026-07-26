@@ -35,36 +35,50 @@ if TYPE_CHECKING:
     from atp.models.templates import PromptTemplate
 
 # ---------------------------------------------------------------- parsing the model's decomposition
-_HAVE_RE = re.compile(
-    r"(?im)^\s*HAVE\s+\d+\s*:\s*(?P<name>[A-Za-z_][A-Za-z0-9_']*)\s*:\s*(?P<stmt>.+?)\s*$"
+#
+# REVISED 2026-07-25 after the first smoke test (job 11684686): the original design asked for a
+# custom `HAVE i: name : stmt` / `MAIN:` delimited format, on the theory that it would be easy to
+# parse. In practice Goedel-Prover-V2-8B (heavily trained on ONE specific whole-proof output shape)
+# ignored that format entirely and instead did something better: it wrote a normal Lean proof with
+# genuine `have <name> : <stmt> := by sorry` placeholders for the parts it couldn't close, e.g.
+#   theorem aime_1984_p7 ... := by
+#     have h2 : f 999 = 998 := by sorry
+#     have h3 : f 84 = 997 := by sorry
+#     sorry
+# This is directly usable and needs no artificial delimiter format — parse real Lean `have ... :=
+# sorry` syntax instead. The one thing the model did NOT do unprompted is give a real closing tactic
+# (it left a bare `sorry` where MAIN should be) — the prompt is revised accordingly to ask for it
+# explicitly, and the parser rejects a still-bare-sorry MAIN rather than accept it (a MAIN of `sorry`
+# would make the sketch check vacuous — it accepts ANY goal — so this must be caught before spending
+# any subgoal-proving budget, not left to the final Verifier's loophole policy to catch after the
+# fact).
+_HAVE_SORRY_RE = re.compile(
+    r"have\s+(?P<name>[A-Za-z_][A-Za-z0-9_'.]*)\s*:\s*(?P<stmt>.+?)\s*:=\s*(?:by\s+)?sorry\b"
 )
+_BARE_SORRY = re.compile(r"^\s*sorry\s*$")
 
 
 @dataclass(frozen=True)
 class Decomposition:
-    haves: tuple[tuple[str, str], ...]  # (name, lean proposition), one line each
-    main: str  # closing tactic block, may reference the have names
+    text: str  # the model's own completion text, sorries intact (IS the sketch, verbatim)
+    haves: tuple[tuple[str, str], ...]  # (name, lean proposition), in order of first appearance
+    main: str  # the tactic text after the LAST have-sorry, to the end of `text`
 
 
 def parse_decomposition(text: str) -> Decomposition | None:
-    """Extract HAVE lines + a MAIN block from a completion. `None` if the shape isn't parseable.
-
-    One have per line by design (v1 scope, see DESIGN.md) — a have whose proposition needs a
-    genuine line break is not supported; the model is prompted to keep each HAVE on one line.
+    """Extract real Lean `have <name> : <stmt> := (by )?sorry` placeholders directly from a normal
+    proof completion. `None` if there are no haves, or the closing block after the last have is
+    empty or itself a bare `sorry`/`admit` (nothing real to compose against, see module docstring).
     """
-    haves = [(m.group("name"), m.group("stmt")) for m in _HAVE_RE.finditer(text)]
-    if not haves:
+    matches = list(_HAVE_SORRY_RE.finditer(text))
+    if not matches:
         return None
-    # MAIN: everything after the literal "MAIN:" marker to the end (or a closing fence).
-    idx = text.upper().find("MAIN:")
-    if idx == -1:
-        return None
-    main_text = text[idx + len("MAIN:"):]
-    main = main_text.strip()
+    haves = [(m.group("name"), m.group("stmt")) for m in matches]
+    main = text[matches[-1].end():].strip()
     main = re.sub(r"```\s*$", "", main).strip()
-    if not main:
+    if not main or _BARE_SORRY.match(main) or main.lower() in {"admit", "sorry"}:
         return None
-    return Decomposition(haves=tuple(haves), main=main)
+    return Decomposition(text=text, haves=tuple(haves), main=main)
 
 
 # ---------------------------------------------------------------- signature splitting
@@ -104,40 +118,44 @@ def subgoal_theorem(parent: Theorem, index: int, name: str, prop: str) -> Theore
 
 
 # ---------------------------------------------------------------- proof assembly
+#
+# REVISED 2026-07-25: `decomp.text` is now the model's OWN completion (a full `theorem ... := by`
+# proof with real Lean `have ... := sorry` placeholders already in it, extracted verbatim by
+# `template.extract_proof` before `parse_decomposition` ever runs) — it does not need to be
+# reconstructed line-by-line from parts; the sketch check just verifies it as-is, and composition is
+# a targeted substitution of each `have ... := sorry` occurrence, leaving the model's own MAIN block
+# (and everything else) untouched.
 def build_sketch(theorem: Theorem, decomp: Decomposition) -> str:
-    """Full proof text with every have as `:= sorry` — for the structural check only, never scored
-    as a solve (see DESIGN.md step 2)."""
-    lines = [f"{theorem.statement} := by"]
-    for name, stmt in decomp.haves:
-        lines.append(f"  have {name} : {stmt} := sorry")
-    for line in decomp.main.splitlines():
-        lines.append(f"  {line}")
-    return "\n".join(lines)
+    """The model's own completion, sorries intact — for the structural check only (DESIGN.md step 2),
+    never scored as a solve."""
+    return decomp.text
 
 
 def build_composed_proof(theorem: Theorem, decomp: Decomposition, subproofs: dict[str, str]) -> str:
-    """Splice VERIFIED subproofs (no sorry) back into the parent goal for the real, scored check."""
-    lines = [f"{theorem.statement} := by"]
+    """Splice VERIFIED subproofs (no sorry) into the model's own completion for the real, scored
+    check — a targeted substitution of each `have <name> : <stmt> := (by )?sorry` occurrence,
+    everything else (including the model's own MAIN block) left byte-identical."""
+    text = decomp.text
     for name, stmt in decomp.haves:
-        lines.append(f"  have {name} : {stmt} := by")
-        for line in subproofs[name].splitlines():
-            lines.append(f"    {line}")
-    for line in decomp.main.splitlines():
-        lines.append(f"  {line}")
-    return "\n".join(lines)
+        pat = re.compile(
+            rf"have\s+{re.escape(name)}\s*:\s*{re.escape(stmt)}\s*:=\s*(?:by\s+)?sorry\b"
+        )
+        body = "\n".join(f"    {line}" for line in subproofs[name].splitlines())
+        replacement = f"have {name} : {stmt} := by\n{body}"
+        text, n = pat.subn(replacement, text, count=1)
+        assert n == 1, f"expected exactly one occurrence of have {name} to replace, found {n}"
+    return text
 
 
-_DECOMP_PROMPT = """Prove the following Lean 4 theorem by decomposing it into independent sub-lemmas.
+_DECOMP_PROMPT = """Write a Lean 4 proof for the following theorem.
 
 {statement}
 
-Respond with a list of `have` sub-lemmas that, once each is proved, let a short tactic block close \
-the goal. Use EXACTLY this format (one line per HAVE, plain Lean propositions, no proof terms):
-
-HAVE 1: h1 : <a Lean proposition, in the theorem's own variable/hypothesis context>
-HAVE 2: h2 : <a Lean proposition>
-MAIN:
-<a short tactic block that closes the goal using h1, h2, ...>
+For any intermediate fact you need but cannot prove immediately, state it as its own step using \
+`have <name> : <proposition> := by sorry` and continue the proof past it. After stating every `have` \
+you need, write the REAL closing tactic(s) that finish the goal using those haves — do NOT leave the \
+final step as `sorry`; the closing step is expected to be short precisely because the `have`s did the \
+hard work. Respond with the complete Lean 4 proof only, in a single ```lean4 code block.
 """
 
 

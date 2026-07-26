@@ -4,6 +4,12 @@ Design note: results/phase_decomp/DESIGN.md — read it for why each check below
 test-first, targeting the specific risks the design note lists (parser correctness, sketch check
 gating subgoal spend, budget accounting, round-retry on partial failure) rather than only a
 happy-path smoke test.
+
+REVISED 2026-07-25 after the first real-model smoke test (job 11684686): Goedel-Prover-V2-8B ignored
+the original custom `HAVE i:`/`MAIN:` delimited format and instead wrote a normal Lean proof with
+genuine `have <name> : <stmt> := by sorry` placeholders — parsing now targets that native shape
+directly (see decomposition.py's module-level comment for the full story). These tests reflect the
+revised design; the smoke test's actual completion text is used as the "realistic" fixture below.
 """
 
 from __future__ import annotations
@@ -24,12 +30,12 @@ from atp.models.templates import WholeProofTemplate
 
 THM = Theorem(name="foo", statement="theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b")
 
-REALISTIC_COMPLETION = """Here is my plan.
-
-HAVE 1: h1 : a * b = a * b
-HAVE 2: h2 : True
-MAIN:
-exact h1
+# The actual shape Goedel-Prover-V2-8B produced in the real smoke test (job 11684686,
+# aime_1984_p7__seed0), lightly adapted to THM and given a real (non-sorry) closing step.
+REALISTIC_COMPLETION = """theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b := by
+  have h1 : a * b = a * b := by sorry
+  have h2 : True := by sorry
+  exact h1
 """
 
 
@@ -39,32 +45,48 @@ def test_parse_decomposition_completion_realistic():
     assert d is not None
     assert d.haves == (("h1", "a * b = a * b"), ("h2", "True"))
     assert d.main == "exact h1"
+    assert d.text == REALISTIC_COMPLETION
 
 
 def test_parse_decomposition_single_have():
-    text = "HAVE 1: h : 1 = 1\nMAIN:\nexact h"
+    text = "theorem t : True := by\n  have h : True := by sorry\n  exact h\n"
     d = parse_decomposition(text)
     assert d is not None
-    assert d.haves == (("h", "1 = 1"),)
+    assert d.haves == (("h", "True"),)
 
 
 def test_parse_decomposition_have_with_quantifier():
-    text = "HAVE 1: h : ∀ x : Nat, x = x\nMAIN:\nexact fun x => h x"
+    text = "theorem t : True := by\n  have h : ∀ x : Nat, x = x := by sorry\n  trivial\n"
     d = parse_decomposition(text)
     assert d is not None
     assert d.haves[0] == ("h", "∀ x : Nat, x = x")
 
 
-def test_parse_decomposition_returns_none_on_missing_main():
-    assert parse_decomposition("HAVE 1: h : True") is None
+def test_parse_decomposition_accepts_bare_sorry_form_no_by():
+    text = "theorem t : True := by\n  have h : True := sorry\n  trivial\n"
+    d = parse_decomposition(text)
+    assert d is not None
+    assert d.haves == (("h", "True"),)
 
 
 def test_parse_decomposition_returns_none_on_no_haves():
-    assert parse_decomposition("MAIN:\ntrivial") is None
+    assert parse_decomposition("theorem t : True := by\n  trivial\n") is None
+
+
+def test_parse_decomposition_returns_none_on_bare_sorry_main():
+    """The real failure mode found in the smoke test: model gives haves but leaves the actual
+    closing step as `sorry` too — must be rejected, not accepted as a trivially-true sketch."""
+    text = "theorem t : True := by\n  have h : True := by sorry\n  sorry\n"
+    assert parse_decomposition(text) is None
+
+
+def test_parse_decomposition_returns_none_on_empty_main():
+    text = "theorem t : True := by\n  have h : True := by sorry\n"
+    assert parse_decomposition(text) is None
 
 
 def test_parse_decomposition_strips_trailing_fence():
-    text = "HAVE 1: h : True\nMAIN:\ntrivial\n```"
+    text = "theorem t : True := by\n  have h : True := by sorry\n  trivial\n```"
     d = parse_decomposition(text)
     assert d is not None
     assert d.main == "trivial"
@@ -100,20 +122,27 @@ def test_subgoal_theorem_reuses_parent_binders():
 
 
 # ---------------------------------------------------------------- proof assembly
-def test_build_sketch_uses_sorry_for_every_have():
-    d = Decomposition(haves=(("h1", "True"), ("h2", "True")), main="exact h1")
+def test_build_sketch_is_the_models_own_text_verbatim():
+    d = parse_decomposition(REALISTIC_COMPLETION)
     sketch = build_sketch(THM, d)
-    assert sketch.count(":= sorry") == 2
-    assert "exact h1" in sketch
-    assert sketch.startswith(THM.statement)
+    assert sketch == REALISTIC_COMPLETION
+    assert sketch.count(":= by sorry") == 2
 
 
 def test_build_composed_proof_splices_real_subproofs_no_sorry():
-    d = Decomposition(haves=(("h1", "True"),), main="exact h1")
-    composed = build_composed_proof(THM, d, {"h1": "trivial"})
+    d = parse_decomposition(REALISTIC_COMPLETION)
+    composed = build_composed_proof(THM, d, {"h1": "trivial", "h2": "trivial"})
     assert "sorry" not in composed
-    assert "trivial" in composed
-    assert "exact h1" in composed
+    assert composed.count("trivial") == 2
+    assert "exact h1" in composed  # the model's own MAIN block, untouched
+
+
+def test_build_composed_proof_leaves_unrelated_text_untouched():
+    """Only the have-sorry occurrences change; everything else (binders, MAIN) is byte-identical."""
+    d = parse_decomposition(REALISTIC_COMPLETION)
+    composed = build_composed_proof(THM, d, {"h1": "trivial", "h2": "trivial"})
+    assert "theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b := by" in composed
+    assert composed.strip().endswith("exact h1")
 
 
 # ---------------------------------------------------------------- agent behavior (scripted)
@@ -123,11 +152,9 @@ def _backend_have_aware():
 
     def respond(_thm, proof):
         if "sorry" in proof:
-            # Sketch pass: structurally fine iff MAIN references something plausible.
             if "exact" in proof:
                 return RawVerification(success=True, output="")
             return RawVerification(success=False, output="sketch: MAIN does not close the goal")
-        # Composed (real) proof: only accept if every have body is exactly 'trivial'.
         if "bad_tactic" in proof:
             return RawVerification(success=False, output="error: unknown tactic")
         return RawVerification(success=True, output="")
@@ -138,21 +165,18 @@ def _backend_have_aware():
 def _subgoal_transport(*, solves: dict[str, bool] | None = None, always_trivial=True):
     """Scripted model for BOTH the decompose call and every subgoal's propose call.
 
-    First call (decompose prompt) returns REALISTIC_COMPLETION-shaped text. Subsequent calls are
-    subgoal propose calls (prompt contains the subgoal's own theorem NAME, e.g. `foo__have2` — NOT
-    the have's short name `h2`, which never appears verbatim in the rendered subgoal prompt) ->
-    return a `trivial` proof (solves) or a bad one (fails), per `solves` (keyed by have name, e.g.
-    "h2", internally matched against "__have<i>" using its position in REALISTIC_COMPLETION's order).
+    First call (decompose prompt) returns REALISTIC_COMPLETION. Subsequent calls are subgoal
+    propose calls (prompt contains the subgoal's own theorem NAME, e.g. `foo__have2`) -> return a
+    `trivial` proof (solves) or a bad one (fails), per `solves` (keyed by have name).
     """
     solves = solves or {}
     have_order = [name for name, _ in parse_decomposition(REALISTIC_COMPLETION).haves]
 
     def respond(payload):
         prompt = payload["prompt"]
-        if "Prove the following Lean 4 theorem by decomposing" in prompt:
+        if "Write a Lean 4 proof for the following theorem" in prompt:
             text = REALISTIC_COMPLETION
         else:
-            # Subgoal propose call: identify which have this is by its theorem name suffix.
             name_solves = always_trivial
             for i, have_name in enumerate(have_order, start=1):
                 if f"__have{i}" in prompt and have_name in solves:
@@ -187,7 +211,10 @@ def test_sketch_check_accepts_and_all_subgoals_solve_composes_final_proof():
 
 def test_sketch_rejected_makes_zero_subgoal_calls():
     """A MAIN that doesn't reference any have -> sketch structurally rejected -> no subgoal spend."""
-    bad_completion = "HAVE 1: h1 : True\nMAIN:\ntrivial\n"  # 'trivial' has no 'exact' -> backend rejects
+    bad_completion = (
+        "theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b := by\n"
+        "  have h1 : True := by sorry\n  trivial\n"  # 'trivial' has no 'exact' -> backend rejects
+    )
 
     def respond(payload):
         return completion_response(bad_completion, completion_tokens=payload["max_tokens"])
@@ -201,6 +228,25 @@ def test_sketch_rejected_makes_zero_subgoal_calls():
     assert transport.calls  # the decompose call itself did happen
     # exactly one call per round (no subgoal calls appended)
     assert len(transport.calls) == 2
+
+
+def test_unparseable_completion_makes_zero_subgoal_calls():
+    """A bare-sorry MAIN (the exact failure mode the real smoke test hit) -> unparseable -> no
+    sketch check, no subgoal spend, just a cheap rejected 'decompose' attempt per round."""
+    bare_sorry_completion = (
+        "theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b := by\n"
+        "  have h1 : True := by sorry\n  sorry\n"
+    )
+
+    def respond(payload):
+        return completion_response(bare_sorry_completion, completion_tokens=payload["max_tokens"])
+
+    transport = ScriptedTransport(respond)
+    agent = _agent(transport, _backend_have_aware(), BudgetMeter(limit=100000), max_rounds=2)
+    state = agent.prove(THM)
+    assert not state.solved
+    assert all(a.kind == "decompose" and a.reason == "unparseable" for a in state.attempts)
+    assert len(transport.calls) == 2  # one decompose call per round, nothing else
 
 
 def test_one_subgoal_unsolved_tries_a_fresh_decomposition_next_round():
