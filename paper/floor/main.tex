@@ -535,7 +535,15 @@ deficit in its population of exploitable cells. We report this result honestly s
 fractional-accuracy operating point (at 100\% accuracy the policy must keep almost every cell, since the
 costliest winnable cells are indistinguishable from trapped ones at the decision checkpoint, so the
 saving is $\sim$0 there by construction, not by tuning failure), and efficiency rather than raw
-fixed-compute accuracy is the robust axis.
+fixed-compute accuracy is the robust axis. A richer feature set for the predictor itself (error-type
+histograms, a continuous depth-progress slope, token efficiency, propose/refine mix, error diversity
+--- \texttt{results/phase4/PREDICTOR\_V2\_DESIGN.md}) does not move AUC beyond noise (max gain
+$+0.033$ under a pre-registered $0.05$ bar, seed-holdout guarded so the null cannot be an artifact of
+tuning on the evaluation seed): \emph{trapped-ness is not more legible in the generation signal than
+elapsed spend and proof-depth plateau already make it at these checkpoints.} If the model were drifting
+toward a solve in some way these features could detect, richer features should have found it; that
+they do not is a small independent corroboration of the execution-floor reading, consistent with the
+predictability cost being ranking-limited rather than floor-limited.
 
 \section{Methodology: auditing the verifier, and symmetric skepticism}
 \label{sec:methodology}

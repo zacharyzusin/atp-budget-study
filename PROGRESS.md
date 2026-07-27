@@ -4324,3 +4324,22 @@ unchanged. No paper edit needed since nothing changed. Logged in
 **This closes the entire 2026-08-09 WS6 stopping-rule set early** (items 1/2/3/4/6a/6b/6c all done).
 Item 5 (artifact release / bug catalogue) remains queued as opportunistic follow-on, per the user's
 explicit closing guidance to stop adding analysis and move to writing.
+
+## 2026-07-26i — Item 4's negative folded in as execution-floor corroboration; WS6 sprint closed
+Per the user's final review: item 4's negative isn't just "no improvement" -- it means richer
+generation-signal features (error types, depth-progress slope, token efficiency, propose/refine mix,
+error diversity) don't reveal trapped-ness any earlier/better than the existing simple features
+already do, which is itself a small independent corroboration that the execution floor is real rather
+than an artifact of an underpowered predictor. Added one paragraph to the end of
+Section~\ref{sec:allocation} in the paper stating this directly. Recompiled clean, 13 pages.
+
+This closes the WS6 strengthening sprint. Summary of what changed since the plan was committed
+2026-07-25: two wording corrections, Phase 8 withdrawn, allocation reframed with proper bootstrap CIs,
+contamination-boundary null (with recovery-level cross-check and effect size), decomposition promoted
+to a two-model mechanism finding, retrieval within-run-vs-replication CI lesson quantified, Stage B
+per-combination harm identified and mechanistically explained, Phase 7 confirmed at 3 seeds, DeepSeek
+miniF2F calibration closed, and the Phase 4 predictor experiment closed negative with its own
+corroborating value. Six corrections logged, two Phase 0 characterizations fixed, four new things the
+paper can claim that it couldn't before. Next work on this project is drafting (intro, thesis framing,
+Phase 4 vs. adaptive-allocation literature positioning), not further analysis, per explicit user
+guidance.
