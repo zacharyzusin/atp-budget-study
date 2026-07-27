@@ -394,7 +394,13 @@ consistent with prior reporting), and closing-targeted SFT (Stage B) is a clean 
 ProofNet\# ($-1.97$pp, 95\% CI $[-3.76,-0.54]$pp) --- a small but statistically real harm on that one
 combination, not indistinguishable-from-flat as previously stated. This does not change the headline
 (closing-targeted SFT still does not lift pass@B on any combination we tested, so the pivot to Stage C
-stands), but the honest per-combination reading is ``null-to-mildly-harmful,'' not uniformly flat.
+stands), but the honest per-combination reading is ``null-to-mildly-harmful,'' not uniformly flat. The
+one harmed combination is not arbitrary: Goedel$\times$ProofNet\# is the weakest of the four base cells
+(14.2\% pass@32k, vs.\ 17.6\%/61.5\%/70.4\% for the other three), i.e.\ exactly where closing-targeted
+SFT has the least valid signal to fine-tune on and the most room to narrow an already-thin output
+distribution --- the same mechanism as Stage A's uniform harm, at smaller amplitude: likelihood-based
+post-hoc adaptation degrades the generation distribution, and the degradation is largest where the base
+model was weakest to begin with.
 
 \textbf{Lightweight post-hoc RL (Phase 6, Stage C).} A GRPO probe (LoRA $r$=16, DeepSeek-Prover-V2-7B,
 80 steps, direct outcome reward against the Lean verifier) found no gain: held-out pass@1 moved
@@ -423,16 +429,22 @@ composition) and pre-registered a decision rule requiring at least one structura
 before committing GPU budget to the trapped-core array. Across five independent prompting attempts on
 two models (four rounds on Goedel-Prover-V2-8B --- zero-shot, revised prompt, larger budget, few-shot
 with an explicit anti-degenerate instruction --- plus one round on DeepSeek-Prover-V2-7B using the
-already-matured prompt), \emph{neither model ever produced a genuine multi-\texttt{have}
-\texttt{sorry}-deferred decomposition on a problem it could not already solve}: both consistently
-either attempted a full inline solution with zero \texttt{sorry}s, or wrote one or more genuine
-intermediate \texttt{have}s but then closed with a bare \texttt{sorry} rather than a real tactic ---
-DeepSeek got closer on this second failure mode, producing three genuine sub-facts before still
-punting on the close. We spent $\sim$2.3 GPU-h across all five rounds rather than the full array, per
-the pre-registered rule. Paired with Phase~7's tactic-level re-grounding null above, this is a second,
-independent probe at a different decomposition granularity giving the same answer: these frozen
-whole-proof provers have no accessible mode for honest decomposition with acknowledged gaps, via
-prompting alone. That is a structural claim about the model class, not just a null on this
+already-matured prompt), \emph{we never observed a genuine multi-\texttt{have}
+\texttt{sorry}-deferred decomposition on a trapped problem across these five rounds} --- this is a
+strong existence claim about a failure mode repeatedly observed, not a measured rate from a systematic
+sweep. Both models consistently either attempted a full inline solution with zero \texttt{sorry}s, or
+wrote one or more genuine intermediate \texttt{have}s but then closed with a bare \texttt{sorry} rather
+than a real tactic --- DeepSeek got closer on this second failure mode, producing three genuine
+sub-facts before still punting on the close. That last detail matters for what the finding actually
+locates: DeepSeek's willingness to \emph{state} three separate correct-looking intermediate facts shows
+the failure is not an inability to identify subgoals, but specifically an inability (or unwillingness)
+to \emph{defer} them with \texttt{sorry} and treat them as separable proof obligations --- whole-proof
+training appears to remove the deferral mode, not the decomposition vocabulary. We spent $\sim$2.3
+GPU-h across all five rounds rather than the full array, per the pre-registered rule. Paired with
+Phase~7's tactic-level re-grounding null above, this is a second, independent probe at a different
+decomposition granularity giving the same answer: these frozen whole-proof provers have no accessible
+mode for honest decomposition with acknowledged gaps, via prompting alone. That is a structural claim
+about the model class, not just a null on this
 intervention --- it is consistent with, and helps explain, why current agentic systems that
 \emph{train} for decomposition see gains scaffolding never bought a frozen whole-proof prover here.
 Whether targeted fine-tuning could elicit it remains open (Section~\ref{sec:discussion}).
@@ -606,20 +618,25 @@ claim --- so \textbf{full-pipeline RL across multiple training lineages remains 
 confirmed null}, and is the natural reopening lever for future work.
 
 \textbf{``The execution floor is really just where training-set recall ends.''} A natural alternative
-reading of this entire paper: perhaps solved problems are solved because they (or close variants)
-appear in training data, and the ``floor'' is a memorization boundary, not a capability ceiling. We
-tested this directly rather than leave it to a reviewer: using the exact TF-IDF disjointness machinery
-already built for Phase~6's training-corpus gate (Section~\ref{sec:exhaustion}), we correlated each
-miniF2F problem's textual similarity to the Lean-Workbook training corpus against its trapped/solved
-status. \textbf{The result points the wrong way for the recall-boundary reading to hold}: trapped
-problems are, if anything, marginally \emph{more} textually similar to the training corpus than solved
-problems (mean cosine 0.805 vs.\ 0.743, Mann-Whitney $p$=0.049 --- treat as marginal, not strong,
-evidence either direction) and have a \emph{higher} exact-statement-overlap rate (3.6\% vs.\ 1.6\%),
-not a lower one. If trapped problems were unsolved because the model had seen nothing like them
-during training, we would expect the opposite pattern. A plausible confound is that trapped and
-training-corpus problems share competition-math surface phrasing without that resemblance
-translating into an exploitable memorized proof --- consistent with, not contradicted by, F2/F3's
-reading of trapped failures as execution-depth failures, not recall gaps
+reading of this entire paper, and the most obvious skeptical response to its central claim: perhaps
+solved problems are solved because they (or close variants) appear in training data, and the ``floor''
+is a memorization boundary, not a capability ceiling. We tested this directly rather than leave it to a
+reviewer: using the exact TF-IDF disjointness machinery already built for Phase~6's training-corpus
+gate (Section~\ref{sec:exhaustion}), we correlated each miniF2F problem's textual similarity to the
+Lean-Workbook training corpus against its trapped/solved status. \textbf{The floor is not where
+training-set recall ends}: trapped problems are, if anything, marginally \emph{more} textually similar
+to the training corpus than solved problems (mean cosine 0.805 vs.\ 0.743, Mann-Whitney $p$=0.049,
+rank-biserial $r$=$-0.17$ --- a small effect, and at $n$=55 vs.\ 189 this test is fragile, so we report
+the effect size alongside the $p$-value rather than lean on the sign alone) and have a \emph{higher}
+exact-statement-overlap rate (3.6\% vs.\ 1.6\%), not a lower one. If trapped problems were unsolved
+because the model had seen nothing like them during training, we would expect the opposite pattern on
+both measures. Two things keep this from overreaching into a positive claim: TF-IDF similarity to
+Lean-Workbook is a proxy for overlap with \emph{one} training corpus, not a measurement of either
+model's actual full pretraining mixture, and a plausible confound is that trapped and training-corpus
+problems merely share competition-math surface phrasing without that resemblance translating into an
+exploitable memorized proof. The defensible claim is therefore \textbf{no evidence for the
+memorization-boundary account, and weak evidence against it} --- consistent with, not contradicted by,
+F2/F3's reading of trapped failures as execution-depth failures, not recall gaps
 (\texttt{results/phase6/CONTAMINATION\_CORRELATION.md}).
 
 \textbf{``Scaffolding was implemented weakly.''} The Section~\ref{sec:stepc} manipulation check is the
