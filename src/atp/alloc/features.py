@@ -57,6 +57,42 @@ def opening_tactic(proof: str) -> str:
     return ""
 
 
+# ---------------------------------------------------------------- WS6 item 4: richer features
+# Pre-registered in results/phase4/PREDICTOR_V2_DESIGN.md (2026-07-26), all derivable from already-
+# logged attempt data (no GPU re-run). Additive: FEATURE_NAMES_V2 is a strict superset of the original
+# 8, so v1 behavior/tests are byte-for-byte unchanged.
+
+_ERROR_KINDS = ("syntax", "elaboration", "infra", "step", "other")
+
+
+def error_kind(ok: bool, feedback: str) -> str:
+    """Coarse classification of a failed attempt's feedback (richer than raw depth alone)."""
+    if ok:
+        return "solved"
+    fb = feedback or ""
+    if "REPL_INFRA_ERROR" in fb or "infra" in fb.lower():
+        return "infra"
+    if _STEP_RE.search(fb):
+        return "step"
+    if "unsolved goals" in fb or "unknown identifier" in fb.lower():
+        return "elaboration"
+    if "error:" in fb.lower() or "unexpected token" in fb.lower():
+        return "syntax"
+    return "other"
+
+
+_BACKTICK_RE = re.compile(r"`[^`]*`")
+
+
+def normalized_error(feedback: str) -> str:
+    """Strip goal-state/identifier specifics so repeated hits on the SAME wall dedupe; used only for
+    the error_diversity count, never as a feature value itself (too high-cardinality to encode raw)."""
+    fb = (feedback or "").strip()
+    fb = _STEP_RE.sub("Failed at step N", fb)
+    fb = _BACKTICK_RE.sub("`_`", fb)  # the specific failing tactic/identifier varies per attempt
+    return fb.splitlines()[0][:120] if fb else ""
+
+
 @dataclass
 class CheckpointRow:
     """Leakage-free features for a cell observed by spend `checkpoint`, plus its eventual label."""
@@ -73,17 +109,32 @@ class CheckpointRow:
     distinct_openings: int   # F1 diversity (included, not leaned on)
     compiled_past_step1: int # 1 if any attempt by c reached depth >= 2
     solved_by_c: bool        # already solved within c (not a decision target)
+    # WS6 item 4 (2026-07-26): richer features, additive, all default 0.0 so existing v1 call sites
+    # (tests, older callers) that never set them still construct a valid row.
+    frac_syntax_error: float = 0.0       # fraction of attempts classified error_kind=="syntax"
+    frac_elaboration_error: float = 0.0  # fraction classified "elaboration"
+    frac_infra_error: float = 0.0        # fraction classified "infra"
+    depth_slope: float = 0.0             # linear-fit slope of best-depth-so-far vs. cumulative tokens
+    depth_slope_resid: float = 0.0       # residual std of that fit (0 if <3 points)
+    tokens_per_depth: float = 0.0        # tokens_so_far / max(best_depth, 1) -- efficiency
+    frac_refine: float = 0.0             # fraction of attempts with kind=="refine"
+    error_diversity: int = 0             # count of distinct normalized error messages seen
     # label / bookkeeping (never a feature)
-    eventual_solve: bool
-    tokens_to_solve: int | None
+    eventual_solve: bool = False
+    tokens_to_solve: int | None = None
 
     FEATURE_NAMES = (
         "tokens_so_far", "n_attempts", "best_depth", "last_depth",
         "depth_growth", "stalled_attempts", "distinct_openings", "compiled_past_step1",
     )
+    FEATURE_NAMES_V2 = FEATURE_NAMES + (
+        "frac_syntax_error", "frac_elaboration_error", "frac_infra_error",
+        "depth_slope", "depth_slope_resid", "tokens_per_depth", "frac_refine", "error_diversity",
+    )
 
-    def features(self) -> dict[str, float]:
-        return {k: float(getattr(self, k)) for k in self.FEATURE_NAMES}
+    def features(self, names: tuple[str, ...] | None = None) -> dict[str, float]:
+        names = names or self.FEATURE_NAMES
+        return {k: float(getattr(self, k)) for k in names}
 
 
 @dataclass
@@ -99,7 +150,11 @@ class CellTrace:
         """Snapshot features from only the attempts whose cumulative-token END is ≤ c."""
         cum = 0
         depths: list[int] = []
+        cum_at_depth: list[int] = []  # cumulative tokens AFTER each attempt, paired with depths
         openings: set[str] = set()
+        error_kinds: list[str] = []
+        norm_errors: set[str] = set()
+        n_refine = 0
         toks = 0
         n = 0
         solved_by_c = False
@@ -110,12 +165,20 @@ class CellTrace:
             cum += ct
             toks = cum
             n += 1
-            d = attempt_depth(bool(a.get("ok")), str(a.get("feedback") or ""))
+            ok = bool(a.get("ok"))
+            fb = str(a.get("feedback") or "")
+            d = attempt_depth(ok, fb)
             depths.append(d)
+            cum_at_depth.append(cum)
             op = opening_tactic(str(a.get("proof") or ""))
             if op:
                 openings.add(op)
-            if a.get("ok"):
+            error_kinds.append(error_kind(ok, fb))
+            if not ok:
+                norm_errors.add(normalized_error(fb))
+            if str(a.get("kind") or "") == "refine":
+                n_refine += 1
+            if ok:
                 solved_by_c = True
 
         best_depth = max(depths) if depths else 0
@@ -133,6 +196,28 @@ class CellTrace:
         if depths:
             last_best_idx = max(i for i, d in enumerate(depths) if d == best_depth)
             stalled = len(depths) - 1 - last_best_idx
+
+        # -- WS6 item 4 richer features (all from data already collected above) --
+        n_fail = max(len(error_kinds), 1)
+        frac_syntax = error_kinds.count("syntax") / n_fail
+        frac_elab = error_kinds.count("elaboration") / n_fail
+        frac_infra = error_kinds.count("infra") / n_fail
+        frac_refine = n_refine / n_fail
+        tokens_per_depth = toks / max(best_depth, 1)
+        # depth_slope: OLS slope of depth vs. cumulative tokens (progress rate, continuous not binary)
+        slope, resid = 0.0, 0.0
+        if len(depths) >= 3:
+            xs = [float(t) for t in cum_at_depth]
+            ys = [float(d) for d in depths]
+            n_pts = len(xs)
+            mean_x, mean_y = sum(xs) / n_pts, sum(ys) / n_pts
+            var_x = sum((x - mean_x) ** 2 for x in xs)
+            if var_x > 0:
+                slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / var_x
+                intercept = mean_y - slope * mean_x
+                resids = [y - (slope * x + intercept) for x, y in zip(xs, ys)]
+                resid = (sum(r ** 2 for r in resids) / n_pts) ** 0.5
+
         return CheckpointRow(
             problem_name=self.problem_name, seed=self.seed, checkpoint=c,
             tokens_so_far=toks, n_attempts=n, best_depth=best_depth, last_depth=last_depth,
@@ -140,6 +225,10 @@ class CellTrace:
             distinct_openings=len(openings),
             compiled_past_step1=int(best_depth >= 2),
             solved_by_c=solved_by_c,
+            frac_syntax_error=frac_syntax, frac_elaboration_error=frac_elab,
+            frac_infra_error=frac_infra, depth_slope=slope, depth_slope_resid=resid,
+            tokens_per_depth=tokens_per_depth, frac_refine=frac_refine,
+            error_diversity=len(norm_errors),
             eventual_solve=self.solved, tokens_to_solve=self.tokens_to_solve,
         )
 

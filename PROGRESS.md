@@ -4303,3 +4303,24 @@ DeepSeek) -- the pre-registered stopping-rule discipline worked exactly as inten
 
 WS6 status: items 1 (Phase1 + Stage B), 2, 3 (both models), 6a/6b/6c all fully closed. Remaining toward
 the 2026-08-09 date: item 4 (Phase 4 predictor improvement) only.
+
+## 2026-07-26h — WS6 item 4 RESULT: richer features do NOT clear the bar, negative and CLOSED
+Implemented 5 candidate richer features additively (`src/atp/alloc/features.py`:
+`FEATURE_NAMES_V2` = the original 8 + error-type fractions, depth-slope/residual, tokens-per-depth,
+propose/refine mix, error diversity) plus a seed-holdout CV guard (`predict.py`:
+`rows_to_xy_by_seed`/`holdout_seed_eval`) per the user's two design notes, both pre-registered in
+`results/phase4/PREDICTOR_V2_DESIGN.md` BEFORE running. Tests first: 10 new tests in `test_alloc.py`
+(46 total in that file, all green), full fast suite green.
+
+Ran `scripts/phase4_predictor_v2.py` on both models' ProofNet# baselines, seeds {0,1} for CV /
+feature-selection, seed 2 held out and evaluated once. **Max AUC gain v2 vs v1: +0.033 < the
+pre-registered 0.05 bar** -- several cells actually got WORSE (DeepSeek@32k -0.107, Goedel@4k -0.047),
+i.e. the richer features mostly add noise at this sample size. Per the pre-registered rule (gain<0.05
+alone triggers NO-CHANGE, independent of the DeepSeek-per-seed clause), item 4 is CLOSED negative:
+`ALLOCATION.md`/the paper's allocation section framing ("one-model-robust," DeepSeek weak) stands
+unchanged. No paper edit needed since nothing changed. Logged in
+`results/phase4/PREDICTOR_V2_DESIGN.md`.
+
+**This closes the entire 2026-08-09 WS6 stopping-rule set early** (items 1/2/3/4/6a/6b/6c all done).
+Item 5 (artifact release / bug catalogue) remains queued as opportunistic follow-on, per the user's
+explicit closing guidance to stop adding analysis and move to writing.

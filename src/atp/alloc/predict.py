@@ -17,18 +17,51 @@ import numpy as np
 from atp.alloc.features import CheckpointRow
 
 
-def rows_to_xy(rows: list[CheckpointRow], checkpoint: int):
+def rows_to_xy(rows: list[CheckpointRow], checkpoint: int, feature_names: tuple[str, ...] | None = None):
     """Build (X, y, groups, feature_names) for one checkpoint from its not-yet-solved cells.
 
     Filters to `row.checkpoint == checkpoint` and `not row.solved_by_c` (the decision population).
     `y = eventual_solve`. Returns float arrays; `groups` = problem_name (for grouped CV).
+    `feature_names` defaults to the original v1 set; pass `CheckpointRow.FEATURE_NAMES_V2` for the
+    WS6 item 4 richer feature set (results/phase4/PREDICTOR_V2_DESIGN.md).
     """
     sel = [r for r in rows if r.checkpoint == checkpoint and not r.solved_by_c]
-    names = list(CheckpointRow.FEATURE_NAMES)
-    X = np.array([[r.features()[k] for k in names] for r in sel], dtype=float)
+    names = list(feature_names or CheckpointRow.FEATURE_NAMES)
+    X = np.array([[r.features(tuple(names))[k] for k in names] for r in sel], dtype=float)
     y = np.array([int(r.eventual_solve) for r in sel], dtype=int)
     groups = np.array([r.problem_name for r in sel])
     return X, y, groups, names
+
+
+def rows_to_xy_by_seed(rows: list[CheckpointRow], checkpoint: int, seeds: set[int],
+                        feature_names: tuple[str, ...] | None = None):
+    """Same as `rows_to_xy` but restricted to rows whose `.seed` is in `seeds` -- the seed-holdout
+    guard (WS6 item 4 pre-registration): feature engineering / model selection must never see the
+    held-out seed's rows, and the held-out seed is evaluated exactly once at the end."""
+    sel = [r for r in rows if r.checkpoint == checkpoint and not r.solved_by_c and r.seed in seeds]
+    names = list(feature_names or CheckpointRow.FEATURE_NAMES)
+    X = np.array([[r.features(tuple(names))[k] for k in names] for r in sel], dtype=float)
+    y = np.array([int(r.eventual_solve) for r in sel], dtype=int)
+    groups = np.array([r.problem_name for r in sel])
+    return X, y, groups, names
+
+
+def holdout_seed_eval(rows: list[CheckpointRow], checkpoint: int, holdout_seed: int,
+                       train_seeds: set[int], model_factory,
+                       feature_names: tuple[str, ...] | None = None) -> float:
+    """Fit ONE model on `train_seeds`' rows only (already selected via CV on those seeds), evaluate
+    ONCE on `holdout_seed`'s rows. Returns AUC (nan if degenerate -- single class or no held-out
+    positives). This is the final check, not an average into the CV number (WS6 item 4 CV guard)."""
+    from sklearn.metrics import roc_auc_score
+
+    Xtr, ytr, _, names = rows_to_xy_by_seed(rows, checkpoint, train_seeds, feature_names)
+    Xho, yho, _, _ = rows_to_xy_by_seed(rows, checkpoint, {holdout_seed}, feature_names)
+    if len(Xtr) == 0 or len(Xho) == 0 or len(np.unique(ytr)) < 2 or len(np.unique(yho)) < 2:
+        return float("nan")
+    model = model_factory()
+    model.fit(Xtr, ytr)
+    scores = model.predict_proba(Xho)[:, 1]
+    return float(roc_auc_score(yho, scores))
 
 
 def cv_auc(X: np.ndarray, y: np.ndarray, groups: np.ndarray, model_factory,

@@ -141,6 +141,8 @@ from atp.alloc.features import (  # noqa: E402
     CheckpointRow,
     attempt_depth,
     build_feature_rows,
+    error_kind,
+    normalized_error,
     opening_tactic,
 )
 
@@ -232,7 +234,14 @@ def test_real_rows_build_and_respect_causality():
 
 # ---- predictor: leakage-free X/y + grouped CV (Task 4.3) -----------------------------------------
 
-from atp.alloc.predict import cv_auc, gbt_factory, logistic_factory, rows_to_xy  # noqa: E402
+from atp.alloc.predict import (  # noqa: E402
+    cv_auc,
+    gbt_factory,
+    holdout_seed_eval,
+    logistic_factory,
+    rows_to_xy,
+    rows_to_xy_by_seed,
+)
 
 
 def _row(name, seed, c, *, solved_by_c, eventual, best_depth=3, stalled=0, growth=1):
@@ -285,6 +294,43 @@ def test_cv_auc_separable_is_high_degenerate_is_nan():
     flat = [_row(f"q{p}", 0, 2000, solved_by_c=False, eventual=False) for p in range(10)]
     Xf, yf, gf, _ = rows_to_xy(flat, 2000)
     a2, _ = cv_auc(Xf, yf, gf, gbt_factory, n_splits=5)
+    assert a2 != a2  # nan
+
+
+def test_rows_to_xy_by_seed_filters_to_requested_seeds():
+    rows = [_row("a", 0, 2000, solved_by_c=False, eventual=True),
+            _row("a", 1, 2000, solved_by_c=False, eventual=True),
+            _row("b", 2, 2000, solved_by_c=False, eventual=False)]
+    X, y, groups, _ = rows_to_xy_by_seed(rows, 2000, {0, 1})
+    assert len(X) == 2 and set(groups) == {"a"}
+    Xh, yh, gh, _ = rows_to_xy_by_seed(rows, 2000, {2})
+    assert len(Xh) == 1 and list(gh) == ["b"]
+
+
+def test_holdout_seed_eval_separable_is_high_and_excludes_holdout_from_fit():
+    # seeds 0,1 perfectly separable by best_depth; seed 2 (holdout) has the SAME separable structure
+    # but must never be seen during fit -- if it were, this would still pass, so the real assertion is
+    # that a degenerate holdout (single class) returns nan even though train data is fine.
+    rows = []
+    for p in range(20):
+        ev = p % 2 == 0
+        for s in (0, 1):
+            rows.append(_row(f"p{p}", s, 2000, solved_by_c=False, eventual=ev,
+                              best_depth=(20 if ev else 1), growth=(5 if ev else -5)))
+    for p in range(20):
+        ev = p % 2 == 0
+        rows.append(_row(f"h{p}", 2, 2000, solved_by_c=False, eventual=ev,
+                          best_depth=(20 if ev else 1), growth=(5 if ev else -5)))
+    auc = holdout_seed_eval(rows, 2000, holdout_seed=2, train_seeds={0, 1},
+                             model_factory=logistic_factory)
+    assert auc > 0.9
+
+    # degenerate holdout (all-one-class on the held-out seed) -> nan, not a crash
+    degenerate = [_row(f"p{p}", 0, 2000, solved_by_c=False, eventual=(p % 2 == 0),
+                        best_depth=(20 if p % 2 == 0 else 1)) for p in range(10)]
+    degenerate += [_row(f"h{p}", 2, 2000, solved_by_c=False, eventual=False) for p in range(5)]
+    a2 = holdout_seed_eval(degenerate, 2000, holdout_seed=2, train_seeds={0},
+                            model_factory=logistic_factory)
     assert a2 != a2  # nan
 
 
@@ -519,3 +565,80 @@ def test_mrt_curve_endpoints():
     assert (comp0, solv0) == uniform_point(costs, BMAX)
     comps = [comp for _, comp, _ in curve]
     assert comps == sorted(comps, reverse=True)
+
+
+# ---- WS6 item 4: richer features (additive, pre-registered results/phase4/PREDICTOR_V2_DESIGN.md) --
+
+def test_error_kind_classification():
+    assert error_kind(True, "Proof verified.") == "solved"
+    assert error_kind(False, "Failed at step 3 (`x`): unsolved goals") == "step"
+    assert error_kind(False, "error: unexpected token 'foo'") == "syntax"
+    assert error_kind(False, "REPL_INFRA_ERROR: process died") == "infra"
+    assert error_kind(False, "something unrecognized") == "other"
+
+
+def test_normalized_error_strips_step_number_so_repeats_dedupe():
+    a = normalized_error("Failed at step 3 (`x`): unsolved goals\n  h : foo")
+    b = normalized_error("Failed at step 7 (`y`): unsolved goals\n  h : bar")
+    assert a == b  # same wall (elaboration failure), different step numbers/goal states -> dedupes
+
+
+def test_v2_features_are_additive_and_v1_unaffected():
+    # v1 FEATURE_NAMES / features() must be byte-identical regardless of the new fields' presence.
+    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
+        _att(1000, False, 2), _att(1000, False, 2), _att(1000, False, 2),
+    ])
+    r = cell.checkpoint_row(3000)
+    v1 = r.features()
+    assert set(v1) == set(CheckpointRow.FEATURE_NAMES)
+    v2 = r.features(CheckpointRow.FEATURE_NAMES_V2)
+    assert set(v2) == set(CheckpointRow.FEATURE_NAMES_V2)
+    assert set(CheckpointRow.FEATURE_NAMES) < set(CheckpointRow.FEATURE_NAMES_V2)  # strict superset
+    for k in v1:
+        assert v1[k] == v2[k]
+
+
+def test_v2_error_fractions_and_diversity():
+    # 2 "step" failures then 1 "syntax" failure -> fractions computed over observed attempts.
+    attempts = [
+        _att(1000, False, 3),
+        _att(1000, False, 5),
+        {"completion_tokens": 1000, "ok": False, "feedback": "error: unexpected token",
+         "proof": "theorem t := by\n  bad\n"},
+    ]
+    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=attempts)
+    r = cell.checkpoint_row(3000)
+    assert r.n_attempts == 3
+    assert abs(r.frac_syntax_error - 1 / 3) < 1e-9
+    assert abs(r.frac_elaboration_error - 0.0) < 1e-9
+    assert r.error_diversity == 2  # two distinct normalized error strings (step-wall, syntax)
+
+
+def test_v2_depth_slope_positive_when_climbing_negative_when_flat():
+    climbing = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
+        _att(1000, False, 1), _att(1000, False, 3), _att(1000, False, 6), _att(1000, False, 9),
+    ])
+    rc = climbing.checkpoint_row(4000)
+    assert rc.depth_slope > 0
+
+    flat = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
+        _att(1000, False, 3), _att(1000, False, 3), _att(1000, False, 3), _att(1000, False, 3),
+    ])
+    rf = flat.checkpoint_row(4000)
+    assert rf.depth_slope == pytest.approx(0.0, abs=1e-9)
+    assert rf.depth_slope_resid == pytest.approx(0.0, abs=1e-9)  # perfectly flat -> zero residual
+
+
+def test_v2_frac_refine_and_tokens_per_depth():
+    attempts = [
+        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 2 (`x`): unsolved goals",
+         "proof": "theorem t := by\n  intro\n", "kind": "propose"},
+        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 4 (`x`): unsolved goals",
+         "proof": "theorem t := by\n  intro\n", "kind": "refine"},
+        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 4 (`x`): unsolved goals",
+         "proof": "theorem t := by\n  intro\n", "kind": "refine"},
+    ]
+    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=attempts)
+    r = cell.checkpoint_row(3000)
+    assert abs(r.frac_refine - 2 / 3) < 1e-9
+    assert r.tokens_per_depth == pytest.approx(3000 / 4)  # tokens_so_far / best_depth
