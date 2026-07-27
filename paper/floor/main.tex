@@ -27,12 +27,23 @@ Moves Whole-Proof Theorem Provers}
 \maketitle
 
 \begin{abstract}
-For a fixed whole-proof theorem prover, we ask whether test-time interventions --- agentic scaffolding
-(premise retrieval, failure memory, an LLM reviewer, tactic-skeleton hints, forced approach diversity),
-additional search, or additional per-problem budget --- can move solve rate beyond what raw sampling
-already buys at a given token budget $B$. Across two independently-trained provers (Goedel-Prover-V2-8B,
-DeepSeek-Prover-V2-7B), two benchmarks (in-distribution miniF2F, out-of-distribution ProofNet\#), we
-find that none of these test-time levers move solve rate. A pre-registered, causally interventional test
+Evaluating test-time scaling for \emph{frozen whole-proof theorem provers} is harder than it looks, and
+getting it wrong biases every downstream conclusion. Across a multi-month audit of our own evaluation
+harness we found five structural bugs --- a Lean elaboration-heartbeat setting that silently corrupted
+17.8\% of miniF2F refinement-loop feedback, a soundness gate that scored truncated non-proofs as solved,
+a REPL-state bug that scored a wedged process as success, a phase-specific verifier bug that mechanically
+forces a 0\% outcome independent of model quality, and a Lean-staging concurrency race --- along with two
+measurement gaps that change how results should be read: pass@\emph{budget} and pass@\emph{N} diverge in
+a budget-dependent way that is not a fixed offset, and a per-problem bootstrap confidence interval
+computed on one generation run bounds only within-run sampling variance, not the run-to-run variance an
+independent replication reveals to be larger. We report the fixes, their measured blast radius, and the
+harness as a reusable audited artifact. Against this hardened measurement, we then ask a narrower,
+falsifiable question about the frozen provers themselves: do test-time interventions --- agentic
+scaffolding (premise retrieval, failure memory, an LLM reviewer, tactic-skeleton hints, forced approach
+diversity), additional search, or additional per-problem budget --- move solve rate beyond what raw
+sampling already buys at a given token budget $B$. Across two independently-trained provers
+(Goedel-Prover-V2-8B, DeepSeek-Prover-V2-7B), two benchmarks (in-distribution miniF2F, out-of-distribution
+ProofNet\#), we find that none of these test-time levers move solve rate. A pre-registered, causally interventional test
 (forcing approach diversity on the fully-trapped problem core) confirms the mechanism directly ---
 diversity rises 42--70\% under a budget-matched manipulation check, yet solves stay flat and output
 quality mildly degrades: \textbf{approach discovery is not the bottleneck; within-approach execution
@@ -44,7 +55,14 @@ same base model in the literature. A third, stronger training intervention (a la
 Base$\to$SFT$\to$RL pipeline on two matched lineages) was attempted but its result is withdrawn here: an
 independent audit found a verifier bug specific to that phase's completion format that mechanically
 produces a 0\% outcome regardless of underlying model quality, so we report the finding and its cause
-rather than a number the audit shows cannot be trusted. The one lever that reliably moves outcomes at
+rather than a number the audit shows cannot be trusted. A further, independent probe locates the scope
+of the floor precisely: across five prompting attempts on both models, neither prover could be prompted
+into a genuine \texttt{sorry}-deferred subgoal decomposition on a problem it could not already solve ---
+one model stated correct intermediate facts but still could not defer them, showing the gap is
+specifically an inability to treat sub-facts as separable obligations, not an inability to identify
+them. This is why the floor reported here is scoped to \emph{frozen} whole-proof provers: systems that
+\emph{train} for decomposition are a different class, and this paper's findings should not be read as
+evidence against them. The one lever that reliably moves outcomes at
 fixed compute is \emph{how} a budget is allocated across a batch of \emph{different} problems, not any
 change to any single problem's search or training: a realizable, mechanism-informed allocation policy
 saves $\sim$30\% of compute at 90\% of full-budget accuracy on one model (Goedel$\times$ProofNet\#, the
@@ -68,7 +86,22 @@ squeezing more solves out of a fixed model. We ask a narrower, falsifiable quest
 independently-trained whole-proof provers, at a fixed per-problem token budget $B$, what actually moves
 solve rate?
 
-We find an \emph{execution floor}: search-time scaffolding, closing-tactic libraries, and additional
+Answering that question turned out to require building and auditing the measurement apparatus first.
+Over the course of this project we found five structural bugs in our own evaluation harness --- each
+one, if left unfixed, would have shipped a wrong headline number in a specific, silent direction (a
+false positive in one case, a spurious 0\% in another) --- and two measurement gaps that change how any
+result in this space should be reported: pass@\emph{budget} is not pass@\emph{N} in a way that matters
+at the budgets this literature actually uses, and a per-problem bootstrap confidence interval computed
+on a single generation run understates uncertainty by conflating it with a much smaller quantity
+(within-run sampling variance) than the one a reader actually wants (run-to-run campaign variance). None
+of these are specific to our setup: a Lean elaboration-heartbeat misconfiguration, a truncated-completion
+soundness hole, and a within-run-only bootstrap CI are exactly the kind of error that reproduces silently
+in any comparable harness. We report them as a first, self-contained contribution, because the
+substantive nulls that follow are only as trustworthy as the measurement underneath them, and because
+the fixes and the audited harness are reusable independent of whether a reader cares about our specific
+model-scaffolding question.
+
+Against that hardened measurement, we find an \emph{execution floor}: search-time scaffolding, closing-tactic libraries, and additional
 budget on already-attempted problems all fail to move solve rate, and a pre-registered causal test
 localizes why --- the bottleneck is within-approach execution depth, not approach discovery, so no
 lever that only changes \emph{which} approach is tried should be expected to help. We test this same
@@ -82,12 +115,36 @@ phase-specific verifier bug that mechanically forces a 0\% outcome independent o
 report the bug and its mechanism, not a number we know cannot be trusted. The one exception to the
 floor is not a model or scaffold change at all, but a \emph{policy} question: given a fixed total
 compute budget, how should it be split across a batch of different problems. This paper reports the
-floor --- scoped to the interventions we could actually test and trust, not as a claim that nothing
-could ever move it --- as the headline finding, with the allocation result as a constructive
-counterpoint scoped to what is currently confirmed (Section~\ref{sec:allocation}).
+floor --- scoped to \emph{frozen} whole-proof provers and to the interventions we could actually test
+and trust, not as a claim that nothing could ever move it --- as the headline substantive finding, with
+the allocation result as a constructive counterpoint scoped to what is currently confirmed
+(Section~\ref{sec:allocation}).
 
-\textbf{Contributions.}
+\textbf{Contributions.} The first two are measurement contributions: independent of whether a reader
+cares about our specific model/scaffolding question, they change how any comparable evaluation should be
+built and read, and they are what make the substantive nulls that follow trustworthy rather than merely
+asserted.
 \begin{itemize}
+  \item A methodology contribution: a verifier-soundness audit protocol, and the discipline of applying
+    the same base-rate skepticism to surprising nulls as to surprising positives, which caught \textbf{five
+    structural harness bugs} across two independent audit rounds --- two verifier-soundness holes (one
+    scoring truncated non-proofs as solved, one scoring a wedged REPL process as success), a
+    phase-specific soundness-gate bug that forces a spurious 0\% outcome independent of model quality, a
+    Lean elaboration-heartbeat misconfiguration, and a Lean-staging concurrency race --- including two
+    bugs in \emph{opposite} directions on the same experimental phase (one that would have shipped a
+    spurious ``training moves the floor'' positive, one that would have shipped a spurious ``training
+    never moves the floor'' null) (Section~\ref{sec:methodology}).
+  \item Two transferable methods findings for anyone building similar agentic evaluation or refinement
+    pipelines, not just a caveat on our own numbers: (i) \textbf{pass@\emph{budget} is not
+    pass@\emph{N}} --- the two metrics diverge in a budget-dependent, not fixed-offset way, and we give
+    the attempts-per-budget table needed to convert between them (Section~\ref{sec:setup}); (ii) a Lean
+    elaboration-heartbeat setting that is lenient at verification time but was, for months, effectively
+    stricter during a refinement loop's own intermediate steps, silently injecting false-negative
+    feedback into 17.8\% of miniF2F refine steps (Section~\ref{sec:methodology}); (iii) a per-problem
+    bootstrap confidence interval computed on a single generation run can be entirely on one side of
+    zero and still be contradicted by an independent replication at the same nominal setting --- it
+    bounds within-run sampling variance only, not the run-to-run campaign variance a reader actually
+    wants (Section~\ref{sec:scaffolding}).
   \item A cross-model (2 provers), cross-benchmark (in-distribution / OOD) replication of the
     budget$\to$solve relationship and its saturation asymmetry (Section~\ref{sec:passb}).
   \item A one-factor-at-a-time ablation of six agentic scaffolding components showing none is a net
@@ -103,24 +160,14 @@ counterpoint scoped to what is currently confirmed (Section~\ref{sec:allocation}
     matched training lineages) was attempted but is \textbf{withdrawn, not reported as null}: an
     independent audit found a phase-specific verifier bug that forces a 0\% outcome mechanically,
     regardless of model quality (Section~\ref{sec:methodology}) --- we report the bug and its causal
-    mechanism as a methods contribution in its own right, not the invalidated number.
+    mechanism as a methods contribution in its own right, not the invalidated number. A further probe
+    finds that neither model can be prompted into genuine subgoal decomposition on a problem it cannot
+    already solve, locating the floor specifically at \emph{frozen} whole-proof provers
+    (Section~\ref{sec:exhaustion}).
   \item A constructive counterpoint: compute-optimal budget allocation across problems, the strongest
     lever we found, reported with a paired per-problem bootstrap CI rather than a 3-8-seed std --- the
     more conservative accounting this CI provides means we report the result as the best point estimate
     available, not yet a statistically settled positive on either model (Section~\ref{sec:allocation}).
-  \item A methodology contribution: a verifier-soundness audit protocol, and the discipline of applying
-    the same base-rate skepticism to surprising nulls as to surprising positives, which caught two
-    verifier bugs in opposite directions on the same experimental phase --- one that would have shipped
-    a spurious ``training moves the floor'' positive, and a later one that would have shipped a
-    spurious ``training never moves the floor'' 0\% null (Section~\ref{sec:methodology}).
-  \item Two transferable methods findings for anyone building similar agentic evaluation or refinement
-    pipelines, not just a caveat on our own numbers: (i) \textbf{pass@\emph{budget} is not
-    pass@\emph{N}} --- the two metrics diverge in a budget-dependent, not fixed-offset way, and we give
-    the attempts-per-budget table needed to convert between them (Section~\ref{sec:setup}); (ii) a Lean
-    elaboration-heartbeat setting that is lenient at verification time but was, for months, effectively
-    stricter during a refinement loop's own intermediate steps silently injected false-negative
-    feedback into 17.8\% of miniF2F refine steps --- a warning for any refinement-loop builder to audit
-    this specific failure mode before trusting their loop's feedback signal (Section~\ref{sec:methodology}).
 \end{itemize}
 
 \section{Related work}
