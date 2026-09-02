@@ -14,7 +14,8 @@ ALLOCATION.md's STRONG-vs-WEAK asymmetry.
 
 Two analyses:
   M1 problem-level mixed-outcome heterogeneity — classify each PROBLEM (pooled over its 3 seeds) as
-     trapped (0/3 solved) / partial (1-2/3, i.e. seed-dependent) / robust (3/3). The partial bucket is
+     trapped (0/3 solved) / partial (1-2/3, i.e. seed-dependent) / robust (3/3). The partial bucket
+     is
      the direct signature of "solved cheaply on some seeds, not others" — the textbook case a
      pooled-cell knapsack can exploit that a per-problem policy cannot.
   M2 post-c* population decomposition — using each run's own already-fit c* (peak-AUC checkpoint,
@@ -89,7 +90,7 @@ def m1_problem_heterogeneity(table) -> dict:
 
 
 def m2_post_cstar_decomposition(table, cstar: int) -> dict:
-    bmax = max((solve_cost(r) for r in table.results if r.solved), default=0)
+    _bmax = max((solve_cost(r) for r in table.results if r.solved), default=0)
     still_running = [r for r in table.results if solve_cost(r) > cstar]
     late_bloomers = [r for r in still_running if r.solved]
     correctly_abandonable = [r for r in still_running if not r.solved]

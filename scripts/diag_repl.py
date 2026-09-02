@@ -1,7 +1,8 @@
 """Diagnostic: capture the RAW leanprover-community/repl response for real proofs.
 
 The Phase-0 smoke rejected EVERY real proof with "Proof rejected (no parseable error)" — the
-Verifier's fallback when `raw.success` is False but no Lean error line was parsed. The only code path
+Verifier's fallback when `raw.success` is False but no Lean error line was parsed. The only code
+path
 that produces that is the generic `except Exception` in ReplBackend.verify (output = "<Err>: ...",
 which parse_lean_output can't read). This script calls the transport DIRECTLY (bypassing verify's
 try/except) so the raw response dict — or the raw exception — is visible, for:
@@ -10,7 +11,8 @@ try/except) so the raw response dict — or the raw exception — is visible, fo
   (c) the exact attempt0 proof from the smoke (mathd_algebra_182) that was wrongly rejected.
 
 Run on a node with the env staged to local SSD and ATP_LEAN_PROJECT pointing at it (see the slurm
-wrapper). Prints, per proof: the raw response (or exception), then _format_response + parse_lean_output
+wrapper). Prints, per proof: the raw response (or exception), then _format_response +
+parse_lean_output
 so we see exactly where the verdict diverges.
 """
 

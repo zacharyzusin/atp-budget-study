@@ -4,13 +4,15 @@
 The original Phase 1 retrieval bootstrap CI (results/EQUIVALENCE_BOUNDS.md) is entirely positive
 ([+0.82,+6.15]pp @8k) on job 10436909's data. An independently-launched replication run
 (results/phase1_retrieval_budget, job 10461442, DECISIONS.md 2026-06-11) landed at +0.7/+0.7/-0.8pp
-at 2k/8k/32k -- just outside that CI, and flips sign by 32k. Per the user's 2026-07-26 request: compute
+at 2k/8k/32k -- just outside that CI, and flips sign by 32k. Per the user's 2026-07-26 request:
+compute
 the SAME bootstrap CI machinery on this second run too, and report both side by side, rather than
 asserting the disagreement without a number for the second run.
 
 CPU-only, reuses `paired_bootstrap_bound` from equivalence_bounds.py verbatim (same clustered-by-
 problem resampling). solved_within(b) is computed from the budget-metered run's own tokens_to_solve
-field (identity used project-wide, e.g. scripts/analyze_allocation.py): solved AND tokens_to_solve<=b.
+field (identity used project-wide, e.g. scripts/analyze_allocation.py): solved AND
+tokens_to_solve<=b.
 
 Usage: python scripts/retrieval_replication_ci.py [--n-boot 3000] [--seed 0]
 Writes results/RETRIEVAL_REPLICATION_CI.md and .json.
@@ -21,11 +23,11 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from equivalence_bounds import paired_bootstrap_bound  # noqa: E402
 

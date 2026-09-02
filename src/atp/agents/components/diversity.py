@@ -1,6 +1,7 @@
 """Approach-conditioned diversity injection (Phase 2 Step C).
 
-MECHANISM.md F1 located the saturation of pass@B at the *approach* level: on a hard problem the model
+MECHANISM.md F1 located the saturation of pass@B at the *approach* level: on a hard problem the
+model
 commits to ~2 distinct opening tactics and resamples variants of them, so extra budget buys
 near-duplicates. F5 (the late-solve pre-flight) shows late solves never come from a newly-explored
 approach — predicting that *forcing* new approaches will raise diversity but NOT solve rate, because
@@ -8,7 +9,8 @@ the bottleneck is within-approach execution (the F2/F3 reasoning floor), not app
 
 This component is the decisive *interventional* test of that prediction. On each FRESH proposal it
 reads the attempts already made on this problem, lists the distinct opening tactics they used, and
-instructs the model to take a fundamentally different approach. Refinement prompts are untouched — an
+instructs the model to take a fundamentally different approach. Refinement prompts are untouched —
+an
 approach is chosen at propose time; refinement is execution *within* an approach (and the Lean error
 already steers it). The first proposal (empty history) is a no-op.
 

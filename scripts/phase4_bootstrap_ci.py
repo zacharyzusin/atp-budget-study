@@ -7,9 +7,11 @@ sampling distribution's shape or tails. This script instead treats each PROBLEM 
 the resampling unit: a bootstrap replicate resamples problem names with replacement (same total
 count), pools that resampled problem set's cells across ALL its logged seeds (a paired/clustered
 bootstrap -- a problem's seeds move together, since they are not independent draws of "how hard this
-problem is"), keeps the already-fixed decision checkpoint c* and OOF predictor scores fixed (only the
+problem is"), keeps the already-fixed decision checkpoint c* and OOF predictor scores fixed (only
+the
 population of problems varies), and recomputes the realizable-saved-fraction statistic from scratch
-on each replicate. 186-244 problems per benchmark gives a far better-populated resampling distribution
+on each replicate. 186-244 problems per benchmark gives a far better-populated resampling
+distribution
 than 3 seed points ever could.
 
 CPU-only, no GPU, reuses the exact `saved_at_target` computation from `phase4_perseed.py` so the
@@ -27,10 +29,10 @@ import math
 from pathlib import Path
 
 import numpy as np
+from phase4_perseed import best_checkpoint_oof, saved_at_target
 
 from atp.alloc.extract import BASELINE_RUNS, load_run
 from atp.alloc.policies import solve_cost
-from phase4_perseed import best_checkpoint_oof, saved_at_target
 
 ROOT = Path(__file__).resolve().parents[1]
 

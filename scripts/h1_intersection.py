@@ -2,16 +2,23 @@
 """H1 — recompute the cross-model dichotomy on the compile-on-both-pins INTERSECTION.
 
 Both models attempted the IDENTICAL canonical statement sets (244 miniF2F, 186 ProofNet#; verified:
-0 disjoint problem names). The only way native-port pass@B could be a coverage artifact is if a statement
-elaborates on one pin but not the other (-> auto-0 on that side). So the intersection per benchmark =
+0 disjoint problem names). The only way native-port pass@B could be a coverage artifact is if a
+statement
+elaborates on one pin but not the other (-> auto-0 on that side). So the intersection per benchmark
+=
 all problems MINUS (Goedel-pin failures  UNION  DeepSeek-pin failures), read from each pin's
-statement_validation.json. We then recompute pass@B for BOTH models restricted to the intersection and
+statement_validation.json. We then recompute pass@B for BOTH models restricted to the intersection
+and
 compare to the native-port numbers (which must reproduce metrics.json as a self-check).
 
-pass@B convention (matches src/atp/eval/metrics.py): mean over seeds of the fraction of problems with
+pass@B convention (matches src/atp/eval/metrics.py): mean over seeds of the fraction of problems
+with
 solved & tokens_to_solve <= B.
 """
-import glob, json, os, statistics as st, sys
+import glob
+import json
+import os
+import statistics as st
 
 BUDGETS = [2000, 8000, 32000, 128000]
 
@@ -54,7 +61,7 @@ ARMS = [
 
 # per-benchmark intersection = full set - union of both pins' failures
 fails = {}
-for bench, model, run, valpath in ARMS:
+for bench, model, _run, valpath in ARMS:
     fv = failures(valpath)
     if fv is None:
         print(f"!! missing validation file (pin not yet validated): {valpath}")
@@ -77,6 +84,7 @@ for bench, model, run, _ in ARMS:
     print(f"===== {bench} · {model}  (full={len(allnames)}  excluded={len(excl)}  intersection={len(inter)}) =====")
     print("        budget |   native (n)   | intersection (n)")
     for b in BUDGETS:
-        nm, ns, nn = native[b]; im, isd, ino = isect[b]
+        nm, ns, nn = native[b]
+        im, isd, ino = isect[b]
         print(f"      {b:7d} | {nm:5.1f}±{ns:<4.1f}({nn}) | {im:5.1f}±{isd:<4.1f}({ino})")
     print()

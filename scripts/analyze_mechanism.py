@@ -5,7 +5,8 @@ CPU-only, no GPU/Lean deps. Mines `results/<run>/agent_states/<problem>__seed<k>
 per-attempt corpus: every attempt's generated `proof`, Lean `feedback`, `reason`, `kind`, tokens).
 
 Four analyses (PHASE2_PLAN.md):
-  A1 diversity  — distinct first-tactics / distinct skeletons across a cell's attempts vs solve outcome.
+  A1 diversity  — distinct first-tactics / distinct skeletons across a cell's attempts vs solve
+  outcome.
                   Flat pass@B = resampling the same wrong idea; tests if diversity collapses OOD.
   A2 taxonomy   — classify unsolved cells' failures: formalization / knowledge(hallucinated lemma) /
                   reasoning / near-miss / loophole / truncation. THIS GATES downstream GPU spend.
@@ -17,11 +18,18 @@ Usage:
 Each run_dir needs an agent_states/ subdir. Labels default to the dir basename.
 """
 from __future__ import annotations
-import argparse, glob, json, os, re, statistics as st
+
+import argparse
+import glob
+import json
+import os
+import re
+import statistics as st
 from collections import Counter, defaultdict
 
 # ---------------------------------------------------------------- proof parsing
-# Leading-identifier of a Lean tactic line. We only need a stable, comparable token, not a real parser.
+# Leading-identifier of a Lean tactic line. We only need a stable, comparable token, not a real
+# parser.
 _TAC_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_'.]*")
 
 def _body(proof: str) -> str:
@@ -122,10 +130,14 @@ def diversity(cells: list[dict]) -> dict:
                 continue
             ft = {first_tactic(a.get("proof", "")) for a in ats} - {None}
             sk = {skeleton(a.get("proof", "")) for a in ats} - {""}
-            fts.append(len(ft) / len(ats)); ftc.append(len(ft))
-            sks.append(len(sk) / len(ats)); skc.append(len(sk))
+            fts.append(len(ft) / len(ats))
+            ftc.append(len(ft))
+            sks.append(len(sk) / len(ats))
+            skc.append(len(sk))
             nat.append(len(ats))
-        agg = lambda xs: round(st.mean(xs), 3) if xs else None
+
+        def agg(xs):
+            return round(st.mean(xs), 3) if xs else None
         return {"n_cells": len(group), "mean_attempts": agg(nat),
                 # ratios are mechanically depressed by attempt count; the ABSOLUTE distinct counts
                 # (mean_distinct_*) are the confound-free collapse metric.
@@ -163,7 +175,8 @@ def tokens_dist(cells: list[dict]) -> dict:
     if not steps:
         return {"n": 0}
     steps.sort()
-    pct = lambda p: steps[min(len(steps) - 1, int(p * len(steps)))]
+    def pct(p):
+        return steps[min(len(steps) - 1, int(p * len(steps)))]
     return {"n_unsolved": len(steps), "deepest_step_median": pct(0.5),
             "deepest_step_p90": pct(0.9), "frac_never_past_step1": round(
                 sum(1 for s in steps if s <= 1) / len(steps), 3)}
@@ -253,9 +266,9 @@ def main():
         print(f"  A2 taxonomy (% of {t['n_unsolved_cells']} unsolved cells): {t['cell_pct']}")
         print(f"  A3 unsolved depth: {res['A3_tokens']}")
         top = list(res["A4_stratify"].items())[:5]
-        print(f"  A4 top subfields: " + ", ".join(f"{k}={v['solve_rate']}(n{v['n']})" for k, v in top))
+        print("  A4 top subfields: " + ", ".join(f"{k}={v['solve_rate']}(n{v['n']})" for k, v in top))
         a5 = res["A5_late_solve_approach"]
-        print(f"  A5 late-solve approach (causal pre-flight):")
+        print("  A5 late-solve approach (causal pre-flight):")
         for b in ("early_w1_2", "late_w3plus"):
             print(f"       {b:12s} n={a5[b]['n']:<4} new-approach {a5[b]['pct_new_approach']}%  "
                   f"switched-from-first {a5[b]['pct_switched_from_first']}%")

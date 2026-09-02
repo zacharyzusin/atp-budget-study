@@ -60,7 +60,8 @@ def build_components(config: ExperimentConfig) -> ComponentPipeline:
     if cc.tactic_skeletons.enabled:
         components.append(TacticSkeletons.from_config(cc.tactic_skeletons))
     # Phase 2 Step C: diversity injection sits last among prompt-decorators so it sees (and lists
-    # back) the approaches any other decorator might have suggested. Mutually exclusive with skeletons
+    # back) the approaches any other decorator might have suggested. Mutually exclusive with
+    # skeletons
     # in practice (skeletons pushes a fixed schedule; diversity pushes *away* from what was tried).
     if cc.diversity.enabled:
         components.append(DiversityInjection.from_config(cc.diversity))

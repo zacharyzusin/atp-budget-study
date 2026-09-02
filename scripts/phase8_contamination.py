@@ -26,7 +26,6 @@ itself, plus one well-documented, field-specific risk:
 
 Both checks are logged plainly as what they are: real but partial evidence, not a full audit.
 """
-import re
 from dataclasses import dataclass
 
 _TEXTBOOK_PREFIXES = frozenset({
@@ -63,7 +62,8 @@ class MiniF2FSplitLeakReport:
 
 def minif2f_split_leak_check(test_problems, valid_problems):
     """Exact-name overlap between the vendored miniF2F test/valid splits. RL/expert-iteration stages
-    in this lineage are documented as training on miniF2F-*valid* — a valid/test name collision would
+    in this lineage are documented as training on miniF2F-*valid* — a valid/test name collision
+    would
     be a direct, concrete leak into what's reported as the "test" floor.
     """
     test_names = {p.name for p in test_problems}

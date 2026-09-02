@@ -164,12 +164,15 @@ def test_build_source_adds_imports_when_missing():
 
 def test_build_source_reconstructs_theorem_header_for_continuation_only_proofs():
     """CRITICAL REGRESSION (found live 2026-07-06, traced byte-exact from a real p8battery2_*
-    ProofNet# cell — see PROGRESS.md/DECISIONS.md that date): `DeepSeekV15Template`/`GoedelSFTTemplate`
+    ProofNet# cell — see PROGRESS.md/DECISIONS.md that date):
+    `DeepSeekV15Template`/`GoedelSFTTemplate`
     ask the model to CONTINUE directly after `:= by` — their extracted "proof" is a bare tactic body
-    with no `import` line AND no restated `theorem ...` line (unlike `WholeProofTemplate`, which makes
+    with no `import` line AND no restated `theorem ...` line (unlike `WholeProofTemplate`, which
+    makes
     the model re-emit the whole fenced block, self-contained, hitting the OTHER `_build_source`
     branch). The old code's fallback branch just prepended imports/opens and appended the proof
-    VERBATIM — dropping the theorem declaration entirely, so bare tactics ended up at the top level of
+    VERBATIM — dropping the theorem declaration entirely, so bare tactics ended up at the top level
+    of
     the file (a guaranteed Lean parse error, not a real proof failure). This must never regress.
 
     Uses the EXACT real example traced live: `Artin__exercise_10_1_13`, DeepSeek-Prover-V1.5-SFT.
@@ -204,7 +207,8 @@ def test_build_source_reconstructs_theorem_header_for_continuation_only_proofs()
 
 def test_build_source_whole_proof_branch_is_unaffected_by_the_fix():
     """Regression check: `WholeProofTemplate`'s own models (Goedel-Prover-V2, DeepSeek-Prover-V2-7B)
-    re-emit a complete file (their extraction naturally includes `import ...`) — that branch must not
+    re-emit a complete file (their extraction naturally includes `import ...`) — that branch must
+    not
     get a theorem line spliced in a second time (the header-reconstruction fix is a no-op here).
     """
     cfg = load_config(BASE_CONFIG)
@@ -220,7 +224,8 @@ def test_build_source_complete_file_gets_heartbeat_safety_net_only():
     """AUDIT FIX (2026-07-10, AUDIT_PLAN.md Task A2): the complete-file branch previously returned
     `proof` completely untouched, diverging from `ReplBackend._build_repl_source` (which applies
     `set_option maxHeartbeats 0` unconditionally, regardless of shape) — parity gap, benign in
-    practice since `PantographBackend` is never used by a real run (`eval/run.py` wires `ReplBackend`
+    practice since `PantographBackend` is never used by a real run (`eval/run.py` wires
+    `ReplBackend`
     exclusively), but fixed for consistency. Must insert the option, not restate the declaration.
     """
     cfg = load_config(BASE_CONFIG)

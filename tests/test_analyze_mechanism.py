@@ -1,5 +1,8 @@
 """Fast, CPU-only tests for scripts/analyze_mechanism.py (no GPU/Lean/cluster)."""
-import json, os, sys
+import json
+import os
+import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))

@@ -107,11 +107,13 @@ def test_run_reverify_resumes_by_skipping_already_written_cells(tmp_path):
 
 def test_run_reverify_skips_empty_or_corrupt_checkpoints_instead_of_crashing(tmp_path):
     """CRITICAL REGRESSION (found live 2026-07-09/10 — see PROGRESS.md/DECISIONS.md that date): the
-    harness-sanity control check on `results/baseline` (732 pre-existing agent_state files, some from
+    harness-sanity control check on `results/baseline` (732 pre-existing agent_state files, some
+    from
     much earlier phases) crashed the WHOLE re-verify pass on the first empty/corrupt checkpoint file
     (`json.JSONDecodeError`), losing all already-computed progress in that process and blocking the
     coordinator's blocking harness-sanity gate. The production eval loop already tolerates this
-    (`atp.agents.state`, "Resume robustness: tolerate empty/corrupt checkpoints" — a real, previously-
+    (`atp.agents.state`, "Resume robustness: tolerate empty/corrupt checkpoints" — a real,
+    previously-
     fixed class of issue in this exact repo); the re-verify tool must have the same tolerance: skip
     and count the bad file, keep going, never crash the batch.
     """

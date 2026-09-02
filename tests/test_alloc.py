@@ -309,7 +309,8 @@ def test_rows_to_xy_by_seed_filters_to_requested_seeds():
 
 def test_holdout_seed_eval_separable_is_high_and_excludes_holdout_from_fit():
     # seeds 0,1 perfectly separable by best_depth; seed 2 (holdout) has the SAME separable structure
-    # but must never be seen during fit -- if it were, this would still pass, so the real assertion is
+    # but must never be seen during fit -- if it were, this would still pass, so the real assertion
+    # is
     # that a degenerate holdout (single class) returns nan even though train data is fine.
     rows = []
     for p in range(20):
@@ -567,7 +568,8 @@ def test_mrt_curve_endpoints():
     assert comps == sorted(comps, reverse=True)
 
 
-# ---- WS6 item 4: richer features (additive, pre-registered results/phase4/PREDICTOR_V2_DESIGN.md) --
+# ---- WS6 item 4: richer features (additive, pre-registered results/phase4/PREDICTOR_V2_DESIGN.md)
+# --
 
 def test_error_kind_classification():
     assert error_kind(True, "Proof verified.") == "solved"

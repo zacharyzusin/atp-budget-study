@@ -52,7 +52,7 @@ def test_intersection_missing_validation_file_raises(tmp_path):
     missing = tmp_path / "does_not_exist.json"
     try:
         compute_intersection([str(missing)])
-        assert False, "expected FileNotFoundError"
+        raise AssertionError("expected FileNotFoundError")
     except FileNotFoundError:
         pass
 
@@ -64,7 +64,7 @@ def test_intersection_inconsistent_n_problems_raises(tmp_path):
     _write_validation(v2, 4, [])
     try:
         compute_intersection([str(v1), str(v2)])
-        assert False, "expected a mismatch error"
+        raise AssertionError("expected a mismatch error")
     except ValueError:
         pass
 

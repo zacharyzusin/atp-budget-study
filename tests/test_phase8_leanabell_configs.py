@@ -1,13 +1,17 @@
 """Phase 8 second matched pair — Leanabell-Prover-GD-SFT/GD-RL config-loader regression tests.
 
 Locks in the pin-triage findings (results/phase8/ZOO.md, PROGRESS.md 2026-07-06): both pins are
-INFERRED (no GH-confirmable code for this lineage — the Leanabell-Prover GitHub repo has no code, just
-a README/paper), so this is a stronger form of the STP precedent (configs/stp_proofnet.yaml). A future
-edit that silently drifts a revision/pin/template should be caught by `pytest -q`, not discovered live.
+INFERRED (no GH-confirmable code for this lineage — the Leanabell-Prover GitHub repo has no code,
+just
+a README/paper), so this is a stronger form of the STP precedent (configs/stp_proofnet.yaml). A
+future
+edit that silently drifts a revision/pin/template should be caught by `pytest -q`, not discovered
+live.
 
 PROMPT FORMAT REVISED 2026-07-06: the original `whole_proof`/chat_completions choice failed at real
 battery scale (0/2025 solves — fence-truncation + out-of-context tactic errors, see PROGRESS.md same
-date). Reverted to the already-validated raw-completion `goedel_sft` template (same one Goedel-Prover-
+date). Reverted to the already-validated raw-completion `goedel_sft` template (same one
+Goedel-Prover-
 SFT and the V1.5 triple use) — these tests now lock in THAT choice, not the failed one.
 """
 from __future__ import annotations
@@ -69,7 +73,8 @@ _LEANABELL_BATTERY = [
 def test_leanabell_battery_config_caps_budget_at_32k(path):
     # Capped at 32k (not the coordinator's literally-requested 128k) — coordinator approved this
     # scope 2026-07-06 to stay apples-to-apples with the V1.5 triple's own battery cap and to keep
-    # incremental GPU-h under the ask-first threshold (full 128k estimated at 300+ GPU-h incremental).
+    # incremental GPU-h under the ask-first threshold (full 128k estimated at 300+ GPU-h
+    # incremental).
     cfg = load_config(path)
     assert cfg.budget.values == [2000, 8000, 32000]
     assert cfg.eval.seeds == [0, 1, 2]

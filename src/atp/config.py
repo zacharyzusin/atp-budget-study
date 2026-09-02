@@ -125,11 +125,13 @@ class SkeletonsCfg(_Strict):
 
 class DiversityCfg(_Strict):
     # Phase 2 Step C: approach-conditioned diversity injection. On each *fresh* proposal, list the
-    # opening tactics already tried on this problem and instruct a fundamentally different approach —
+    # opening tactics already tried on this problem and instruct a fundamentally different approach
+    # —
     # targeting the approach-level collapse located in MECHANISM.md F1. The decisive interventional
     # test of causal-vs-symptomatic (F5 predicts a null: diversity rises, solves stay flat).
     enabled: bool = False
-    # How many distinct prior opening tactics to list back to the model (cap to keep the prompt tight).
+    # How many distinct prior opening tactics to list back to the model (cap to keep the prompt
+    # tight).
     max_listed: int = Field(6, ge=1)
 
 

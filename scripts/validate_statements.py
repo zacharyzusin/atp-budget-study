@@ -63,7 +63,8 @@ def main() -> int:
 
     from atp.lean import ReplBackend
 
-    # ATP_LEAN_ENV_DIR points the backend at any built lake env (mirrors the contract test) — used to
+    # ATP_LEAN_ENV_DIR points the backend at any built lake env (mirrors the contract test) — used
+    # to
     # gate a benchmark's statements against a SECOND pin (e.g. the DeepSeek v4.9.0 env) without
     # touching the hardcoded cache_dir/atp-lean-env (the Goedel env).
     env_dir = os.environ.get("ATP_LEAN_ENV_DIR")

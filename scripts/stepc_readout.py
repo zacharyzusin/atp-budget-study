@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Phase 2 Step C readout: budget-matched manipulation check + solve flips + failure texture + soundness
+"""Phase 2 Step C readout: budget-matched manipulation check + solve flips + failure texture +
+soundness
 guard, for all 4 diversity arms vs their baselines. CPU-only, reads results/*/agent_states/*.json.
 
-Manipulation check is BUDGET-MATCHED: both baseline and diversity attempts are truncated to cumulative
-completion_tokens <= 32000 before counting distinct opening tactics, so the comparison is not confounded
+Manipulation check is BUDGET-MATCHED: both baseline and diversity attempts are truncated to
+cumulative
+completion_tokens <= 32000 before counting distinct opening tactics, so the comparison is not
+confounded
 by the baseline running to 128k (far more attempts => more distinct tactics for free).
 """
-import glob, json, os, re, statistics as st, sys
+import glob
+import json
+import os
+import statistics as st
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from analyze_mechanism import first_tactic, _classify  # reuse the validated helpers
+from analyze_mechanism import _classify, first_tactic  # reuse the validated helpers
 
 BUDGET = 32000
 
@@ -66,7 +74,8 @@ def soundness(cells):
     """Fraction of ALL attempts that are loophole_sorry / truncation / formalization_syntax (the
     verifier-soundness-relevant failure modes). Diversity must NOT inflate these vs baseline."""
     from collections import Counter
-    c = Counter(); n = 0
+    c = Counter()
+    n = 0
     for cell in cells:
         for a in cell["attempts"]:
             c[_classify(a.get("reason", ""), a.get("feedback", ""))] += 1
@@ -82,14 +91,15 @@ ARMS = [
 ]
 
 for label, base_dir, div_dir, trap_file in ARMS:
-    trapped = set(l.strip() for l in open(trap_file) if l.strip())
+    trapped = set(line.strip() for line in open(trap_file) if line.strip())
     base = load_trunc(base_dir, names=trapped)   # baseline truncated to 32k, restricted to trapped
     div = load_trunc(div_dir)                     # diversity run already only-trapped, truncate to 32k
     mb, md = manip(base), manip(div)
     flips = sorted(set(c["file"] for c in div if c["solved"]))
-    tb, ntb = texture(base); tdx, ntd = texture(div)
+    tb, ntb = texture(base)
+    tdx, ntd = texture(div)
     print(f"\n===== {label}  (trapped={len(trapped)}) =====")
-    print(f"  MANIP-CHECK @32k (budget-matched, unsolved cells):")
+    print("  MANIP-CHECK @32k (budget-matched, unsolved cells):")
     print(f"    baseline : distinct_first_tac={mb['distinct']}  attempts={mb['attempts']}  "
           f"distinct/attempt={mb['distinct_per_attempt']}  (n={mb['n']})")
     print(f"    diversity: distinct_first_tac={md['distinct']}  attempts={md['attempts']}  "

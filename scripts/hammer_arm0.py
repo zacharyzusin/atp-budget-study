@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Hammer probe Arm 0 (+ Arm B if a hammer tactic is given) on ORIGINAL trapped statements — on-pin,
-no goal extraction needed. For each trapped problem, try each closer tactic as `<stmt> := by <closer>`
+no goal extraction needed. For each trapped problem, try each closer tactic as `<stmt> := by
+<closer>`
 and record the first that VERIFIES (fixed verifier; sorry/admit/native_decide rejected by policy).
 
 Arm 0 = the basic portfolio (controls for "model didn't invoke available automation"). Pass extra
 closers via --closers to add a hammer (Arm B) once one is built on-pin.
 
 Usage: python scripts/hammer_arm0.py --config configs/proofnet_baseline.yaml \
-          --trapped scratch/phase2/trapped_proofnet.txt --limit 30 --out results/phase3/arm0_goedel_proofnet.json
+          --trapped scratch/phase2/trapped_proofnet.txt --limit 30 --out
+          results/phase3/arm0_goedel_proofnet.json
 """
-import argparse, json, os, sys, time
+import argparse
+import json
+import os
+import sys
+import time
 
 PORTFOLIO = [
     "omega", "nlinarith", "norm_num", "simp_all", "decide", "aesop",
@@ -28,11 +34,10 @@ def main() -> int:
     sys.path.insert(0, "src")
     from atp.config import load_config
     from atp.data import load_dataset
-    from atp.data.contamination import load_novel_names
     from atp.lean import ReplBackend
 
     config = load_config(a.config)
-    trapped = set(l.strip() for l in open(a.trapped) if l.strip())
+    trapped = set(line.strip() for line in open(a.trapped) if line.strip())
     # load full split, restrict to trapped names
     ds = load_dataset(config)
     probs = [p for p in ds.problems if p.name in trapped]
@@ -43,7 +48,8 @@ def main() -> int:
     backend = ReplBackend(config, project_path=env_dir) if env_dir else ReplBackend(config)
 
     if os.environ.get("HAMMER_SELFTEST"):
-        # positive control: portfolio MUST close these trivial goals, else the probe is silently broken
+        # positive control: portfolio MUST close these trivial goals, else the probe is silently
+        # broken
         from atp.lean import Theorem
         ctrl = [("ctl_normnum", "theorem ctl_normnum : (2 : ℕ) + 2 = 4", "norm_num"),
                 ("ctl_simp", "theorem ctl_simp (n : ℕ) : n + 0 = n", "simp"),
@@ -57,12 +63,13 @@ def main() -> int:
         print(f"[selftest] {'ALL PASS — probe fires correctly' if allok else 'BROKEN'}")
         return 0 if allok else 3
 
-    results = []; n_closed = 0
+    results = []
+    n_closed = 0
     for i, p in enumerate(probs):
         thm = p.to_theorem()
         closed_by = None
         for c in a.closers:
-            t0 = time.time()
+            _t0 = time.time()
             rv = backend.verify(thm, f"{thm.statement} := by {c}")
             if rv.success:
                 closed_by = c

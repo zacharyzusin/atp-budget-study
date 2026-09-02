@@ -325,9 +325,11 @@ class ReplBackend:
 
         CRITICAL (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date — same root cause as
         `PantographBackend._build_source`, a separate class): continuation-style templates
-        (`DeepSeekV15Template`/`GoedelSFTTemplate`) ask the model to continue directly after `:= by`,
+        (`DeepSeekV15Template`/`GoedelSFTTemplate`) ask the model to continue directly after `:=
+        by`,
         so their extracted proof is a BARE tactic body with no `theorem`/`lemma`/`example`
-        declaration. Without reconstructing that declaration here, the bare tactics land as top-level
+        declaration. Without reconstructing that declaration here, the bare tactics land as
+        top-level
         commands against env 0 — a guaranteed parse error, not a real proof failure. If the proof
         already declares its own goal (self-contained, e.g. `WholeProofTemplate`'s models), leave it
         untouched.
@@ -336,9 +338,11 @@ class ReplBackend:
         sets this (disables Lean's elaboration heartbeat limit — without it, otherwise-valid
         nlinarith/field_simp/simp-heavy proofs can spuriously fail, indistinguishable from a
         genuinely wrong proof). Prepended here as its own top-level command, same convention as
-        `open`. Deliberately NOT adding `import Aesop` here (unlike `PantographBackend._build_source`,
+        `open`. Deliberately NOT adding `import Aesop` here (unlike
+        `PantographBackend._build_source`,
         which builds an isolated fresh file and needs it): env 0 already has Mathlib imported, whose
-        own modules transitively depend on Aesop, so its tactics are already available — and `import`
+        own modules transitively depend on Aesop, so its tactics are already available — and
+        `import`
         is only legal as a fresh env's FIRST command, so injecting one here as a later command would
         be a genuine (avoidable) Lean error, not a fix.
         """

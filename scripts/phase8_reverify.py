@@ -12,7 +12,8 @@ slurm/phase8_reverify.sh):
         --out-dir results/p8battery2_verified_deepseek_v15_sft_proofnet [--limit N]
 
 Writes corrected `problems/<name>__seed<N>.json` files (same schema `phase8_floor_table.py` already
-reads) reflecting the re-verified `solved`/`tokens_to_solve`, leaving the original run dir untouched.
+reads) reflecting the re-verified `solved`/`tokens_to_solve`, leaving the original run dir
+untouched.
 """
 import argparse
 import glob

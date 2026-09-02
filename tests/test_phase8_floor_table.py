@@ -3,9 +3,11 @@
 Only a fair, apples-to-apples read: for a given (benchmark, seed), the three stages have generally
 completed DIFFERENT subsets of cells so far (an in-flight sweep, not a finished one). Comparing raw
 pass@B percentages over each stage's own (different-sized) completed set would bias the read if the
-still-unrun problems aren't a random sample. So we restrict every stage, per seed, to the INTERSECTION
+still-unrun problems aren't a random sample. So we restrict every stage, per seed, to the
+INTERSECTION
 of problem names that ALL THREE stages have already completed for that seed — the same discipline
-`scripts/h1_intersection.py` already uses for cross-pin fairness, applied here across training stages
+`scripts/h1_intersection.py` already uses for cross-pin fairness, applied here across training
+stages
 on a partially-completed sweep instead.
 """
 import json
@@ -97,8 +99,10 @@ def test_seed_balance_report_passes_when_all_seeds_present_with_reasonable_sprea
 
 def test_real_repo_seed_balance_report_runs_cleanly_on_live_run_dirs():
     """Not a frozen-state assertion (the sweep is live and its cell counts change between runs of
-    this test) — just confirms `seed_balance_report` runs against the real run dirs without error and
-    returns a well-formed report. The actual imbalance READING (which stage/benchmark passes or fails
+    this test) — just confirms `seed_balance_report` runs against the real run dirs without error
+    and
+    returns a well-formed report. The actual imbalance READING (which stage/benchmark passes or
+    fails
     the balance check right now) belongs in PROGRESS.md/ZOO.md as a dated finding, not as a test
     assertion that would go stale the moment the sweep advances another cell."""
     for run_dir, target in [

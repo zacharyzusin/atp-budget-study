@@ -68,7 +68,8 @@ class RawVerification:
     # always False for that whole template family -- see AUDIT_PLAN.md Task A1 / PROGRESS.md
     # 2026-07-10. Default True so a "dumb" ScriptedBackend/test that doesn't care about this axis
     # keeps its old (success-implies-a-real-goal) behavior; a backend that wants the no_goal
-    # soundness gate to fire must compute this from what it actually compiled and pass it explicitly.
+    # soundness gate to fire must compute this from what it actually compiled and pass it
+    # explicitly.
     declares_goal: bool = True
 
 
@@ -254,7 +255,8 @@ class PantographBackend:
             # (AUDIT_PLAN.md Task A2, 2026-07-10: this branch previously returned `proof` verbatim,
             # diverging from `ReplBackend._build_repl_source`, which applies `maxHeartbeats`
             # unconditionally regardless of shape. `PantographBackend` is not used by any production
-            # run — `eval/run.py` wires `ReplBackend` exclusively — so this was never live-impactful,
+            # run — `eval/run.py` wires `ReplBackend` exclusively — so this was never
+            # live-impactful,
             # but kept consistent for any future caller.).
             if "set_option maxHeartbeats" in proof:
                 return proof

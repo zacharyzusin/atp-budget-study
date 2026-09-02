@@ -2,11 +2,14 @@
 
 Step C (Phase 2) established causally that approach discovery is not the bottleneck for trapped
 problems; within-approach execution depth is. Every scaffolding/adaptation lever tested elsewhere in
-this project targets discovery or post-hoc adaptation, not execution depth directly. This agent does:
-decompose the goal into `have` sub-lemmas, prove each independently (shorter, so easier to execute in
+this project targets discovery or post-hoc adaptation, not execution depth directly. This agent
+does:
+decompose the goal into `have` sub-lemmas, prove each independently (shorter, so easier to execute
+in
 one generation), then splice the verified subproofs back into the original goal and re-verify the
 whole thing. Read `results/phase_decomp/DESIGN.md` before touching this file — it has the reasoning
-behind every non-obvious choice below (why the sketch check bypasses the loophole policy, why subgoal
+behind every non-obvious choice below (why the sketch check bypasses the loophole policy, why
+subgoal
 theorems reuse the parent's own binder list, what's deliberately NOT a soundness risk and why).
 """
 
@@ -29,7 +32,6 @@ from atp.budget.meter import BudgetExhausted
 from atp.lean.backends import Theorem
 
 if TYPE_CHECKING:
-    from atp.budget.meter import BudgetMeter
     from atp.lean.verifier import Verifier
     from atp.models.client import VLLMClient
     from atp.models.templates import PromptTemplate
@@ -48,7 +50,8 @@ if TYPE_CHECKING:
 # This is directly usable and needs no artificial delimiter format — parse real Lean `have ... :=
 # sorry` syntax instead. The one thing the model did NOT do unprompted is give a real closing tactic
 # (it left a bare `sorry` where MAIN should be) — the prompt is revised accordingly to ask for it
-# explicitly, and the parser rejects a still-bare-sorry MAIN rather than accept it (a MAIN of `sorry`
+# explicitly, and the parser rejects a still-bare-sorry MAIN rather than accept it (a MAIN of
+# `sorry`
 # would make the sketch check vacuous — it accepts ANY goal — so this must be caught before spending
 # any subgoal-proving budget, not left to the final Verifier's loophole policy to catch after the
 # fact).
@@ -106,7 +109,8 @@ def split_signature(statement: str) -> tuple[str, str]:
 
 def subgoal_theorem(parent: Theorem, index: int, name: str, prop: str) -> Theorem:
     """Build a standalone `Theorem` for one `have`, reusing the parent's own binder list so the
-    subgoal has access to exactly the same variables/hypotheses it would inside the parent's proof."""
+    subgoal has access to exactly the same variables/hypotheses it would inside the parent's
+    proof."""
     binders, _ = split_signature(parent.statement)
     sig = f"{binders} : {prop}" if binders else f": {prop}"
     return Theorem(
@@ -126,7 +130,8 @@ def subgoal_theorem(parent: Theorem, index: int, name: str, prop: str) -> Theore
 # a targeted substitution of each `have ... := sorry` occurrence, leaving the model's own MAIN block
 # (and everything else) untouched.
 def build_sketch(theorem: Theorem, decomp: Decomposition) -> str:
-    """The model's own completion, sorries intact — for the structural check only (DESIGN.md step 2),
+    """The model's own completion, sorries intact — for the structural check only (DESIGN.md step
+    2),
     never scored as a solve."""
     return decomp.text
 
@@ -208,7 +213,7 @@ class DecompositionAgent:
         return AgentState(theorem_name=theorem.name)
 
     def _search(self, theorem: Theorem, state: AgentState, state_path) -> None:
-        for round_index in range(self.max_rounds):
+        for _round_index in range(self.max_rounds):
             prompt = _DECOMP_PROMPT.format(statement=theorem.statement)
             completion = self.client.generate(
                 prompt, max_tokens=self.sample_max_tokens, label="decompose"

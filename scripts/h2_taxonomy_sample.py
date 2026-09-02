@@ -1,17 +1,29 @@
 #!/usr/bin/env python3
 """H2 — sample unsolved attempts for human validation of the regex failure taxonomy.
 
-The load-bearing claim is "~0% knowledge / 94-100% reasoning_deep" among unsolved attempts — it is what
-KILLS premise retrieval (the failures aren't missing-lemma, so there's nothing to retrieve). That rests
-on _classify() in analyze_mechanism.py (a regex over Lean feedback). This emits a STRATIFIED sample of
-last-attempt failures per run (auto-label + raw feedback + opening tactics) so a human can re-label and we
+The load-bearing claim is "~0% knowledge / 94-100% reasoning_deep" among unsolved attempts — it is
+what
+KILLS premise retrieval (the failures aren't missing-lemma, so there's nothing to retrieve). That
+rests
+on _classify() in analyze_mechanism.py (a regex over Lean feedback). This emits a STRATIFIED sample
+of
+last-attempt failures per run (auto-label + raw feedback + opening tactics) so a human can re-label
+and we
 can report agreement + the specific reasoning-vs-knowledge confusion rate.
 
-Usage: python scripts/h2_taxonomy_sample.py <run_dir> --n 70 [--seed 0]   -> prints a labeling worksheet.
+Usage: python scripts/h2_taxonomy_sample.py <run_dir> --n 70 [--seed 0]   -> prints a labeling
+worksheet.
 """
-import argparse, glob, json, os, random, sys
+import argparse
+import glob
+import json
+import os
+import random
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 from analyze_mechanism import _classify, first_tactic
+
 
 def last_failures(run_dir):
     """One record per UNSOLVED cell = its last attempt (the giving-up state A2 reports)."""

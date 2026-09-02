@@ -105,7 +105,7 @@ def _report_model(model: str) -> None:
             arm: {s: len(_load_cells(_run_dir(model, short, arm, s))) for s in avail[arm]}
             for arm in ARMS
         }
-        print(f"  seeds present: " + " | ".join(f"{arm}={avail[arm]}{ncells[arm]}" for arm in ARMS))
+        print("  seeds present: " + " | ".join(f"{arm}={avail[arm]}{ncells[arm]}" for arm in ARMS))
         print(f"  {'arm':>5} " + " ".join(f"pass@{b}".rjust(13) for b in BUDGETS))
         for arm in ARMS:
             row = f"  {arm:>5} "

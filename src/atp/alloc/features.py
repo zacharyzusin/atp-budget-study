@@ -59,7 +59,8 @@ def opening_tactic(proof: str) -> str:
 
 # ---------------------------------------------------------------- WS6 item 4: richer features
 # Pre-registered in results/phase4/PREDICTOR_V2_DESIGN.md (2026-07-26), all derivable from already-
-# logged attempt data (no GPU re-run). Additive: FEATURE_NAMES_V2 is a strict superset of the original
+# logged attempt data (no GPU re-run). Additive: FEATURE_NAMES_V2 is a strict superset of the
+# original
 # 8, so v1 behavior/tests are byte-for-byte unchanged.
 
 _ERROR_KINDS = ("syntax", "elaboration", "infra", "step", "other")
@@ -86,7 +87,8 @@ _BACKTICK_RE = re.compile(r"`[^`]*`")
 
 def normalized_error(feedback: str) -> str:
     """Strip goal-state/identifier specifics so repeated hits on the SAME wall dedupe; used only for
-    the error_diversity count, never as a feature value itself (too high-cardinality to encode raw)."""
+    the error_diversity count, never as a feature value itself (too high-cardinality to encode
+    raw)."""
     fb = (feedback or "").strip()
     fb = _STEP_RE.sub("Failed at step N", fb)
     fb = _BACKTICK_RE.sub("`_`", fb)  # the specific failing tactic/identifier varies per attempt
@@ -204,7 +206,8 @@ class CellTrace:
         frac_infra = error_kinds.count("infra") / n_fail
         frac_refine = n_refine / n_fail
         tokens_per_depth = toks / max(best_depth, 1)
-        # depth_slope: OLS slope of depth vs. cumulative tokens (progress rate, continuous not binary)
+        # depth_slope: OLS slope of depth vs. cumulative tokens (progress rate, continuous not
+        # binary)
         slope, resid = 0.0, 0.0
         if len(depths) >= 3:
             xs = [float(t) for t in cum_at_depth]
@@ -213,9 +216,12 @@ class CellTrace:
             mean_x, mean_y = sum(xs) / n_pts, sum(ys) / n_pts
             var_x = sum((x - mean_x) ** 2 for x in xs)
             if var_x > 0:
-                slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / var_x
+                slope = (
+                    sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False))
+                    / var_x
+                )
                 intercept = mean_y - slope * mean_x
-                resids = [y - (slope * x + intercept) for x, y in zip(xs, ys)]
+                resids = [y - (slope * x + intercept) for x, y in zip(xs, ys, strict=False)]
                 resid = (sum(r ** 2 for r in resids) / n_pts) ** 0.5
 
         return CheckpointRow(

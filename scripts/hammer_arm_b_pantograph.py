@@ -8,10 +8,14 @@ Per statement: load_sorry("<opens> in <stmt> := by sorry") -> initial goal; appl
 closed iff no remaining goals. Elaboration falls out per-statement (no batch-file name collisions).
 Sound: duper reconstructs kernel-checked proofs. Records elaborated / closed per problem.
 
-Env: run under the sibling venv (PyPantograph 0.3.15) with project_path pointing at a lean_env that has
+Env: run under the sibling venv (PyPantograph 0.3.15) with project_path pointing at a lean_env that
+has
 Duper built in, imports=["Mathlib","Duper"].
 """
-import argparse, json, os, sys, time
+import argparse
+import json
+import os
+import time
 
 # opens: the dataset's ProofNet opens + the namespaces the v4.29 drift analysis showed are needed
 OPENS = ("Function Fintype Subgroup Ideal Polynomial Submodule BigOperators "
@@ -40,7 +44,9 @@ def main():
     print(f"[armB] starting Pantograph: project={a.project} imports=Mathlib,Duper timeout={a.timeout}", flush=True)
     server = start()
 
-    results = []; n_elab = 0; n_closed = 0
+    results = []
+    n_elab = 0
+    n_closed = 0
     for i, (name, stmt) in enumerate(items):
         src = f"open {OPENS} in\n{stmt} := by sorry"
         rec = {"name": name, "elaborated": False, "closed": False, "err": ""}
@@ -51,7 +57,8 @@ def main():
                 units = server.load_sorry(src)
                 states = [u.goal_state for u in units if getattr(u, "goal_state", None)] if units else []
                 if not states:
-                    rec["err"] = "no_goal_state"; break
+                    rec["err"] = "no_goal_state"
+                    break
                 rec["elaborated"] = True
                 st = states[0]
                 try:
@@ -62,10 +69,13 @@ def main():
                         rec["closed"] = True
                 except Exception as e:
                     rec["err"] = f"tactic:{type(e).__name__}:{str(e)[:70]}"
-                    # a tactic that crashed the server (not a clean TacticFailure) -> restart for next stmt
+                    # a tactic that crashed the server (not a clean TacticFailure) -> restart for
+                    # next stmt
                     if "TacticFailure" not in type(e).__name__:
-                        try: server.close()
-                        except Exception: pass
+                        try:
+                            server.close()
+                        except Exception:
+                            pass
                         server = start()
                 break  # got a verdict (elaborated, closed-or-not)
             except Exception as e:
@@ -73,12 +83,15 @@ def main():
                 # server likely dead -> restart and retry once
                 if attempt == 1:
                     rec["elaborated"] = False
-                    try: server.close()
-                    except Exception: pass
+                    try:
+                        server.close()
+                    except Exception:
+                        pass
                     server = start()
                     continue
                 break
-        n_elab += rec["elaborated"]; n_closed += rec["closed"]
+        n_elab += rec["elaborated"]
+        n_closed += rec["closed"]
         results.append(rec)
         print(f"[{i+1}/{len(items)}] {name}: elab={rec['elaborated']} closed={rec['closed']} {rec['err'][:50]}", flush=True)
 

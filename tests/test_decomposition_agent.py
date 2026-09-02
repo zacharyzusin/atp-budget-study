@@ -15,7 +15,6 @@ revised design; the smoke test's actual completion text is used as the "realisti
 from __future__ import annotations
 
 from atp.agents.decomposition import (
-    Decomposition,
     DecompositionAgent,
     build_composed_proof,
     build_sketch,

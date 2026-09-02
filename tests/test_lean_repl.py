@@ -170,7 +170,8 @@ def test_build_repl_source_reconstructs_theorem_header_for_continuation_only_pro
     for the pin" per that module's own docstring), so fixing `_build_source` alone would have been a
     no-op for every real sweep. `_build_repl_source` strips `import` lines and preserves/prepends
     `open`, but — like the other backend — NEVER reconstructed the `theorem ... := by` declaration
-    for a bare continuation-only proof (`DeepSeekV15Template`/`GoedelSFTTemplate`'s extracted output).
+    for a bare continuation-only proof (`DeepSeekV15Template`/`GoedelSFTTemplate`'s extracted
+    output).
     Uses the exact real traced example (`Artin__exercise_10_1_13`, DeepSeek-Prover-V1.5-SFT).
     """
     backend = _backend(_import_then({"env": 1, "messages": []}))
@@ -197,7 +198,8 @@ def test_build_repl_source_reconstructs_theorem_header_for_continuation_only_pro
 def test_verifier_accepts_genuine_continuation_style_solve_end_to_end():
     """AUDIT REGRESSION (found 2026-07-10, AUDIT_PLAN.md Task A1): a genuinely CORRECT
     continuation-style completion (bare tactic body, no theorem/lemma/example line -- exactly what
-    `DeepSeekV15Template`/`GoedelSFTTemplate`/`BFSProverTemplate` extraction produces by design) must
+    `DeepSeekV15Template`/`GoedelSFTTemplate`/`BFSProverTemplate` extraction produces by design)
+    must
     score `ok=True` when the backend genuinely accepts the reconstructed source.
 
     Root cause this guards: `Verifier.verify` used to check `_DECL_RE.search(proof)` against the RAW
@@ -207,8 +209,10 @@ def test_verifier_accepts_genuine_continuation_style_solve_end_to_end():
     continuation-style completion to ever score `ok=True`, correct or not. This directly implicates
     Phase 8's reported "0.0%-everywhere" floor for the DeepSeek-V1.5 triple and Leanabell pair (both
     continuation-style) -- reproduced independently against the real Lean REPL in
-    `scripts/audit_no_goal_gate_check.py`. Fix: the backend now reports `declares_goal` computed from
-    the ASSEMBLED source it actually compiled, and `Verifier.verify` uses that instead of re-deriving
+    `scripts/audit_no_goal_gate_check.py`. Fix: the backend now reports `declares_goal` computed
+    from
+    the ASSEMBLED source it actually compiled, and `Verifier.verify` uses that instead of
+    re-deriving
     it from the raw completion.
     """
     # The backend genuinely accepts the RECONSTRUCTED source (env assigned, zero messages) -- this
@@ -238,7 +242,8 @@ def test_build_repl_source_leaves_self_contained_proofs_unaffected():
 def test_build_repl_source_always_sets_max_heartbeats_zero():
     """CRITICAL REGRESSION (found live 2026-07-06, see PROGRESS.md/DECISIONS.md that date): the
     DeepSeek-Prover-V1.5/Goedel-Prover-SFT family's official header always includes
-    `set_option maxHeartbeats 0` — without it, Lean's default elaboration-heartbeat limit can make an
+    `set_option maxHeartbeats 0` — without it, Lean's default elaboration-heartbeat limit can make
+    an
     otherwise-valid nlinarith/field_simp/simp-heavy proof spuriously fail, indistinguishable from a
     genuinely wrong one. Must apply whether or not the proof already declares its own theorem, and
     must not be duplicated if the model's own completion happens to already set it."""

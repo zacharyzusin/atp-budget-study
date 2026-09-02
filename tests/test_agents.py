@@ -277,9 +277,11 @@ def test_from_config_sample_max_tokens_override():
 def test_from_config_resolves_the_configured_prompt_template():
     """CRITICAL REGRESSION (found live 2026-07-06 — see PROGRESS.md/DECISIONS.md that date):
     `WholeProofAgent.from_config` used to hardcode `template=WholeProofTemplate()`, ignoring
-    `config.model.prompt_template` entirely — `template_from_config` existed but was dead code, never
+    `config.model.prompt_template` entirely — `template_from_config` existed but was dead code,
+    never
     called here. Every model whose config specifies a DIFFERENT template (DeepSeekV15Template,
-    GoedelSFTTemplate, ...) was silently run under WholeProofTemplate's chat/proof-plan prompt instead
+    GoedelSFTTemplate, ...) was silently run under WholeProofTemplate's chat/proof-plan prompt
+    instead
     of its own validated format. This must never regress: the agent's resolved template has to match
     what the config actually asks for, for a genuinely non-default case.
     """
@@ -306,7 +308,8 @@ def test_from_config_regression_goedel_v2_and_deepseek_v2_still_resolve_whole_pr
     config comments) — they were unaffected by the wiring bug (they happened to want the hardcoded
     template anyway) and MUST STILL resolve to WholeProofTemplate after the fix, not silently break.
     This is load-bearing for Phases 1-7, which used these two models as the headline comparison —
-    if either ever specified a non-default prompt_template upstream of Phase 8, this test surfaces it
+    if either ever specified a non-default prompt_template upstream of Phase 8, this test surfaces
+    it
     now rather than leaving it undiscovered.
     """
     from atp.config import BASE_CONFIG, load_config

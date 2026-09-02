@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Phase 8 step 2 — compile-on-ALL-pins intersection, generalized from scripts/h1_intersection.py
-(which hardcoded exactly 2 pins: Goedel + DeepSeek) to an arbitrary list of statement_validation.json
+(which hardcoded exactly 2 pins: Goedel + DeepSeek) to an arbitrary list of
+statement_validation.json
 paths. Cluster-A models that reuse an EXISTING pin (the V1.5 triple, Goedel-Prover-SFT, BFS-Prover —
 all on the Goedel pin per results/phase8/ZOO.md) contribute nothing new: their failures are already
 captured by that pin's validation file, so passing the same file more than once is a no-op, not a

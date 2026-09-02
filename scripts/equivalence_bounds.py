@@ -4,7 +4,8 @@
 "Within 1 seed-std at n=3" is an absence of evidence, not evidence of absence, and understates the
 statistical power actually available: each Phase 1 ablation has 186-244 paired problem-level
 observations (x3 seeds), not 3. This script reports, for each baseline-vs-variant comparison, a
-paired per-problem bootstrap 95% CI on the mean solve-rate delta (same clustered-by-problem bootstrap
+paired per-problem bootstrap 95% CI on the mean solve-rate delta (same clustered-by-problem
+bootstrap
 as `scripts/phase4_bootstrap_ci.py` -- a problem's seeds resample together, since they are not
 independent draws of "how hard this problem is"). The one-sided 97.5th percentile of the bootstrap
 distribution is reported as the equivalence bound: "this component's true effect is below +Xpp with
@@ -13,7 +14,8 @@ bound that is wide (e.g. several points either side) means the comparison never 
 detect a real effect at that seed count -- worth knowing before a reviewer notices.
 
 CPU-only. Covers: all Phase 1 scaffolding components on both benchmarks (baseline vs each variant,
-paired by (problem_name, seed), "solved" field at the run's own fixed budget), plus Step C (diversity
+paired by (problem_name, seed), "solved" field at the run's own fixed budget), plus Step C
+(diversity
 injection vs its own token-matched resampling control) if that data is present in the same paired
 per-cell shape.
 
@@ -66,7 +68,8 @@ def load_solved_merged(run_dirs: list[Path]) -> dict[tuple[str, int], bool]:
 
 
 # Phase 6 Stage B (closing-targeted SFT) / Stage A (generic RFT) pilot: base vs A vs B, both models
-# (g=Goedel, d=DeepSeek), both held-out benchmarks (mf=miniF2F, pn=ProofNet#), 3 seeds each stored as
+# (g=Goedel, d=DeepSeek), both held-out benchmarks (mf=miniF2F, pn=ProofNet#), 3 seeds each stored
+# as
 # 3 separate single-seed run dirs (results/p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]).
 STAGE_B_COMPARISONS = [
     (model, bench, arm)

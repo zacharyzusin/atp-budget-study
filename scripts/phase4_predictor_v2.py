@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """WS6 item 4: does the richer (v2) feature set improve the difficulty predictor?
 
-Pre-registration: results/phase4/PREDICTOR_V2_DESIGN.md (read before touching this). CPU-only, reuses
+Pre-registration: results/phase4/PREDICTOR_V2_DESIGN.md (read before touching this). CPU-only,
+reuses
 already-logged attempt data (no GPU re-run).
 
 Protocol (the CV guard from the pre-registration): seed 2 -- the one showing DeepSeek's per-seed
@@ -76,7 +77,8 @@ def main() -> None:
             gain = (v2 - v1) if (v1 == v1 and v2 == v2) else float("nan")
             if gain == gain:
                 max_gain = max(max_gain, gain)
-            fmt = lambda x: f"{x:.3f}" if x == x else "  nan"
+            def fmt(x):
+                return f"{x:.3f}" if x == x else "  nan"
             print(f"{e['model']:9s} {r['checkpoint']:>7} {fmt(v1):>12} {fmt(v2):>12} "
                   f"{fmt(gain):>7} {fmt(ho):>20}")
             lines.append(f"| {e['model']} | {r['checkpoint']} | {fmt(v1)} | {fmt(v2)} | {fmt(gain)} | "

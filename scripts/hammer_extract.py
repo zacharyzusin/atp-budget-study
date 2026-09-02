@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
-"""Hammer probe — extract, per trapped problem, the statement + the model's deepest valid-prefix 'stuck
+"""Hammer probe — extract, per trapped problem, the statement + the model's deepest valid-prefix
+'stuck
 leaf' from existing traces. CPU-only, no REPL. Output feeds the on-pin arm runners.
 
-For each trapped problem (unsolved by all seeds @128k), pick the attempt that reached the deepest step
+For each trapped problem (unsolved by all seeds @128k), pick the attempt that reached the deepest
+step
 (F3), then:
   - statement  = the theorem header up to and including ':= by' (for Arm 0 / Arm B).
-  - prefix     = the proof-body tactic lines BEFORE the failing step N (from 'Failed at step N'); this is
-                 the longest cleanly-applying prefix candidate -> its open goal is the 'stuck leaf' (Arm A).
-The candidate 'statement := by <prefix>\n <closer>' is verified on-pin by the runner; a mis-parsed prefix
+  - prefix     = the proof-body tactic lines BEFORE the failing step N (from 'Failed at step N');
+    this is
+                 the longest cleanly-applying prefix candidate -> its open goal is the 'stuck leaf'
+                 (Arm A).
+The candidate 'statement := by <prefix>\n <closer>' is verified on-pin by the runner; a mis-parsed
+prefix
 just fails to compile (costs recall, never soundness — the fixed verifier gates).
 """
-import json, os, re
+import json
+import os
+import re
 
 _STEP = re.compile(r"Failed at step\s+(\d+)")
 
@@ -61,17 +68,18 @@ def extract_for_problem(run_dir: str, name: str):
     return best
 
 if __name__ == "__main__":
-    import argparse, glob
+    import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir")
     ap.add_argument("trapped_file")
     ap.add_argument("--n", type=int, default=5)
     a = ap.parse_args()
-    names = [l.strip() for l in open(a.trapped_file) if l.strip()][: a.n]
+    names = [line.strip() for line in open(a.trapped_file) if line.strip()][: a.n]
     for nm in names:
         e = extract_for_problem(a.run_dir, nm)
         if not e:
-            print(f"\n### {nm}: NO extractable attempt"); continue
+            print(f"\n### {nm}: NO extractable attempt")
+            continue
         print(f"\n### {nm}  (deepest stuck_step={e['stuck_step']} of {e['n_body_lines']} body lines, seed{e['seed']})")
         print(f"STATEMENT: {e['statement'][:200]}")
         print(f"PREFIX ({len(e['prefix_lines'])} lines):")

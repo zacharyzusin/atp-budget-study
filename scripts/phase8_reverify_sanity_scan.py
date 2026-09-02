@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """One-off sanity scan: re-verify EVERY attempt (not just until first solve) for N cells and report
 the full distribution of `reason` values, to catch a silent bug in the main reverify pass (e.g. a
-false negative from _DECL_RE, or an exception being swallowed) rather than trusting a 0% count blind.
+false negative from _DECL_RE, or an exception being swallowed) rather than trusting a 0% count
+blind.
 """
 import glob
 import json

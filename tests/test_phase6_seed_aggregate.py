@@ -58,7 +58,7 @@ def test_budget_threshold_respected(results):
 
 
 def test_multiseed_collects_per_seed(results):
-    for s, suffix in [(0, ""), (1, "_s1"), (2, "_s2")]:
+    for _s, suffix in [(0, ""), (1, "_s1"), (2, "_s2")]:
         _write(results / f"p6eval_d_pn_base{suffix}", {"p1": 5000})
         _write(results / f"p6eval_d_pn_B{suffix}", {"p1": 5000})
     d = agg._paired_deltas("d", "pn", 8000)

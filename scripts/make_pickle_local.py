@@ -1,13 +1,15 @@
 """Create the Mathlib env pickle from a node-LOCAL copy of the Lean env, then validate unpickle.
 
 Why local: a cold `import Mathlib` opens ~4.7k oleans off GPFS; under contention (measured ~3.8 MB/s
-sequential, >45 min random on 2026-06-05) that times out. Copying .lake to node-local SSD first makes
+sequential, >45 min random on 2026-06-05) that times out. Copying .lake to node-local SSD first
+makes
 the import hit local disk (no GPFS token storm), so it completes in seconds-to-minutes regardless of
 cluster load. We pickle the loaded env to ONE file, which every sweep worker then `unpickleEnvFrom`s
 (a single sequential read) instead of repeating the open-storm.
 
 Usage:  python scripts/make_pickle_local.py <local_project_path> <out_pickle_path>
-The out pickle is written locally first (fast), validated by a fresh unpickle, and its size reported;
+The out pickle is written locally first (fast), validated by a fresh unpickle, and its size
+reported;
 the caller copies it to GPFS.
 """
 

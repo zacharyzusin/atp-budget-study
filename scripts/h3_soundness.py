@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """H3 — soundness-creep across ALL scaffolding components (generalizes Step C's C-3).
 
-For every Phase 1 component (+ Step C diversity) vs the no-frills baseline, measure the rate at which the
+For every Phase 1 component (+ Step C diversity) vs the no-frills baseline, measure the rate at
+which the
 model emits attempts in the two UNSOUND modes the verifier audit fixed:
   - loophole  (reason='loophole'): proof carries sorry/admit-style holes
-  - truncation (reason='no_goal'): bare-def / no-goal output a NAIVE verifier would accept as "compiles"
+  - truncation (reason='no_goal'): bare-def / no-goal output a NAIVE verifier would accept as
+    "compiles"
 "unsound surface" = loophole + truncation = the would-be-false-positive rate a naive (un-hardened)
 pipeline would be exposed to. Claim under test: scaffolding systematically inflates this surface.
 All rates are per-FAILED-attempt (ok attempts excluded) so the comparison is about output quality.
 """
-import glob, json, os
+import glob
+import json
+import os
 from collections import Counter
 
 BENCHES = {
@@ -25,19 +29,25 @@ STEPC = {
 }
 
 def rates(run):
-    c = Counter(); n = 0
+    c = Counter()
+    n = 0
     for f in glob.glob(os.path.join(run, "agent_states", "*.json")):
-        try: d = json.load(open(f))
-        except (json.JSONDecodeError, ValueError): continue
+        try:
+            d = json.load(open(f))
+        except (json.JSONDecodeError, ValueError):
+            continue
         for a in d.get("attempts", []):
             r = a.get("reason")
             if r == "ok":
                 continue
             n += 1
-            if r == "loophole": c["loophole"] += 1
-            elif r == "no_goal": c["truncation"] += 1
+            if r == "loophole":
+                c["loophole"] += 1
+            elif r == "no_goal":
+                c["truncation"] += 1
     n = n or 1
-    loop = 100 * c["loophole"] / n; trunc = 100 * c["truncation"] / n
+    loop = 100 * c["loophole"] / n
+    trunc = 100 * c["truncation"] / n
     return loop, trunc, loop + trunc, n
 
 for bench, root in BENCHES.items():
@@ -56,6 +66,7 @@ for bench, root in BENCHES.items():
     # Step C diversity (full-budget baseline as reference)
     div_run, div_base = STEPC[bench]
     if os.path.isdir(div_run):
-        bl = rates(div_base); dv = rates(div_run)
+        bl = rates(div_base)
+        dv = rates(div_run)
         print(f"  {'diversity (Step C)':22s} {dv[0]:9.2f} {dv[1]:7.2f} {dv[2]:9.2f}  {dv[2]-bl[2]:+9.2f}  ({dv[3]})"
               f"   [vs its own baseline {bl[2]:.2f}%]")

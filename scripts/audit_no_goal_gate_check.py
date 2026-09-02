@@ -30,8 +30,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from atp.config import BASE_CONFIG, load_config  # noqa: E402
-from atp.lean.repl import ReplBackend  # noqa: E402
 from atp.lean.backends import Theorem  # noqa: E402
+from atp.lean.repl import ReplBackend  # noqa: E402
 from atp.lean.verifier import Verifier  # noqa: E402
 
 

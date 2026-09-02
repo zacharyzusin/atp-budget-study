@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Phase 8 step 4 — matched-pair floor table for the DeepSeek-Prover-V1.5 Base/SFT/RL triple.
 
-The sweep is still in flight (an ongoing cluster sweep, not a finished one), so different stages have
+The sweep is still in flight (an ongoing cluster sweep, not a finished one), so different stages
+have
 completed different subsets of cells so far. Two things this module does, both in the same spirit as
 `scripts/h1_intersection.py`'s cross-pin fairness discipline:
 

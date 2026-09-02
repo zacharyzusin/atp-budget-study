@@ -2,15 +2,21 @@
 """H2 — corrected attempt-level failure taxonomy + the load-bearing knowledge rate.
 
 Two corrections to the original A2 (analyze_mechanism.taxonomy, which labels each CELL by its most-
-ADVANCED attempt, so reasoning_deep masks everything else and yields the misleading "94-100% reasoning /
+ADVANCED attempt, so reasoning_deep masks everything else and yields the misleading "94-100%
+reasoning /
 ~0% knowledge"):
   (1) report at the ATTEMPT level (every failed attempt counts once), and
   (2) split out REPL-infra crashes (Lean process exited / malformed-no-env response) which _classify
       otherwise buries in reasoning_shallow.
 Headline: the KNOWLEDGE/missing-identifier rate — the retrieval-relevant class — is NOT ~0% on OOD.
 """
-import glob, json, os, re, sys
+import glob
+import json
+import os
+import re
+import sys
 from collections import Counter
+
 sys.path.insert(0, os.path.dirname(__file__))
 from analyze_mechanism import _classify
 
@@ -25,15 +31,19 @@ RUNS = [
 ]
 
 def audit(run):
-    c = Counter(); tot = 0
+    c = Counter()
+    tot = 0
     for f in glob.glob(os.path.join(run, "agent_states", "*.json")):
-        try: d = json.load(open(f))
-        except (json.JSONDecodeError, ValueError): continue
+        try:
+            d = json.load(open(f))
+        except (json.JSONDecodeError, ValueError):
+            continue
         att = d.get("attempts", [])
         if not att or any(a.get("reason") == "ok" for a in att):
             continue
         for a in att:
-            fb = a.get("feedback", "") or ""; rn = a.get("reason", "")
+            fb = a.get("feedback", "") or ""
+            rn = a.get("reason", "")
             lab = _classify(rn, fb)
             if lab == "ok":
                 continue

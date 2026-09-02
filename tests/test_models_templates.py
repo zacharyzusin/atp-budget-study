@@ -47,7 +47,8 @@ def test_whole_proof_uses_official_goedel_prompt():
 def test_whole_proof_official_header_adds_aesop_and_max_heartbeats_only():
     """`WholeProofOfficialHeaderTemplate` (2026-07-24, external calibration critique) must differ
     from `WholeProofTemplate` ONLY in the header (import Aesop + set_option maxHeartbeats 0) — same
-    instruction, same plan-suffix, same fence, same everything else, so the calibration cell isolates
+    instruction, same plan-suffix, same fence, same everything else, so the calibration cell
+    isolates
     the header/protocol variable and nothing else."""
     from atp.models import WholeProofOfficialHeaderTemplate
 
@@ -295,8 +296,10 @@ def test_deepseek_v15_extract_proof_uses_closed_or_unclosed_fence():
 
 def test_deepseek_v15_extract_proof_strips_a_reechoed_opening_fence():
     # Found live 2026-07-06 (Leanabell-Prover-GD-SFT/GD-RL, which reuses this exact template): some
-    # checkpoints re-echo the opening ```lean4 marker at the start of their OWN completion instead of
-    # continuing straight into code, even though the prompt already opened the fence. Left unstripped
+    # checkpoints re-echo the opening ```lean4 marker at the start of their OWN completion instead
+    # of
+    # continuing straight into code, even though the prompt already opened the fence. Left
+    # unstripped
     # this guaranteed a Lean parse error on every such attempt. Must be a no-op for completions that
     # don't do this (the two cases above stay unchanged).
     t = DeepSeekV15Template()
@@ -321,7 +324,8 @@ def test_goedel_sft_render_byte_exact_header_against_official_step1_inference_py
     PROGRESS.md/DECISIONS.md that date). Re-fetched github.com/Goedel-LM/Goedel-Prover's
     `eval/step1_inference.py` byte-for-byte: its own
     `LEAN4_DEFAULT_HEADER = "import Mathlib\\nimport Aesop\\n\\nset_option maxHeartbeats 0\\n\\n
-    open BigOperators Real Nat Topology Rat\\n\\n"` — Leanabell-Prover-GD-SFT/GD-RL (which reuse this
+    open BigOperators Real Nat Topology Rat\\n\\n"` — Leanabell-Prover-GD-SFT/GD-RL (which reuse
+    this
     exact template) and Goedel-Prover-SFT itself were both missing `import Aesop` and
     `set_option maxHeartbeats 0`.
     """

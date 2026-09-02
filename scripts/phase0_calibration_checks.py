@@ -26,7 +26,7 @@ from __future__ import annotations
 import glob
 import json
 import statistics
-from collections import Counter, defaultdict
+from collections import Counter
 
 RUN_DIRS = {
     "goedel_minif2f": "results/baseline",
@@ -105,7 +105,7 @@ def check1_pass_at_n(states_by_run: dict[str, list[dict]]) -> str:
             # trace (since refinement stops on first success) OR any attempt within [this
             # propose's index, next propose's index) has ok=True.
             propose_idxs = [i for i, a in enumerate(atts) if a.get("kind") == "propose"]
-            solved_state = bool(st.get("stop_reason") == "solved")
+            _solved_state = bool(st.get("stop_reason") == "solved")
             chain_success = []
             for j, start in enumerate(propose_idxs):
                 end = propose_idxs[j + 1] if j + 1 < len(propose_idxs) else len(atts)
