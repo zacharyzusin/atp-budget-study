@@ -1,0 +1,159 @@
+{
+  "budgets": [
+    8000
+  ],
+  "config": {
+    "agent": {
+      "components": {
+        "diversity": {
+          "enabled": false,
+          "max_listed": 6
+        },
+        "memory": {
+          "enabled": false,
+          "max_items": 3
+        },
+        "retrieval": {
+          "backend": "bm25",
+          "corpus": null,
+          "enabled": false,
+          "k": 8
+        },
+        "reviewer": {
+          "enabled": false,
+          "max_tokens": 256
+        },
+        "tactic_skeletons": {
+          "enabled": false,
+          "schedule": "default"
+        }
+      },
+      "mode": "whole_proof",
+      "refinement": {
+        "alloc_split": 0.5,
+        "enabled": true,
+        "max_iters": 4
+      }
+    },
+    "budget": {
+      "stop_on_first_success": true,
+      "unit": "tokens",
+      "values": [
+        8000
+      ]
+    },
+    "data": {
+      "benchmark": "minif2f",
+      "exclude_unprovable": true,
+      "exclusions_file": null,
+      "lean_workbook_path": null,
+      "limit": 8,
+      "minif2f_dir": null,
+      "novel_names_file": null,
+      "proofnet_dir": null,
+      "split": "test",
+      "use_novel_split": false
+    },
+    "eval": {
+      "metrics": [
+        "pass_at_b",
+        "tokens_to_first_proof",
+        "effective_accuracy"
+      ],
+      "n_workers": 8,
+      "reviewer_false_accept": true,
+      "seeds": [
+        0
+      ]
+    },
+    "lean": {
+      "cache_dir": "scratch/lean-cache",
+      "mathlib_commit": "2f65ba7f1a9144b20c8e7358513548e317d26de1",
+      "mathlib_repo": "https://github.com/xinhjBrant/mathlib4.git",
+      "reject_loopholes": [
+        "sorry",
+        "admit",
+        "native_decide"
+      ],
+      "toolchain": "leanprover/lean4:v4.9.0-rc1",
+      "verify_timeout_s": 120
+    },
+    "logging": {
+      "log_dir": "logs",
+      "per_problem_json": true,
+      "write_manifest": true
+    },
+    "model": {
+      "chat_completions": false,
+      "endpoint_file": "results/_vllm_endpoint.txt",
+      "hf_repo": "stoney0062/Leanabell-Prover-GD-RL",
+      "max_model_len": 8192,
+      "name": "leanabell-gdrl",
+      "prompt_template": "goedel_sft",
+      "request_max_retries": 4,
+      "request_timeout_s": 3600,
+      "revision": "30f4ddf3dd1352dbaf2985df090131fb13b5236d",
+      "temperature": 1.0,
+      "top_p": 0.95
+    },
+    "project": {
+      "hf_cache": "scratch/hf-cache",
+      "results_dir": "results",
+      "root": "/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study"
+    },
+    "search": {
+      "beam": 8,
+      "length_norm": true,
+      "max_depth": 50
+    },
+    "sweep": null
+  },
+  "config_hash": "1a0d5fec70fc",
+  "dataset": {
+    "benchmark": "minif2f",
+    "counts": {
+      "contaminated": 8,
+      "excluded": 0,
+      "novel": 0,
+      "returned": 8,
+      "total_loaded": 244,
+      "unprovable_flagged": 0
+    },
+    "created_at": "2026-07-07T03:44:17.618368+00:00",
+    "exclusions_applied": [],
+    "exclusions_unmatched": [],
+    "model_revision": "30f4ddf3dd1352dbaf2985df090131fb13b5236d",
+    "source": {
+      "source_commit": "d2e847c98dee1acf5355f5de2ab71f3fcd24849a",
+      "source_file": "/insomnia001/depts/edu/COMS-E6998-012/zwz2000/theorem-proving-research/miniF2F/formal/test.lean",
+      "source_repo": "https://github.com/rahul3613/miniF2F-lean4"
+    },
+    "split": "test",
+    "use_novel_split": false
+  },
+  "finished_at": "2026-07-07T03:48:00.104423+00:00",
+  "git_sha": "aec81a2d5f5a5386f3fe028f4ab14b6de468e8e9",
+  "host": {
+    "gpu": "0",
+    "hostname": "ins089",
+    "platform": "Linux-5.14.0-570.12.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "slurm_job_id": "11256513"
+  },
+  "lean": {
+    "mathlib_commit": "2f65ba7f1a9144b20c8e7358513548e317d26de1",
+    "mathlib_repo": "https://github.com/xinhjBrant/mathlib4.git",
+    "toolchain": "leanprover/lean4:v4.9.0-rc1"
+  },
+  "model": {
+    "hf_repo": "stoney0062/Leanabell-Prover-GD-RL",
+    "name": "leanabell-gdrl",
+    "revision": "30f4ddf3dd1352dbaf2985df090131fb13b5236d"
+  },
+  "n_failed": 0,
+  "n_ran": 8,
+  "n_skipped": 0,
+  "seeds": [
+    0
+  ],
+  "started_at": "2026-07-07T03:44:18.069629+00:00"
+}

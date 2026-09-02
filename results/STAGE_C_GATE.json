@@ -1,0 +1,19 @@
+{
+  "base_pass_at_1": 0.5857142857142857,
+  "rl_pass_at_1": 0.5696428571428571,
+  "delta_pass_at_1": -0.016071428571428625,
+  "base_pass_at_8": 0.8857142857142857,
+  "rl_pass_at_8": 0.9,
+  "base_unsound_rate": 0.09584295612009237,
+  "rl_unsound_rate": 0.06167400881057269,
+  "delta_unsound_rate": -0.034168947309519686,
+  "base_distinct_3gram": 0.6445764654311663,
+  "rl_distinct_3gram": 0.6544120665565184,
+  "distinct_3gram_ratio": 1.0152590137134048,
+  "mean_kl": 0.002130822491987298,
+  "training_reward_rose": false,
+  "G1": false,
+  "G2": true,
+  "G3": true,
+  "verdict": "c2: capacity ceiling -> close the training arc"
+}

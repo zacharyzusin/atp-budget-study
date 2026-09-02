@@ -1,0 +1,46 @@
+[
+  {
+    "model": "goedel",
+    "benchmark": "minif2f",
+    "decision_checkpoint": 32000,
+    "n_problems": 244,
+    "point_saved_frac": -0.32672240282899767,
+    "ci95_lo": -0.7892754258074375,
+    "ci95_hi": -0.05201749516442178,
+    "n_boot_valid": 3000,
+    "n_boot_requested": 3000
+  },
+  {
+    "model": "goedel",
+    "benchmark": "proofnet_sharp",
+    "decision_checkpoint": 8000,
+    "n_problems": 186,
+    "point_saved_frac": 0.2966132728296922,
+    "ci95_lo": -0.4243584863088201,
+    "ci95_hi": 0.5783790348774125,
+    "n_boot_valid": 3000,
+    "n_boot_requested": 3000
+  },
+  {
+    "model": "deepseek",
+    "benchmark": "minif2f",
+    "decision_checkpoint": 16000,
+    "n_problems": 244,
+    "point_saved_frac": -0.1640834198925165,
+    "ci95_lo": -0.5435658553732801,
+    "ci95_hi": 0.051126322272465906,
+    "n_boot_valid": 3000,
+    "n_boot_requested": 3000
+  },
+  {
+    "model": "deepseek",
+    "benchmark": "proofnet_sharp",
+    "decision_checkpoint": 16000,
+    "n_problems": 186,
+    "point_saved_frac": 0.16103961873546035,
+    "ci95_lo": -0.14832859743717497,
+    "ci95_hi": 0.41802656037788644,
+    "n_boot_valid": 3000,
+    "n_boot_requested": 3000
+  }
+]

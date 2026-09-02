@@ -1,0 +1,161 @@
+[
+  {
+    "model": "goedel",
+    "benchmark": "minif2f",
+    "decision_checkpoint": 32000,
+    "auc": 0.7461581709145427,
+    "per_seed": [
+      {
+        "n_solved": 185,
+        "target": 166,
+        "realizable_saved_frac": -0.16999577752016992,
+        "oracle_saved_frac": 0.73159078498458,
+        "seed": 0
+      },
+      {
+        "n_solved": 182,
+        "target": 163,
+        "realizable_saved_frac": -0.6151644836563892,
+        "oracle_saved_frac": 0.6695613575172462,
+        "seed": 1
+      },
+      {
+        "n_solved": 181,
+        "target": 162,
+        "realizable_saved_frac": -0.41528524514000464,
+        "oracle_saved_frac": 0.7166724442337713,
+        "seed": 2
+      }
+    ],
+    "mean_saved_frac": -0.4001485021055213,
+    "std_saved_frac": 0.18205426841653174
+  },
+  {
+    "model": "goedel",
+    "benchmark": "proofnet_sharp",
+    "decision_checkpoint": 8000,
+    "auc": 0.7457038254632397,
+    "per_seed": [
+      {
+        "n_solved": 28,
+        "target": 25,
+        "realizable_saved_frac": 0.25451994785520093,
+        "oracle_saved_frac": 0.9680624171986976,
+        "seed": 0
+      },
+      {
+        "n_solved": 27,
+        "target": 24,
+        "realizable_saved_frac": 0.17794482985726057,
+        "oracle_saved_frac": 0.9548945675872018,
+        "seed": 1
+      },
+      {
+        "n_solved": 25,
+        "target": 22,
+        "realizable_saved_frac": 0.3378377849978439,
+        "oracle_saved_frac": 0.9544152035762007,
+        "seed": 2
+      }
+    ],
+    "mean_saved_frac": 0.25676752090343513,
+    "std_saved_frac": 0.06529536974065113
+  },
+  {
+    "model": "deepseek",
+    "benchmark": "minif2f",
+    "decision_checkpoint": 16000,
+    "auc": 0.619702743902439,
+    "per_seed": [
+      {
+        "n_solved": 175,
+        "target": 157,
+        "realizable_saved_frac": -0.29529645106042635,
+        "oracle_saved_frac": 0.735173647359217,
+        "seed": 0
+      },
+      {
+        "n_solved": 175,
+        "target": 157,
+        "realizable_saved_frac": -0.27797749752239564,
+        "oracle_saved_frac": 0.7418742005653625,
+        "seed": 1
+      },
+      {
+        "n_solved": 177,
+        "target": 159,
+        "realizable_saved_frac": 0.022826959710146477,
+        "oracle_saved_frac": 0.6953887520458488,
+        "seed": 2
+      }
+    ],
+    "mean_saved_frac": -0.18348232962422517,
+    "std_saved_frac": 0.14605393681137852
+  },
+  {
+    "model": "deepseek",
+    "benchmark": "proofnet_sharp",
+    "decision_checkpoint": 16000,
+    "auc": 0.734925941289866,
+    "per_seed": [
+      {
+        "n_solved": 40,
+        "target": 36,
+        "realizable_saved_frac": 0.03896077328545544,
+        "oracle_saved_frac": 0.9235788874462341,
+        "seed": 0
+      },
+      {
+        "n_solved": 39,
+        "target": 35,
+        "realizable_saved_frac": 0.03323369829288769,
+        "oracle_saved_frac": 0.9420044545502322,
+        "seed": 1
+      },
+      {
+        "n_solved": 45,
+        "target": 40,
+        "realizable_saved_frac": 0.15917106788628566,
+        "oracle_saved_frac": 0.9296273824825572,
+        "seed": 2
+      },
+      {
+        "n_solved": 42,
+        "target": 37,
+        "realizable_saved_frac": 0.5383439569532531,
+        "oracle_saved_frac": 0.9428944762924847,
+        "seed": 3
+      },
+      {
+        "n_solved": 42,
+        "target": 37,
+        "realizable_saved_frac": -0.1705116026075144,
+        "oracle_saved_frac": 0.9306351367280947,
+        "seed": 4
+      },
+      {
+        "n_solved": 41,
+        "target": 36,
+        "realizable_saved_frac": -0.278303088766898,
+        "oracle_saved_frac": 0.9371066773346393,
+        "seed": 5
+      },
+      {
+        "n_solved": 45,
+        "target": 40,
+        "realizable_saved_frac": 0.29027017296786717,
+        "oracle_saved_frac": 0.9421417881434296,
+        "seed": 6
+      },
+      {
+        "n_solved": 45,
+        "target": 40,
+        "realizable_saved_frac": 0.19251895482554393,
+        "oracle_saved_frac": 0.9297512832077116,
+        "seed": 7
+      }
+    ],
+    "mean_saved_frac": 0.10046049160461007,
+    "std_saved_frac": 0.2410603450208953
+  }
+]

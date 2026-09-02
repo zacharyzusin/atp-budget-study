@@ -1,0 +1,210 @@
+{
+  "arm": "A-lite (failing-tactic -> portfolio, in-context)",
+  "run": "results/proofnet_baseline",
+  "n_problems": 40,
+  "n_probed": 40,
+  "n_closed": 0,
+  "closer": "first | omega | nlinarith | norm_num | simp_all | decide | aesop",
+  "results": [
+    {
+      "name": "Artin__exercise_10_4_7a",
+      "status": "no",
+      "failing_tactic": "-- i * j \u2208 I because I is an ideal"
+    },
+    {
+      "name": "Artin__exercise_10_6_7",
+      "status": "no",
+      "failing_tactic": "field_simp [Complex.ext_iff, pow_two, mul_comm, mul_assoc, mul_left_comm, Comple"
+    },
+    {
+      "name": "Artin__exercise_11_13_3",
+      "status": "no",
+      "failing_tactic": "\u00b7 -- Case: p \u2261 2 mod 4"
+    },
+    {
+      "name": "Artin__exercise_11_4_6a",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that F is a field of order 2 to conclude that x must be either 0"
+    },
+    {
+      "name": "Artin__exercise_11_4_6c",
+      "status": "no",
+      "failing_tactic": "contradiction"
+    },
+    {
+      "name": "Artin__exercise_13_6_10",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that the product of all elements in K\u02e3 is -1."
+    },
+    {
+      "name": "Artin__exercise_2_8_6",
+      "status": "no",
+      "failing_tactic": "intro a b"
+    },
+    {
+      "name": "Artin__exercise_3_7_2",
+      "status": "no",
+      "failing_tactic": "intro i"
+    },
+    {
+      "name": "Artin__exercise_6_4_12",
+      "status": "no",
+      "failing_tactic": "exact h\u2081\u2080"
+    },
+    {
+      "name": "Artin__exercise_6_4_2",
+      "status": "no",
+      "failing_tactic": "have h\u2086 : q \u2260 0 := by"
+    },
+    {
+      "name": "Axler__exercise_1_7",
+      "status": "no",
+      "failing_tactic": "}) <;>"
+    },
+    {
+      "name": "Axler__exercise_1_9",
+      "status": "no",
+      "failing_tactic": "<;> aesop"
+    },
+    {
+      "name": "Axler__exercise_3_8",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that `V` is finite-dimensional to find a complement of `ker(L)`"
+    },
+    {
+      "name": "Axler__exercise_5_1",
+      "status": "no",
+      "failing_tactic": "-- Use the property of Submodule.map L"
+    },
+    {
+      "name": "Axler__exercise_5_11",
+      "status": "no",
+      "failing_tactic": "<;>"
+    },
+    {
+      "name": "Axler__exercise_5_13",
+      "status": "no",
+      "failing_tactic": "simp"
+    },
+    {
+      "name": "Axler__exercise_5_24",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that the characteristic polynomial of `T_U` is a real polynomial"
+    },
+    {
+      "name": "Axler__exercise_6_13",
+      "status": "no",
+      "failing_tactic": "Finset.sum_add_distrib, Finset.sum_const, nsmul_eq_mul]"
+    },
+    {
+      "name": "Axler__exercise_6_3",
+      "status": "no",
+      "failing_tactic": "exact h\u2085\u2085\u2081"
+    },
+    {
+      "name": "Axler__exercise_7_11",
+      "status": "no",
+      "failing_tactic": "-- This is a placeholder for the actual proof, which would involve detailed line"
+    },
+    {
+      "name": "Axler__exercise_7_5",
+      "status": "no",
+      "failing_tactic": "<;>"
+    },
+    {
+      "name": "Axler__exercise_7_9",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that the eigenvalues of a self-adjoint operator are real."
+    },
+    {
+      "name": "Dummit__Foote__exercise_11_1_13",
+      "status": "no",
+      "failing_tactic": "-- We use the identity map as the isomorphism."
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_1_22b",
+      "status": "no",
+      "failing_tactic": "simp [mul_assoc, mul_inv_cancel_left, mul_inv_cancel_right, mul_assoc, pow_succ]"
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_6_23",
+      "status": "no",
+      "failing_tactic": "}) <;>"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_1_13",
+      "status": "no",
+      "failing_tactic": "simpa [h\u2081\u2083] using h\u2081\u2084"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16a",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that the set of subgroups of G is finite and nonempty"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16c",
+      "status": "no",
+      "failing_tactic": "have h\u2081\u2083 := Subgroup.mem_closure_singleton.mp h\u2081\u2081"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_2_8",
+      "status": "no",
+      "failing_tactic": "exact h\u2088"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_3_3",
+      "status": "no",
+      "failing_tactic": "intro x"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_4_4",
+      "status": "no",
+      "failing_tactic": "<;> aesop"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_2_8",
+      "status": "no",
+      "failing_tactic": "simp_all [Subgroup.Normal]"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_2_9a",
+      "status": "no",
+      "failing_tactic": "-- Use the fact that the index of H is p to show that H is normal"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_2",
+      "status": "no",
+      "failing_tactic": "have h\u2083 : Nat.Coprime (orderOf g) (orderOf h) := by"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_6b",
+      "status": "no",
+      "failing_tactic": "constructor"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_8a",
+      "status": "no",
+      "failing_tactic": "-- Prove that H.subgroupOf K = H"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_13",
+      "status": "no",
+      "failing_tactic": "<;> norm_num [hG, h\u2085]"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_15",
+      "status": "no",
+      "failing_tactic": "<;> norm_num [hG]"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_17",
+      "status": "no",
+      "failing_tactic": "exact Classical.choose_spec (exists_prime_orderOf_dvd_card (5 : \u2115) h\u2081\u2086)\u27e9"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_19",
+      "status": "no",
+      "failing_tactic": "exact h\u2083"
+    }
+  ]
+}

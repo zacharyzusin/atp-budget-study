@@ -1,0 +1,11 @@
+{
+  "benchmark": "proofnet_sharp",
+  "split": "test",
+  "lean_toolchain": "leanprover/lean4:v4.9.0-rc1",
+  "mathlib_commit": "2f65ba7f1a9144b20c8e7358513548e317d26de1",
+  "n_problems": 186,
+  "n_elaborated": 186,
+  "elaboration_rate": 1.0,
+  "elapsed_s": 40.0,
+  "failures": []
+}

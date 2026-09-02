@@ -1,0 +1,909 @@
+{
+  "arm": "B (duper on original statement, off-pin v4.29)",
+  "tactic": "duper",
+  "n_problems": 150,
+  "n_elaborated": 119,
+  "n_closed": 0,
+  "results": [
+    {
+      "name": "Artin__exercise_2_8_6",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:3:12: error: Ambiguous term\\n  center\\nPossible "
+    },
+    {
+      "name": "Artin__exercise_3_7_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_6_4_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_6_4_12",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_10_4_7a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_10_6_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Artin__exercise_11_4_6a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_11_4_6c",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Artin__exercise_11_13_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Artin__exercise_13_6_10",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Axler__exercise_1_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Axler__exercise_1_9",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Axler__exercise_3_8",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:6:20: error: Function expected at\\n  domRestrict"
+    },
+    {
+      "name": "Axler__exercise_5_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Axler__exercise_5_11",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Axler__exercise_5_13",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Axler__exercise_5_24",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:4:17: error: Function expected at\\n  eigenspace\\"
+    },
+    {
+      "name": "Axler__exercise_6_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Axler__exercise_6_13",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:4:31: error: expected token\\n', 'error': 'io'}"
+    },
+    {
+      "name": "Axler__exercise_7_5",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:5:11: error: Function expected at\\n  adjoint\\nbu"
+    },
+    {
+      "name": "Axler__exercise_7_9",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:4:12: error: Function expected at\\n  adjoint\\nbu"
+    },
+    {
+      "name": "Axler__exercise_7_11",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:48: error: Function expected at\\n  adjoint\\nbu"
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_1_22b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_6_23",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_1_13",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16c",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_2_8",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_3_3",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:4:49: error(lean.invalidField): Invalid field `r"
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_4_4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_2_8",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_2_9a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_6b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_4_8a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_13",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_15",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_17",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_19",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_21",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_23",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_4_5_33",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_7_2_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Dummit__Foote__exercise_7_3_16",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_8_2_4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_8_3_5a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_8_3_6b",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:4:27: error: Ambiguous term\\n  span\\nPossible in"
+    },
+    {
+      "name": "Dummit__Foote__exercise_9_1_10",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:ServerError:Server reached timeout limit"
+    },
+    {
+      "name": "Dummit__Foote__exercise_9_4_2a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_9_4_2c",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Dummit__Foote__exercise_9_4_9",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Dummit__Foote__exercise_11_1_13",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_2_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_2_6c",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_3_16",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_5_23",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_5_31",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_5_43",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_5_52",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:4:31: error: Ambiguous term\\n  card\\nPossible in"
+    },
+    {
+      "name": "Herstein__exercise_2_7_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_8_15",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_10_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_2_11_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_4_1_34",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_4_3_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_4_4_9",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Herstein__exercise_4_5_23",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:ServerError:Server reached timeout limit"
+    },
+    {
+      "name": "Herstein__exercise_4_6_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_5_1_8",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_5_3_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Herstein__exercise_5_4_3",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:3:31: error: Ambiguous term\\n  sqrt\\nPossible in"
+    },
+    {
+      "name": "Herstein__exercise_5_6_14",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_1_30",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_2_4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_2_27a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_3_10",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_4_6",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_4_11",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_5_28",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Ireland__Rosen__exercise_12_12",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:2:40: error: Ambiguous term\\n  sin\\nPossible int"
+    },
+    {
+      "name": "Munkres__exercise_13_3b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_13_4a2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Munkres__exercise_13_4b2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_13_5b",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:8:2: error: Function expected at\\n  generateFrom"
+    },
+    {
+      "name": "Munkres__exercise_13_8a",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:2: error: Function expected at\\n  IsTopologica"
+    },
+    {
+      "name": "Munkres__exercise_16_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_16_6",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:8:2: error: Function expected at\\n  IsTopologica"
+    },
+    {
+      "name": "Munkres__exercise_18_8a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_18_13",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_21_6b",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:3:11: error: Ambiguous term\\n  Icc\\nPossible int"
+    },
+    {
+      "name": "Munkres__exercise_22_2a",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:4:47: error: Function expected at\\n  QuotientMap"
+    },
+    {
+      "name": "Munkres__exercise_22_5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_23_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_23_6",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_23_11",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:20: error: Function expected at\\n  QuotientMap"
+    },
+    {
+      "name": "Munkres__exercise_24_3a",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:2:28: error: Ambiguous term\\n  Icc\\nPossible int"
+    },
+    {
+      "name": "Munkres__exercise_25_9",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:3:3: error: invalid binder annotation, type is n"
+    },
+    {
+      "name": "Munkres__exercise_26_12",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_28_4",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:8:50: error(lean.unknownIdentifier): Unknown ide"
+    },
+    {
+      "name": "Munkres__exercise_28_6",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_29_4",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:2:45: error: Ambiguous term\\n  Icc\\nPossible int"
+    },
+    {
+      "name": "Munkres__exercise_30_10",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_31_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_31_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_32_2a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_32_2c",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_33_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Munkres__exercise_34_9",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:5:32: error: Function expected at\\n  MetrizableS"
+    },
+    {
+      "name": "Munkres__exercise_43_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Pugh__exercise_2_26",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Pugh__exercise_2_32a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Pugh__exercise_2_46",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Pugh__exercise_2_92",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Pugh__exercise_3_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Pugh__exercise_4_15a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Putnam__exercise_1998_b6",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Putnam__exercise_1999_b4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Putnam__exercise_2001_a5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Putnam__exercise_2014_a5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Putnam__exercise_2018_a5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Putnam__exercise_2018_b4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_1_8",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_2_19a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_2_25",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:41: error: Function expected at\\n  IsTopologic"
+    },
+    {
+      "name": "Rudin__exercise_2_27b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_2_29",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Rudin__exercise_3_2a",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': '<anonymous>:3:27: error: Ambiguous term\\n  sqrt\\nPossible in"
+    },
+    {
+      "name": "Rudin__exercise_3_5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_3_7",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:5:33: error: unexpected token 'in'; expected ','"
+    },
+    {
+      "name": "Rudin__exercise_3_13",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:4:34: error: unexpected token 'in'; expected ','"
+    },
+    {
+      "name": "Rudin__exercise_3_21",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_4_1a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Rudin__exercise_4_4b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_4_5b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Rudin__exercise_4_8a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_4_15",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_4_21a",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_5_1",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Rudin__exercise_5_3",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Rudin__exercise_5_5",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_5_7",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Rudin__exercise_5_17",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Shakarchi__exercise_1_13b",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Shakarchi__exercise_1_19a",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:24: error: unexpected token 'in'; expected ','"
+    },
+    {
+      "name": "Shakarchi__exercise_1_19c",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:3:24: error: unexpected token 'in'; expected ','"
+    },
+    {
+      "name": "Shakarchi__exercise_2_2",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Shakarchi__exercise_2_13",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:4:35: error: unexpected token 'in'; expected ','"
+    },
+    {
+      "name": "Shakarchi__exercise_3_4",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data='Duper failed to solve the goal and determined that it w"
+    },
+    {
+      "name": "Shakarchi__exercise_3_14",
+      "elaborated": true,
+      "closed": false,
+      "err": "tactic:TacticFailure:[Message(data=\"Duper encountered a (deterministic) timeout. The maximu"
+    },
+    {
+      "name": "Shakarchi__exercise_5_1",
+      "elaborated": false,
+      "closed": false,
+      "err": "elab:ServerError:{'desc': \"<anonymous>:5:33: error: unexpected token 'in'; expected ','"
+    }
+  ]
+}

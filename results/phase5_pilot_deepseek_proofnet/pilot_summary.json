@@ -1,0 +1,13 @@
+{
+  "run_dir": "/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study/results/phase5_pilot_deepseek_proofnet",
+  "baseline_dir": "results/deepseek_proofnet_baseline",
+  "new_budget": 256000,
+  "n_cells": 10,
+  "n_workers": 8,
+  "n_ran": 2,
+  "n_skipped": 8,
+  "n_extension_solves": 0,
+  "extension_solves_per_seed": {},
+  "model": "deepseek",
+  "benchmark": "proofnet_sharp"
+}

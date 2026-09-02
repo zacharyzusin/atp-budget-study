@@ -1,0 +1,114 @@
+{
+  "goedel_minif2f": {
+    "run_dir": "baseline",
+    "model": "goedel",
+    "benchmark": "minif2f",
+    "n_cells": 732,
+    "n_solved": 548,
+    "M1_problem_heterogeneity": {
+      "n_problems": 244,
+      "seeds_per_problem": 3,
+      "trapped_pct": 22.5,
+      "partial_pct": 4.5,
+      "robust_pct": 73.0,
+      "trapped": 55,
+      "partial": 11,
+      "robust": 178
+    },
+    "M2_post_cstar_decomposition": {
+      "cstar": 32000,
+      "n_still_running_at_cstar": 223,
+      "n_late_bloomers": 39,
+      "n_correctly_abandonable": 184,
+      "late_bloomer_pct_of_post_cstar_pool": 17.5,
+      "late_bloomer_cost_cv": 0.413,
+      "late_bloomer_cost_iqr_over_median": 0.454,
+      "late_bloomer_cost_median": 52398.0,
+      "tokens_wasted_by_uniform_on_dead_cells": 17664000
+    }
+  },
+  "goedel_proofnet_sharp": {
+    "run_dir": "proofnet_baseline",
+    "model": "goedel",
+    "benchmark": "proofnet_sharp",
+    "n_cells": 558,
+    "n_solved": 80,
+    "M1_problem_heterogeneity": {
+      "n_problems": 186,
+      "seeds_per_problem": 3,
+      "trapped_pct": 80.6,
+      "partial_pct": 9.7,
+      "robust_pct": 9.7,
+      "trapped": 150,
+      "partial": 18,
+      "robust": 18
+    },
+    "M2_post_cstar_decomposition": {
+      "cstar": 8000,
+      "n_still_running_at_cstar": 506,
+      "n_late_bloomers": 28,
+      "n_correctly_abandonable": 478,
+      "late_bloomer_pct_of_post_cstar_pool": 5.5,
+      "late_bloomer_cost_cv": 0.83,
+      "late_bloomer_cost_iqr_over_median": 2.184,
+      "late_bloomer_cost_median": 24489.0,
+      "tokens_wasted_by_uniform_on_dead_cells": 57360000
+    }
+  },
+  "deepseek_minif2f": {
+    "run_dir": "deepseek_minif2f_baseline",
+    "model": "deepseek",
+    "benchmark": "minif2f",
+    "n_cells": 732,
+    "n_solved": 527,
+    "M1_problem_heterogeneity": {
+      "n_problems": 244,
+      "seeds_per_problem": 3,
+      "trapped_pct": 25.0,
+      "partial_pct": 5.7,
+      "robust_pct": 69.3,
+      "trapped": 61,
+      "partial": 14,
+      "robust": 169
+    },
+    "M2_post_cstar_decomposition": {
+      "cstar": 16000,
+      "n_still_running_at_cstar": 269,
+      "n_late_bloomers": 64,
+      "n_correctly_abandonable": 205,
+      "late_bloomer_pct_of_post_cstar_pool": 23.8,
+      "late_bloomer_cost_cv": 0.607,
+      "late_bloomer_cost_iqr_over_median": 1.211,
+      "late_bloomer_cost_median": 37606.0,
+      "tokens_wasted_by_uniform_on_dead_cells": 22960000
+    }
+  },
+  "deepseek_proofnet_sharp": {
+    "run_dir": "deepseek_proofnet_baseline",
+    "model": "deepseek",
+    "benchmark": "proofnet_sharp",
+    "n_cells": 1488,
+    "n_solved": 339,
+    "M1_problem_heterogeneity": {
+      "n_problems": 186,
+      "seeds_per_problem": 8,
+      "trapped_pct": 72.6,
+      "partial_pct": 9.7,
+      "robust_pct": 17.7,
+      "trapped": 135,
+      "partial": 18,
+      "robust": 33
+    },
+    "M2_post_cstar_decomposition": {
+      "cstar": 16000,
+      "n_still_running_at_cstar": 1256,
+      "n_late_bloomers": 107,
+      "n_correctly_abandonable": 1149,
+      "late_bloomer_pct_of_post_cstar_pool": 8.5,
+      "late_bloomer_cost_cv": 0.584,
+      "late_bloomer_cost_iqr_over_median": 1.049,
+      "late_bloomer_cost_median": 44811.0,
+      "tokens_wasted_by_uniform_on_dead_cells": 128688000
+    }
+  }
+}

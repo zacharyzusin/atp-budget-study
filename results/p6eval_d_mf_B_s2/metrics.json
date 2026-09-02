@@ -1,0 +1,29 @@
+{
+  "effective_accuracy": {
+    "budget": 32000.0,
+    "mean": 0.6598360655737705,
+    "std": 0.0
+  },
+  "n_cells": 244,
+  "pass_at_b": [
+    {
+      "budget": 8000,
+      "mean": 0.5532786885245902,
+      "n_problems": 244,
+      "n_seeds": 1,
+      "std": 0.0
+    },
+    {
+      "budget": 32000,
+      "mean": 0.6598360655737705,
+      "n_problems": 244,
+      "n_seeds": 1,
+      "std": 0.0
+    }
+  ],
+  "tokens_to_first_proof": {
+    "mean": 4788.037267080746,
+    "median": 2574,
+    "n_solved": 161
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "miniF2F": {
+    "run": "results/baseline",
+    "n_cells": 704,
+    "solve_rate": 0.75,
+    "A1_diversity": {
+      "solved": {
+        "n_cells": 528,
+        "mean_attempts": 2.144,
+        "first_tactic_diversity": 0.85,
+        "skeleton_diversity": 0.907,
+        "mean_distinct_first_tactics": 1.008,
+        "mean_distinct_skeletons": 1.369
+      },
+      "unsolved": {
+        "n_cells": 176,
+        "mean_attempts": 18.903,
+        "first_tactic_diversity": 0.128,
+        "skeleton_diversity": 0.36,
+        "mean_distinct_first_tactics": 1.943,
+        "mean_distinct_skeletons": 6.108
+      }
+    },
+    "A2_taxonomy": {
+      "n_unsolved_cells": 176,
+      "cell_pct": {
+        "reasoning_deep": 98.9,
+        "formalization_syntax": 1.1
+      },
+      "attempt_counts": {
+        "reasoning_deep": 2625,
+        "formalization_syntax": 314,
+        "reasoning_shallow": 201,
+        "loophole_sorry": 131,
+        "knowledge_hallucinated_lemma": 56
+      }
+    },
+    "A3_tokens": {
+      "n_unsolved": 176,
+      "deepest_step_median": 64,
+      "deepest_step_p90": 137,
+      "frac_never_past_step1": 0.011
+    },
+    "A4_stratify": {
+      "amc12": {
+        "solve_rate": 0.941,
+        "n": 17
+      },
+      "mathd": {
+        "solve_rate": 0.939,
+        "n": 374
+      },
+      "amc12b": {
+        "solve_rate": 0.674,
+        "n": 43
+      },
+      "algebra": {
+        "solve_rate": 0.667,
+        "n": 51
+      },
+      "numbertheory": {
+        "solve_rate": 0.625,
+        "n": 24
+      },
+      "aime": {
+        "solve_rate": 0.545,
+        "n": 44
+      },
+      "induction": {
+        "solve_rate": 0.542,
+        "n": 24
+      },
+      "amc12a": {
+        "solve_rate": 0.441,
+        "n": 68
+      },
+      "imo": {
+        "solve_rate": 0.271,
+        "n": 59
+      }
+    },
+    "A5_late_solve_approach": {
+      "first_shot_w0": {
+        "n": 419,
+        "pct_new_approach": 100.0,
+        "pct_switched_from_first": 0.0
+      },
+      "early_w1_2": {
+        "n": 45,
+        "pct_new_approach": 4.4,
+        "pct_switched_from_first": 4.4
+      },
+      "late_w3plus": {
+        "n": 64,
+        "pct_new_approach": 0.0,
+        "pct_switched_from_first": 1.6
+      }
+    }
+  },
+  "ProofNet#": {
+    "run": "results/proofnet_baseline",
+    "n_cells": 558,
+    "solve_rate": 0.143,
+    "A1_diversity": {
+      "solved": {
+        "n_cells": 80,
+        "mean_attempts": 6.3,
+        "first_tactic_diversity": 0.577,
+        "skeleton_diversity": 0.782,
+        "mean_distinct_first_tactics": 1.038,
+        "mean_distinct_skeletons": 3.038
+      },
+      "unsolved": {
+        "n_cells": 478,
+        "mean_attempts": 23.628,
+        "first_tactic_diversity": 0.132,
+        "skeleton_diversity": 0.429,
+        "mean_distinct_first_tactics": 2.28,
+        "mean_distinct_skeletons": 9.027
+      }
+    },
+    "A2_taxonomy": {
+      "n_unsolved_cells": 478,
+      "cell_pct": {
+        "reasoning_deep": 83.9,
+        "reasoning_shallow": 11.3,
+        "formalization_syntax": 3.8,
+        "knowledge_hallucinated_lemma": 1.0
+      },
+      "attempt_counts": {
+        "reasoning_deep": 4388,
+        "formalization_syntax": 2598,
+        "reasoning_shallow": 2551,
+        "knowledge_hallucinated_lemma": 1506,
+        "loophole_sorry": 242,
+        "truncation": 9
+      }
+    },
+    "A3_tokens": {
+      "n_unsolved": 478,
+      "deepest_step_median": 23,
+      "deepest_step_p90": 65,
+      "frac_never_past_step1": 0.1
+    },
+    "A4_stratify": {
+      "Dummit": {
+        "solve_rate": 0.258,
+        "n": 132
+      },
+      "Rudin": {
+        "solve_rate": 0.218,
+        "n": 87
+      },
+      "Artin": {
+        "solve_rate": 0.214,
+        "n": 42
+      },
+      "Ireland": {
+        "solve_rate": 0.133,
+        "n": 30
+      },
+      "Axler": {
+        "solve_rate": 0.119,
+        "n": 42
+      },
+      "Herstein": {
+        "solve_rate": 0.097,
+        "n": 72
+      },
+      "Pugh": {
+        "solve_rate": 0.048,
+        "n": 21
+      },
+      "Munkres": {
+        "solve_rate": 0.011,
+        "n": 90
+      },
+      "Putnam": {
+        "solve_rate": 0.0,
+        "n": 18
+      },
+      "Shakarchi": {
+        "solve_rate": 0.0,
+        "n": 24
+      }
+    },
+    "A5_late_solve_approach": {
+      "first_shot_w0": {
+        "n": 38,
+        "pct_new_approach": 100.0,
+        "pct_switched_from_first": 0.0
+      },
+      "early_w1_2": {
+        "n": 11,
+        "pct_new_approach": 0.0,
+        "pct_switched_from_first": 0.0
+      },
+      "late_w3plus": {
+        "n": 31,
+        "pct_new_approach": 0.0,
+        "pct_switched_from_first": 0.0
+      }
+    }
+  }
+}

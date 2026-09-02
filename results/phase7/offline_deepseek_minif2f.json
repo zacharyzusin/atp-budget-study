@@ -1,0 +1,53 @@
+{
+  "run_dir": "results/deepseek_minif2f_baseline",
+  "trapped": "scratch/phase2/trapped_minif2f_deepseek.txt",
+  "n_trapped_names": 61,
+  "n_cells_mode1": 183,
+  "n_cells_mode2": 183,
+  "mode1_pass_at_b": [
+    {
+      "budget": 2000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    },
+    {
+      "budget": 8000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    },
+    {
+      "budget": 32000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    }
+  ],
+  "mode2_pass_at_b": [
+    {
+      "budget": 2000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    },
+    {
+      "budget": 8000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    },
+    {
+      "budget": 32000,
+      "mean": 0.0,
+      "std": 0.0,
+      "n_seeds": 3,
+      "n_problems": 61
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+[
+  {
+    "name": "baseline",
+    "axis": "baseline",
+    "override": {
+      "agent": {
+        "mode": "whole_proof",
+        "refinement": {
+          "enabled": true,
+          "max_iters": 4,
+          "alloc_split": 0.5
+        },
+        "components": {
+          "memory": {
+            "enabled": false
+          },
+          "reviewer": {
+            "enabled": false
+          },
+          "retrieval": {
+            "enabled": false
+          },
+          "tactic_skeletons": {
+            "enabled": false
+          }
+        }
+      }
+    },
+    "config_hash": "997910016762"
+  },
+  {
+    "name": "budget_alloc__0",
+    "axis": "budget_alloc",
+    "override": {
+      "agent": {
+        "refinement": {
+          "alloc_split": 0.0
+        }
+      }
+    },
+    "config_hash": "f9c7d808c93b"
+  },
+  {
+    "name": "budget_alloc__2",
+    "axis": "budget_alloc",
+    "override": {
+      "agent": {
+        "refinement": {
+          "alloc_split": 1.0
+        }
+      }
+    },
+    "config_hash": "665d7867bfb3"
+  },
+  {
+    "name": "memory__1",
+    "axis": "memory",
+    "override": {
+      "agent": {
+        "components": {
+          "memory": {
+            "enabled": true
+          }
+        }
+      }
+    },
+    "config_hash": "58d68e07d165"
+  },
+  {
+    "name": "reviewer__1",
+    "axis": "reviewer",
+    "override": {
+      "agent": {
+        "components": {
+          "reviewer": {
+            "enabled": true
+          }
+        }
+      }
+    },
+    "config_hash": "287a7ed2b41d"
+  },
+  {
+    "name": "retrieval__1",
+    "axis": "retrieval",
+    "override": {
+      "agent": {
+        "components": {
+          "retrieval": {
+            "enabled": true,
+            "backend": "bm25",
+            "k": 8,
+            "corpus": "scratch/premises/mathlib_2f65ba7f.jsonl"
+          }
+        }
+      }
+    },
+    "config_hash": "ea348c44cf12"
+  },
+  {
+    "name": "tactic_skeletons__1",
+    "axis": "tactic_skeletons",
+    "override": {
+      "agent": {
+        "components": {
+          "tactic_skeletons": {
+            "enabled": true,
+            "schedule": "default"
+          }
+        }
+      }
+    },
+    "config_hash": "39ed67515a38"
+  }
+]

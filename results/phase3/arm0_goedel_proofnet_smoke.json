@@ -1,0 +1,167 @@
+{
+  "config": "configs/proofnet_baseline.yaml",
+  "trapped_file": "scratch/phase2/trapped_proofnet.txt",
+  "n_problems": 30,
+  "n_closed": 0,
+  "closer_list": [
+    "omega",
+    "nlinarith",
+    "norm_num",
+    "simp_all",
+    "decide",
+    "aesop",
+    "first | omega | nlinarith | norm_num | simp_all | decide | aesop"
+  ],
+  "results": [
+    {
+      "name": "Artin__exercise_2_8_6",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_3_7_2",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_6_4_2",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_6_4_12",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_10_4_7a",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_10_6_7",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_11_4_6a",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_11_4_6c",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_11_13_3",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Artin__exercise_13_6_10",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_1_7",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_1_9",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_3_8",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_5_1",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_5_11",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_5_13",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_5_24",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_6_3",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_6_13",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_7_5",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_7_9",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Axler__exercise_7_11",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_1_22b",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_1_6_23",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_1_13",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16a",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_2_4_16c",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_2_8",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_3_3",
+      "closed": false,
+      "closer": null
+    },
+    {
+      "name": "Dummit__Foote__exercise_3_4_4",
+      "closed": false,
+      "closer": null
+    }
+  ]
+}

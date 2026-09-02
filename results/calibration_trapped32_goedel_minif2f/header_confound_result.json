@@ -1,0 +1,38 @@
+[
+  {
+    "name": "aime_1988_p8",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": true,
+    "header_dependent": false
+  },
+  {
+    "name": "aime_1997_p9",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": false,
+    "header_dependent": true
+  },
+  {
+    "name": "algebra_apbon2pownleqapownpbpowon2",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": false,
+    "header_dependent": true
+  },
+  {
+    "name": "amc12a_2021_p8",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": true,
+    "header_dependent": false
+  },
+  {
+    "name": "amc12b_2021_p18",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": true,
+    "header_dependent": false
+  },
+  {
+    "name": "imo_1968_p5_1",
+    "verifies_current_lenient_heartbeat": true,
+    "verifies_old_default_heartbeat": true,
+    "header_dependent": false
+  }
+]

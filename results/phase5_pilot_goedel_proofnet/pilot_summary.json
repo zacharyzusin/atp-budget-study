@@ -1,0 +1,13 @@
+{
+  "run_dir": "/insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study/results/phase5_pilot_goedel_proofnet",
+  "baseline_dir": "results/proofnet_baseline",
+  "new_budget": 256000,
+  "n_cells": 10,
+  "n_workers": 8,
+  "n_ran": 1,
+  "n_skipped": 9,
+  "n_extension_solves": 0,
+  "extension_solves_per_seed": {},
+  "model": "goedel",
+  "benchmark": "proofnet_sharp"
+}
