@@ -52,17 +52,19 @@ The whole-proof baseline sweep for both models × both benchmarks, no scaffoldin
 | budget | miniF2F · Goedel | miniF2F · DeepSeek | ProofNet# · Goedel | ProofNet# · DeepSeek |
 |--------|------------------|--------------------|--------------------|----------------------|
 | 2k   | 29.6% ± 3.3% | 27.9% ± 2.1% | 4.8% ± 1.4% | 5.4% ± 0.5% |
-| 8k   | 60.1% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
-| 32k  | 69.5% ± 0.6% | 67.1% ± 0.9% | 12.0% ± 0.6% | 18.3% ± 1.6% |
-| 128k | 74.9% ± 0.9% | 72.0% ± 0.5% | 14.3% ± 0.8% | 22.2% ± 1.7% |
+| 8k   | 60.2% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
+| 32k  | 69.7% ± 0.8% | 67.3% ± 0.6% | 12.2% ± 0.3% | 18.3% ± 1.6% |
+| 128k | 75.3% ± 1.2% | 73.0% ± 0.4% | 14.9% ± 0.3% | 22.2% ± 1.7% |
 
-**Reading:** miniF2F saturates (~72-75% ceiling by 128k, most of the gain by 8k); ProofNet# never
+*Corrected 2026-09-02 for the `maxHeartbeats` re-verify (audit Check B): 13 trapped-core cells whose proofs were already present in the original generation but were rejected by Lean's old internal heartbeat limit. Arithmetic only, no new runs; the fix strictly widens what counts as solved, so no number moved down. Largest change at any budget: +1.0pp. Before/after per cell, and the check that the uncorrected recompute reproduces the committed `metrics.json` exactly (mean and std), are in [`results/audit/HEARTBEAT_CORRECTED_CURVES.md`](results/audit/HEARTBEAT_CORRECTED_CURVES.md), regenerable via `scripts/fold_heartbeat_correction.py`.*
+
+**Reading:** miniF2F saturates (~73-75% ceiling by 128k, most of the gain by 8k); ProofNet# never
 saturates in this range and is still climbing at 128k, at much lower absolute rates. This asymmetry
 replicates independently on both models — it's a task property, not a model artifact.
 
 **Cross-model dichotomy, checked for artifacts:**
 - Goedel edges DeepSeek in-distribution (−2 to −3pp on miniF2F) but DeepSeek clearly and
-  increasingly beats Goedel out-of-distribution (+8pp at 128k on ProofNet#: 22.2 vs 14.3%, gap
+  increasingly beats Goedel out-of-distribution (+7pp at 128k on ProofNet#: 22.2 vs 14.9%, gap
   widens with budget).
 - **H1 (not a port artifact):** both provers attempt the identical canonical statement sets (244
   miniF2F, 186 ProofNet#, zero disjoint names) and every statement elaborates on *both* Lean pins

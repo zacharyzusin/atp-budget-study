@@ -45,9 +45,11 @@ tokens, ≥3 seeds, mean ± seed-std. Wall-clock and GPU-hours are logged but ne
 | budget | miniF2F · Goedel | miniF2F · DeepSeek | ProofNet# · Goedel | ProofNet# · DeepSeek |
 |--------|------------------|--------------------|--------------------|----------------------|
 | 2k   | 29.6% ± 3.3% | 27.9% ± 2.1% | 4.8% ± 1.4% | 5.4% ± 0.5% |
-| 8k   | 60.1% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
-| 32k  | 69.5% ± 0.6% | 67.1% ± 0.9% | 12.0% ± 0.6% | 18.3% ± 1.6% |
-| 128k | 74.9% ± 0.9% | 72.0% ± 0.5% | 14.3% ± 0.8% | 22.2% ± 1.7% |
+| 8k   | 60.2% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
+| 32k  | 69.7% ± 0.8% | 67.3% ± 0.6% | 12.2% ± 0.3% | 18.3% ± 1.6% |
+| 128k | 75.3% ± 1.2% | 73.0% ± 0.4% | 14.9% ± 0.3% | 22.2% ± 1.7% |
+
+*Corrected 2026-09-02 for the `maxHeartbeats` re-verify (audit Check B): 13 trapped-core cells whose proofs were already present in the original generation but were rejected by Lean's old internal heartbeat limit. Arithmetic only, no new runs; the fix strictly widens what counts as solved, so no number moved down. Largest change at any budget: +1.0pp. Before/after per cell, and the check that the uncorrected recompute reproduces the committed `metrics.json` exactly (mean and std), are in [`results/audit/HEARTBEAT_CORRECTED_CURVES.md`](results/audit/HEARTBEAT_CORRECTED_CURVES.md), regenerable via `scripts/fold_heartbeat_correction.py`.*
 
 miniF2F flattens by 128k; ProofNet# is still climbing at much lower absolute rates. The asymmetry
 replicates on both models independently — it is a task property, not a model artifact. (The 2k column

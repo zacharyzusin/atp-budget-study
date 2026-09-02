@@ -35,15 +35,17 @@ whole-proof sampling at a given budget? And if not — **why** does budget satur
 | budget | miniF2F · Goedel | miniF2F · DeepSeek | ProofNet# · Goedel | ProofNet# · DeepSeek |
 |--------|------------------|--------------------|--------------------|----------------------|
 | 2k   | 29.6% ± 3.3% | 27.9% ± 2.1% | 4.8% ± 1.4% | 5.4% ± 0.5% |
-| 8k   | 60.1% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
-| 32k  | 69.5% ± 0.6% | 67.1% ± 0.9% | 12.0% ± 0.6% | 18.3% ± 1.6% |
-| 128k | 74.9% ± 0.9% | 72.0% ± 0.5% | 14.3% ± 0.8% | 22.2% ± 1.7% |
+| 8k   | 60.2% ± 1.9% | 57.9% ± 1.7% | 9.3% ± 1.1% | 13.1% ± 0.8% |
+| 32k  | 69.7% ± 0.8% | 67.3% ± 0.6% | 12.2% ± 0.3% | 18.3% ± 1.6% |
+| 128k | 75.3% ± 1.2% | 73.0% ± 0.4% | 14.9% ± 0.3% | 22.2% ± 1.7% |
+
+*Corrected 2026-09-02 for the `maxHeartbeats` re-verify (audit Check B): 13 trapped-core cells whose proofs were already present in the original generation but were rejected by Lean's old internal heartbeat limit. Arithmetic only, no new runs; the fix strictly widens what counts as solved, so no number moved down. Largest change at any budget: +1.0pp. Before/after per cell, and the check that the uncorrected recompute reproduces the committed `metrics.json` exactly (mean and std), are in [`results/audit/HEARTBEAT_CORRECTED_CURVES.md`](results/audit/HEARTBEAT_CORRECTED_CURVES.md), regenerable via `scripts/fold_heartbeat_correction.py`.*
 
 **[CORRECTED — see Corrections log #4: the 2k row is attempt-starved (median ZERO full propose
 attempts complete within 2k tokens); treat it as a floor/footnote point, not a comparable curve
 point.]**
 
-- **Same shape on both models.** miniF2F is steep early (≈+30pp over 2k→8k) then saturates to a ~72–75%
+- **Same shape on both models.** miniF2F is steep early (≈+30pp over 2k→8k) then saturates to a ~73–75%
   ceiling by 128k; ProofNet# is ~3–5× harder at every budget and far flatter — it keeps buying proofs but
   the curve is still climbing at 128k from a low base. The budget-saturation *asymmetry* (in-distribution
   saturates; OOD stays budget-hungry) is not a Goedel artifact — it replicates on an independent prover.
@@ -51,7 +53,7 @@ point.]**
   agent loop runs out of independent attempts," not a demonstrated capability ceiling.]**
 - **A cross-model dichotomy.** Goedel slightly edges DeepSeek in-distribution (−2 to −3pp on miniF2F), but
   **DeepSeek clearly beats Goedel on the harder OOD ProofNet# at every budget, and the gap widens with
-  budget** (+8pp at 128k: 22.2 vs 14.3). This is a *training-distribution / recipe* difference, not a
+  budget** (+7pp at 128k: 22.2 vs 14.9). This is a *training-distribution / recipe* difference, not a
   model-size effect — an 8B-vs-7B gap cannot carry it (the models differ in data, RL recipe, base model,
   and mathlib); isolating the cause needs a controlled model-zoo study (future work).
   - *Not a port artifact (H1).* Both provers attempted the identical canonical statement sets (244 miniF2F,
@@ -552,5 +554,33 @@ was decided: a paper.** `paper/floor/main.tex` (14pp, compiles clean) leads with
 contributions and reports the floor as the headline substantive finding, with allocation as a
 constructive counterpoint. **All scope caveats are explicit and load-bearing: frozen provers only,
 7–8B only, and only the interventions we could actually run and trust.**
+
+### Correction #7 (added 2026-09-02): the maxHeartbeats flips are now folded into the pass@B table
+
+The audit's Check B found 13/1212 trapped-core cells (2.0% of trapped problems) whose proofs were
+already present in the original Phase 0-7 generation but were rejected by Lean's old internal
+elaboration-heartbeat limit. That correction had been logged but never applied to the headline
+numbers. **It is now applied** — the pass@B table at the top of this file, and the matching tables in
+`README.md`, `PROJECT_SUMMARY.md` §3 and `paper/floor/main.tex`, carry the corrected values.
+
+Because the fix strictly widens what counts as solved, nothing moved down. The movements:
+
+| cell | 2k | 8k | 32k | 128k |
+|---|---|---|---|---|
+| miniF2F × Goedel    | — | +0.1 | +0.1 | **+0.4** |
+| miniF2F × DeepSeek  | — | — | +0.3 | **+1.0** |
+| ProofNet# × Goedel  | — | — | +0.2 | **+0.5** |
+| ProofNet# × DeepSeek| — | — | — | — (the sole zero-flip core) |
+
+Largest single change +1.0pp; the 2k row is unchanged everywhere. Two derived statements were
+adjusted with it: the miniF2F ceiling is now stated as ~73–75% (was ~72–75%), and the OOD
+cross-model gap at 128k is +7pp (was +8pp: 22.2 vs 14.9, previously 22.2 vs 14.3). **No qualitative
+reading changes** — this was expected, and it is why the correction was safe to defer.
+
+Method and audit trail: `scripts/fold_heartbeat_correction.py` recomputes pass@B directly from the
+per-problem records, and **first verifies that the uncorrected recompute reproduces the committed
+`metrics.json` exactly — mean and std, all four cells, all four budgets** — before applying the
+flips. Per-cell before/after in `results/audit/HEARTBEAT_CORRECTED_CURVES.md`. Arithmetic only: no
+GPU, no new generation, no re-verification.
 
 **Status: closed. No further experiments planned.** For the guided overview see `HANDOFF.md`.

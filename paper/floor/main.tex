@@ -247,9 +247,9 @@ assume $B$$\leftrightarrow$$N$ parity.
     Budget & miniF2F $\cdot$ Goedel & miniF2F $\cdot$ DeepSeek & ProofNet\# $\cdot$ Goedel & ProofNet\# $\cdot$ DeepSeek \\
     \midrule
     2k   & 29.6 $\pm$ 3.3 & 27.9 $\pm$ 2.1 & 4.8 $\pm$ 1.4  & 5.4 $\pm$ 0.5 \\
-    8k   & 60.1 $\pm$ 1.9 & 57.9 $\pm$ 1.7 & 9.3 $\pm$ 1.1  & 13.1 $\pm$ 0.8 \\
-    32k  & 69.5 $\pm$ 0.6 & 67.1 $\pm$ 0.9 & 12.0 $\pm$ 0.6 & 18.3 $\pm$ 1.6 \\
-    128k & 74.9 $\pm$ 0.9 & 72.0 $\pm$ 0.5 & 14.3 $\pm$ 0.8 & 22.2 $\pm$ 1.7 \\
+    8k   & 60.2 $\pm$ 1.9 & 57.9 $\pm$ 1.7 & 9.3 $\pm$ 1.1  & 13.1 $\pm$ 0.8 \\
+    32k  & 69.7 $\pm$ 0.8 & 67.3 $\pm$ 0.6 & 12.2 $\pm$ 0.3 & 18.3 $\pm$ 1.6 \\
+    128k & 75.3 $\pm$ 1.2 & 73.0 $\pm$ 0.4 & 14.9 $\pm$ 0.3 & 22.2 $\pm$ 1.7 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -263,7 +263,7 @@ assume $B$$\leftrightarrow$$N$ parity.
 \end{figure}
 
 Table~\ref{tab:passb} replicates on both models: miniF2F rises steeply from 2k to 8k ($\sim$+30pp) then
-saturates to a $\sim$72--75\% ceiling by 128k; ProofNet\# is 3--5$\times$ harder at every budget and far
+saturates to a $\sim$73--75\% ceiling by 128k; ProofNet\# is 3--5$\times$ harder at every budget and far
 flatter, still climbing at 128k from a low base. This budget-saturation asymmetry --- in-distribution
 saturates, out-of-distribution stays budget-hungry --- is not a single-model artifact.
 
@@ -617,8 +617,10 @@ A further, materially small (13/1212 cells, 2.0\% of trapped problems, both mode
 correction was found on re-verifying trapped-core failures under a Lean elaboration-heartbeat setting
 introduced after those results were generated; every flipped cell's proof was already present in the
 original generation, so the fix only ever widens what counts as solved and the reported floor is, if
-anything, a small upward correction, not an overturned result. \todo{fold the 13 corrected cells back
-into the affected pass@B curves once flowed --- arithmetic-only, not a new experiment.} This 13/1212
+anything, a small upward correction, not an overturned result. These 13 cells \emph{are} folded into
+Table~\ref{tab:passb}: the largest movement at any budget on any cell is $+1.0$pp (miniF2F
+$\cdot$ DeepSeek at 128k), the 2k and 8k rows are unchanged to one decimal on three of four cells,
+and no qualitative reading changes. This 13/1212
 figure is the \emph{final-scoring} blast radius, and understates the setting's live effect on the
 refinement loop itself: on miniF2F, 17.8\% of refine steps (both models, 550/3090 Goedel and
 718/4046 DeepSeek) were immediately preceded by a spurious Lean heartbeat timeout that the
@@ -703,7 +705,7 @@ out-of-distribution claims in this paper; the saturation/still-hungry dichotomy 
 benchmarks is reported as a finding, not hidden as a limitation.
 
 \textbf{``Your Goedel baseline looks low vs.\ the model's own reported number.''} Our 128k-budget,
-3-seed miniF2F baseline is 74.9\% (Table~\ref{tab:passb}), against the model authors' reported 84.6\%.
+3-seed miniF2F baseline is 75.3\% (Table~\ref{tab:passb}), against the model authors' reported 84.6\%.
 Union coverage across the 3 original seeds plus the 32-fresh-sample calibration cell on the trapped
 core (Section~\ref{sec:mechanism}) reaches 195/244 = 79.9\% $\approx$ 80\%, landing between the
 authors' number and a third-party reproduction of $\sim$78\% --- a believable band, not a harness

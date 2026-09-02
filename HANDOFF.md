@@ -66,7 +66,7 @@ Each row's "receipt" is the file with the derivation and raw numbers.
 
 | Phase | Question | What was run | Result | Receipt |
 |---|---|---|---|---|
-| **0** | What does `pass@B` actually look like? | Whole-proof baseline sweep, 2 models × 2 benchmarks × 3 seeds × [2k,8k,32k,128k] | The headline curves (README §1). miniF2F flattens ~72–75% by 128k; ProofNet# still climbing at 14–22%. Asymmetry replicates on both models. | `results/phase0/*.md` |
+| **0** | What does `pass@B` actually look like? | Whole-proof baseline sweep, 2 models × 2 benchmarks × 3 seeds × [2k,8k,32k,128k] | The headline curves (README §1). miniF2F flattens ~73–75% by 128k; ProofNet# still climbing at 15–22%. Asymmetry replicates on both models. | `results/phase0/*.md` |
 | **1** | Does agentic scaffolding help? | OFAT ablation of 6 components (retrieval, memory, reviewer, skeletons, budget alloc ×2), 3 seeds, both benchmarks, + paired-flip analysis | **Null.** Retrieval's apparent +3.4pp did not replicate (+0.7pp on a second run) and paired flips show symmetric churn (+46/−41), not premise injection. On ProofNet# two components are *harmful*: BM25 retrieval −36 net flips, front-loaded allocation −19. | `results/phase1/FINDINGS.md` |
 | **2** | *Why* doesn't it help? | CPU trace mining (F1–F4) + **a causal intervention** (F6: force approach diversity on the fully-trapped core, with a budget-matched manipulation check) | **The mechanism.** Diversity rises 42–70% — the manipulation worked — yet solves stay flat and quality mildly degrades. **Approach discovery is not the bottleneck; within-approach execution depth is.** This explains every other null in this table. | `results/phase2/MECHANISM.md` |
 | **3** | Do hammer/SMT closing tactics break the floor? | Tactic portfolio on trapped problems | **NO-GO.** Portfolio closes 0/40. | `results/phase3/HAMMER_PROBE.md` |
@@ -155,7 +155,7 @@ None are blocking; all are documented.
 
 | # | Thread | Status |
 |---|---|---|
-| 1 | **The 13-cell `maxHeartbeats` scoring correction has not been folded back into the summary tables.** Arithmetic only, no new runs; can only widen what counts as solved, so nothing is over-counted. Tracked as a `\todo` in `main.tex`. | Open, non-blocking |
+| ~~1~~ | ~~The 13-cell `maxHeartbeats` scoring correction has not been folded back into the summary tables.~~ **DONE 2026-09-02.** Folded into every headline table (`README.md`, `SYNTHESIS.md`, `PROJECT_SUMMARY.md` §3, `paper/floor/main.tex`); largest movement +1.0pp, no qualitative change. See `results/audit/HEARTBEAT_CORRECTED_CURVES.md`. | **Closed** |
 | 2 | **Paper finishing work**: citation pass, three figures (generation scripts exist under `scripts/`), author list. Per a standing note, Figure 1 should be the attempts-per-budget / effective-independent-samples curve promoted to the front, not left as appendix numbers. | Open |
 | 3 | **Scale (32B+)** — see §5.5. Feasibility scoped, not run. | Open by choice |
 | 4 | **Phase 4 confirmation on a second model** — the natural next validation if anyone continues. | Open |

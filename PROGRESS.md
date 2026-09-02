@@ -4413,3 +4413,61 @@ tables) are writing work, left open and documented in `paper/floor/README.md` an
 
 **Where things stand:** repository is clean, lint-clean, tested, and self-documenting from a cold
 start. 163 commits remain unpushed to `origin/main` — pushing is the user's call.
+
+---
+
+## 2026-09-02b — The maxHeartbeats correction folded into the headline curves (last open numeric item)
+
+The audit's Check B (2026-07-16) found 13/1212 trapped-core cells whose proofs were already present
+in the original Phase 0-7 generation but had been rejected by Lean's old internal elaboration-
+heartbeat limit. That correction was logged but never applied to the headline numbers — the last
+open numeric loose end in the project. **Now applied.** Arithmetic only: no GPU, no new generation,
+no re-verification.
+
+**Recovering the inputs.** The re-verify recorded `tokens_to_solve` per flipped cell, which is what
+determines *which budget* each flip lands at — a flip at 96k moves only the 128k row, not 2k/8k/32k.
+Three of the four cores predate the checkpointing fix, so their values came from the job logs
+(`logs/audit-trapped-11473232.out` Goedel×miniF2F, `11479253` Goedel×ProofNet#, `11479255`
+DeepSeek×ProofNet# zero-flip); DeepSeek×miniF2F came from
+`results/deepseek_minif2f_baseline/audit_checkpoint.jsonl`. All 13 recovered, none missing.
+
+**Method** (`scripts/fold_heartbeat_correction.py`, new, with `tests/test_fold_heartbeat_correction.py`,
+9 tests): recompute pass@B directly from the per-problem records (solved at B iff
+`tokens_to_solve <= B`), **first without corrections — which must reproduce the committed
+`metrics.json` exactly before the corrected numbers mean anything** — then with the 13 flips applied.
+All four cores reproduced exactly and all 13 flips applied cleanly (none skipped as already-solved or
+missing).
+
+**One methodology bug caught by that check.** The first version compared means only, and passed —
+while silently using population std where the project uses sample std. That would have shrunk every
+reported ± by sqrt(2/3) = 0.82 (e.g. 3.3% -> 2.7%) and looked like a real tightening of variance.
+Extending the reproduction check to std as well as mean caught it. This is the same lesson as the
+`make test` bug from earlier today: **a check that only covers part of the output will pass while the
+uncovered part is wrong.**
+
+**Result** (before -> after, `results/audit/HEARTBEAT_CORRECTED_CURVES.md`):
+
+| cell | 2k | 8k | 32k | 128k |
+|---|---|---|---|---|
+| miniF2F × Goedel     | — | +0.1 | +0.1 | **+0.4** (74.9 -> 75.3) |
+| miniF2F × DeepSeek   | — | — | +0.3 | **+1.0** (72.0 -> 73.0) |
+| ProofNet# × Goedel   | — | — | +0.2 | **+0.5** (14.3 -> 14.9) |
+| ProofNet# × DeepSeek | — | — | — | — (sole zero-flip core) |
+
+Largest movement anywhere +1.0pp; the 2k row is unchanged everywhere; nothing moved down, as
+guaranteed (the fix strictly widens what counts as solved). **No qualitative reading changes** —
+which is exactly why deferring it was safe.
+
+**Propagated to** `README.md`, `SYNTHESIS.md` (+ a new corrections-log entry #7),
+`PROJECT_SUMMARY.md` §3, and `paper/floor/main.tex` (table + the two prose references), each with a
+pointer to the regenerable receipt. Two derived statements adjusted with it: the miniF2F ceiling is
+now ~73–75% (was ~72–75%) and the OOD cross-model gap at 128k is +7pp (was +8pp; 22.2 vs 14.9). A
+cross-document check confirms all four tables now match the script's output exactly. The
+`\todo` in `main.tex` is removed (7 -> 6 remaining, all figures/citations/author list).
+
+`results/audit/AUDIT_FINDINGS.md` Check B now carries a CLOSED note. Audit Step 4 (broadening the
+reverify beyond the trapped core to near-frontier failures) remains **not done** — still a flagged
+residual, unchanged.
+
+**Verification:** `make verify` -> 707 tests pass (698 + 9 new), ruff clean. Paper -> 14pp, 0 errors,
+0 undefined refs, 0 undefined citations.

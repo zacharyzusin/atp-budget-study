@@ -41,9 +41,10 @@ Build artifacts (`.aux`, `.log`, `.bbl`, `main.pdf`) are gitignored — only sou
    Standing note on F1: the attempts-per-budget / effective-independent-samples curve is the methods
    finding most likely to travel beyond this project, so it belongs **on the front page**, not as
    appendix numbers.
-5. **Fold the 13 corrected `maxHeartbeats` cells back into the summary tables.** Arithmetic only, no
-   new runs. The fix can only ever *widen* what counts as solved, so no reported number is currently
-   an over-count. See `results/audit/AUDIT_FINDINGS.md` (Check B).
+5. ~~Fold the 13 corrected `maxHeartbeats` cells back into the summary tables.~~ **DONE
+   2026-09-02** — Table~\ref{tab:passb} and the two prose references now carry the corrected values.
+   Largest movement +1.0pp; no qualitative reading changes. Before/after and the reproduction check
+   are in `results/audit/HEARTBEAT_CORRECTED_CURVES.md`.
 
 ## Framing notes worth preserving
 

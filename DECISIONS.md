@@ -2859,3 +2859,37 @@ from `scripts.` failed collection, while `python -m pytest` worked. The document
 while ad-hoc invocation succeeded, which is why it survived this long. Fixed with
 `pythonpath = ["."]` in `[tool.pytest.ini_options]`; `scripts/` deliberately does not become a
 package, since it is a directory of standalone programs.
+
+---
+
+## 2026-09-02b — Folding the maxHeartbeats correction: two decisions
+
+**1. Recompute from raw per-problem records, not by adding 13 to a numerator.** The tempting shortcut
+— "13 cells flipped, so add 13 solves" — is wrong, because pass@B is a *curve*: a cell only counts at
+budgets at or above its `tokens_to_solve`. Of the 13 flips, the token costs span 6,710 to 105,491, so
+they land on different rows (one lands as low as the 8k row, most only at 128k). Recomputing from the
+records applies each flip at the right budget automatically and, more importantly, makes the whole
+thing *checkable*: the uncorrected recompute has to reproduce the committed `metrics.json` first.
+That reproduction gate is the actual guarantee here — without it, a corrected number is just an
+assertion.
+
+**2. Update the headline tables in place, rather than only appending a correction.** This cuts
+against the project's usual append-only instinct, so the reasoning matters. `PROGRESS.md` and
+`DECISIONS.md` remain strictly append-only, and `SYNTHESIS.md` still gets a numbered corrections-log
+entry (#7) in its established style. But the four *presentation* tables (`README.md`,
+`SYNTHESIS.md`'s headline table, `PROJECT_SUMMARY.md` §3, `paper/floor/main.tex`) are reference
+surfaces a reader quotes from directly — leaving known-superseded numbers there with a footnote
+pointing elsewhere maximises the chance someone cites the wrong figure. Each corrected table carries
+a visible provenance note naming the correction, the magnitude, and the regenerable receipt, so the
+audit trail survives without booby-trapping the tables. The superseded values remain recoverable in
+git history, in `PROGRESS.md`, and in `HEARTBEAT_CORRECTED_CURVES.md`'s before/after columns.
+
+**A methodology bug this caught, worth remembering.** The reproduction gate initially compared only
+the *mean* against `metrics.json`. It passed — while the script was computing population std where
+the project uses sample std, which would have shrunk every reported ± by sqrt((n-1)/n) = 0.82 at
+n=3 (3.3% -> 2.7%) and read as a genuine tightening of seed variance. Extending the gate to std as
+well as mean caught it immediately. **Generalisation: a verification gate that covers only part of
+the output will pass while the uncovered part is silently wrong** — the same shape as the `make test`
+bug found earlier the same day (bare `pytest` vs `python -m pytest`), and the same shape as the
+Phase 8 harness-sanity control that only covered `whole_proof`-format models and therefore missed the
+`no_goal` bug entirely. Three instances of one failure mode in one project.
