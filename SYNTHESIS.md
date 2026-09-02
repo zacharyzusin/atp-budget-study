@@ -493,3 +493,64 @@ derivation in `CALIBRATION_FINDINGS.md` and `DECISIONS.md` (2026-07-21 through 2
    and 52%-encountered rates together, rather than the 1% alone. **It does not reverse the actual
    retrieval decision**: Phase 1's BM25 ablation (−36 net flips on ProofNet#, real experimental harm)
    is direct evidence, independent of this taxonomy, and stands on its own.
+
+---
+
+## Final state (added 2026-09-02 at project close; does not modify the text above)
+
+The narrative above is as of 2026-07-10 and the corrections log as of 2026-07-25. Two things happened
+after, and then the project closed.
+
+**1. Phase 8's headline is WITHDRAWN.** The "0.0%-everywhere corrected floor" for both matched
+lineages is retracted and is **not** reported in the paper. The post-Phase-8 audit found a P0
+`no_goal` verifier bug — an emergent interaction between two independently-correct fixes — that made
+continuation-style completions (the format both Phase 8 lineages use, by design) structurally unable
+to ever score as solved, regardless of model quality. The bug is fixed with a permanent real-Lean
+regression test. What the paper reports is the bug and its mechanism, not a number the audit shows
+cannot be trusted. **Do not cite Phase 8's numbers.** Everything above that treats Phase 8 as a
+confirming null should be read as "attempted, result unusable" instead — the thesis does not depend on
+it, since seven other phases converge independently. See `results/audit/AUDIT_FINDINGS.md` (Check A1)
+and `PROJECT_SUMMARY.md` §13.
+
+**2. The WS6 strengthening sprint (2026-07-25 → 07-26) closed, all six items.** Full detail in
+`PROJECT_SUMMARY.md` §18. What it changed:
+
+- **"Within noise" is gone**, replaced throughout by paired per-problem bootstrap confidence bounds.
+  This sharpened Phase 6 Stage B from "flat" to "null on 3/4 combinations, genuinely harmful on the
+  fourth (Goedel×ProofNet#, −1.97pp, CI [−3.76, −0.54]) — the weakest base cell, i.e. Stage A's
+  mechanism at smaller amplitude."
+- **A new first-class methods lesson:** a within-run bootstrap CI bounds within-run sampling variance
+  only. miniF2F retrieval's CI was entirely positive on one run ([+0.82, +6.15]pp @ 8k) and an
+  independent replication's own CI ([−1.78, +3.14]pp) does not overlap it. Report both, or report
+  neither as a confidence statement about the effect.
+- **The memorization-boundary objection is answered:** trapped problems are marginally *more* similar
+  to the training corpus, not less (p=0.049, r=−0.173) — the wrong direction for "the floor is where
+  recall ends." Stated as *no evidence for, weak evidence against*, with the n and proxy caveats
+  attached.
+- **A new two-model mechanism finding:** neither prover can be *prompted* into a genuine
+  `sorry`-deferred subgoal decomposition on a problem it cannot already solve (5 rounds, both models).
+  DeepSeek stated three correct intermediate facts and still could not defer them — the gap is treating
+  sub-facts as separable obligations, not identifying them. **This is what scopes the entire floor
+  claim to *frozen* whole-proof provers**, and it is the reason the paper explicitly does not claim
+  anything about decomposition-*trained* systems.
+- **The Phase 4 predictor does not improve with richer features** (+0.033 AUC under a pre-registered
+  0.05 bar, seed-holdout guarded) — a small independent corroboration that trapped-ness is not more
+  legible in the generation signal than elapsed spend already makes it.
+
+**The thesis, restated with everything in:** across seven usable phases and two independently-trained
+provers, no test-time intervention and no training intervention we could trust moves the solve rate of
+a **frozen whole-proof prover** at fixed budget — because the bottleneck is within-approach *execution
+depth*, not approach *discovery*, established by a causal intervention and corroborated by two
+independent decomposition probes at different granularities. The one lever that moves anything is
+cross-problem budget **allocation** (~30% compute saved at 90% accuracy on Goedel×ProofNet#, reported
+with a CI that crosses zero — the strongest lever found, not a settled positive). Alongside that sits a
+measurement contribution that may outlast the rest: five structural harness bugs and two reporting gaps
+that reproduce silently in any comparable evaluation.
+
+**The framing question this file previously left open — definitive-negative paper vs. internal record —
+was decided: a paper.** `paper/floor/main.tex` (14pp, compiles clean) leads with the measurement
+contributions and reports the floor as the headline substantive finding, with allocation as a
+constructive counterpoint. **All scope caveats are explicit and load-bearing: frozen provers only,
+7–8B only, and only the interventions we could actually run and trust.**
+
+**Status: closed. No further experiments planned.** For the guided overview see `HANDOFF.md`.

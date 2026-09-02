@@ -1,8 +1,12 @@
 # CLAUDE.md — operating rules for this repo
 
-You are implementing the project specified in `PROJECT_PLAN.md`. Read that file in full once before
-coding. This file is the condensed, always-on rule set. When the two conflict, `PROJECT_PLAN.md` wins
-and you should flag the conflict.
+> **Project status: COMPLETE (closed 2026-09-02). No further experiments are planned.**
+> Read [`HANDOFF.md`](HANDOFF.md) first — it is the guided tour of what was done, what was found, and
+> what is still open. `PROJECT_PLAN.md` is a **historical** spec, not current state.
+>
+> The rules below still govern any work in this repo, and rules 1, 2, 4 and 8 are the ones most likely
+> to matter to someone picking it up. **Do not launch GPU work without asking** — that is now a
+> stronger default than rule 8's original threshold, because the project is closed.
 
 ## The non-negotiables
 
@@ -47,9 +51,19 @@ and you should flag the conflict.
 
 ## Where to start
 
-Follow `PROJECT_PLAN.md` §12 "First actions": Task 0.1 (repo + memory bootstrap) → 0.2 (Lean layer,
-pin mathlib/Lean versions in `DECISIONS.md`) → 0.3 (vLLM + budget meter) → down Phase 0 in order.
-Stop and check in after Phase 0 exit criteria before launching the Phase 1 sweep.
+The project is finished. Orient in this order:
+
+1. [`HANDOFF.md`](HANDOFF.md) — the guided tour: aim, phase-by-phase index, caveats, open threads.
+2. [`README.md`](README.md) — headline findings and how to run things.
+3. [`SYNTHESIS.md`](SYNTHESIS.md) — the consolidated narrative, **including its corrections log**,
+   which is required reading before quoting any number.
+4. `results/*/` — the receipts behind every number cited above.
+
+`PROGRESS.md` and `DECISIONS.md` are the append-only primary sources and win any dispute.
+
+**Before changing anything:** run `make verify` (fast tests + lint) and confirm it is green, so you
+know whether a failure is yours. **Before quoting a number:** check `SYNTHESIS.md`'s corrections log
+and `HANDOFF.md` §5 — several claims carry caveats and Phase 8's headline is withdrawn.
 
 ## Quick commands
 

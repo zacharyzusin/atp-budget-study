@@ -1,5 +1,19 @@
 # Budget-Bounded Agentic Theorem Proving — Project Plan & Coding-Agent Manual
 
+> ## ⓘ HISTORICAL DOCUMENT — not current state
+>
+> This is the **original project spec**, written at project start (2026-06-04) as the authoritative
+> plan for implementation. It was executed and then substantially revised by what the experiments
+> actually found: the "Phase 2 — learned controller" arc described below was superseded by the
+> mechanism work and the cross-problem allocation study (the repo's actual Phases 2 and 4), and the
+> project ultimately ran through Phase 8 plus an independent audit.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md) and [`README.md`](README.md).** This file is
+> kept for the audit trail — it shows what was planned before the evidence came in.
+
+---
+
+
 > **Audience:** this document is written to be handed to a coding agent (Claude Code) as the
 > authoritative spec for implementation, **and** to the human research team as the project plan.
 > Read the whole thing once before writing any code.

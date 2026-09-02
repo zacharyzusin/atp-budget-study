@@ -1,5 +1,17 @@
 # Codebase & Results Audit Plan
 
+> ## ⓘ HISTORICAL DOCUMENT — not current state
+>
+> The plan for the independent post-Phase-8 audit (2026-07-10). **Executed and closed.** Its findings
+> — including the P0 `no_goal` verifier bug that withdrew Phase 8's headline, and the material
+> `maxHeartbeats` scoring correction — are in `results/audit/AUDIT_FINDINGS.md`, and are summarized in
+> [`HANDOFF.md`](HANDOFF.md) §5.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md).**
+
+---
+
+
 > **For agentic workers (Sonnet implementer):** Execute task-by-task with `superpowers:executing-plans`.
 > Steps use checkbox (`- [ ]`) syntax. This audit GATES `PLAN_NEXT.md` WS1 — no new GPU sweep is
 > submitted until Tasks A0, A1, A2, and B clear (or their impact is quantified and bounded).

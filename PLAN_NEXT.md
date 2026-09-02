@@ -1,5 +1,18 @@
 # PLAN_NEXT.md — Post-Phase-8 Execution Plan
 
+> ## ⓘ HISTORICAL DOCUMENT — not current state
+>
+> The **post-Phase-8 execution plan** (written 2026-07-10, extended 2026-07-25 with the WS6
+> strengthening sprint). Everything in it is now closed: WS0 (the audit), WS1 (Phase 4 validation and
+> Gate G1), WS2 (the paper draft), and WS6 (all six items, closed 2026-07-26). WS3/WS4/WS5 were
+> deliberately not pursued.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md).** This file is kept for the audit trail — its
+> pre-registrations are the record of what was committed to before each result was known.
+
+---
+
+
 > **For agentic workers (Sonnet implementer):** Use `superpowers:executing-plans`. **WS0 (the audit,
 > `AUDIT_PLAN.md`) runs first and gates WS1.** Everything in §0–§WS5 below is the user's plan verbatim;
 > the **Operational Addendum** immediately below is Claude's grounding of it against the actual codebase

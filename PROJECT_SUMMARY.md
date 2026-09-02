@@ -695,16 +695,27 @@ project.
 
 ## 17. Where things stand right now, and what's left
 
-- **All planned experiments are complete.** WS1 (the DeepSeek seed power-up and Gate G1) closed out
-  2026-07-21.
-- **What's left is writing it up.** A first-pass paper skeleton exists (`paper/floor/main.tex`,
-  compiles cleanly) with real numbers pulled in, but paper work is paused per an earlier explicit
-  instruction until the user chooses to resume it — this document does not change that.
-- **One small, non-blocking loose end:** the 13-cell heartbeat scoring correction (§13) needs
-  arithmetic-only folding back into the summary tables.
-- **One optional, not-yet-decided item:** whether to spend GPU time re-generating and re-verifying
-  Phase 8's model-zoo results under the fully-fixed harness (§13, Check A1) to fully clear its
-  headline number, vs. leaving it as a flagged, well-understood caveat.
+> **Updated 2026-09-02 at project close.** The text of §1–§16 above is as written 2026-07-21 and is
+> left intact; §18 below adds the WS6 sprint that ran after it. For the current guided overview see
+> [`HANDOFF.md`](HANDOFF.md).
+
+- **All experiments are complete and the project is closed.** WS1 (the DeepSeek seed power-up and
+  Gate G1) closed 2026-07-21; the WS6 strengthening sprint closed 2026-07-26 (§18). **No further
+  experiments are planned.**
+- **What's left is writing it up.** `paper/floor/main.tex` compiles cleanly at 14pp with every
+  finding folded in, reframed to lead with the measurement contributions. Open `\todo`s are a
+  citation pass, three figures (generation scripts exist), and the author list.
+- **One small, non-blocking loose end:** the 13-cell heartbeat scoring correction (§13) still needs
+  arithmetic-only folding back into the summary tables. It can only widen what counts as solved, so
+  nothing above is an over-count.
+- **One optional item, decided not to do:** re-generating and re-verifying Phase 8's model-zoo
+  results under the fully-fixed harness (§13, Check A1). Instead, Phase 8's headline was **withdrawn**
+  — the paper reports the bug and its mechanism rather than a number the audit shows cannot be
+  trusted. This is the resolution, not a pending decision.
+- **The largest untested question:** everything here is at 7–8B. Whether the floor persists at 32B+
+  is unknown. Feasibility of a 32B calibration cell was scoped (fits via vLLM tensor-parallel-size 2
+  on this cluster's dual-l40s nodes, no quantization) in `results/phase_scale32b/FEASIBILITY.md` and
+  deliberately **not run**.
 
 **Overall assessment:** a systematic, heavily-audited elimination of a wide space of plausible
 interventions — scaffolding (Phase 1), search-time diversity forcing (Phase 2), hammer/SMT tactics
@@ -717,3 +728,91 @@ allocation policy helps, confirmed robustly on one model (Goedel, +26%±7%), gen
 on a second even at 8 seeds (DeepSeek, +10%±24%). That combination is a normal, publishable shape for
 a paper — a well-supported negative result plus an honestly-scoped positive one — just not a flashy
 one.
+
+---
+
+## 18. WS6 — the post-draft strengthening sprint (2026-07-25 → 2026-07-26)
+
+*Added 2026-09-02 at project close. Six items proposed after the first paper draft, ranked by "changes
+what the paper can claim" rather than "tidies it," with an explicit 2026-08-08 stopping rule. All six
+closed early, on 2026-07-26. Pre-registrations in `PLAN_NEXT.md` §WS6.*
+
+**Item 1 — Equivalence-testing reframe (free, CPU).** Replaced every "within noise" null with a
+**paired per-problem bootstrap upper confidence bound** (`scripts/equivalence_bounds.py`, clustered by
+problem so all seeds of a problem resample together). Covers all Phase 1 scaffolding components on both
+benchmarks, plus Phase 6 Stage A/B. Results in `results/EQUIVALENCE_BOUNDS.md`.
+
+- **Stage A: harmful everywhere** — CIs entirely negative on all 4 model×benchmark combos.
+- **Stage B: null on 3/4, but Goedel×ProofNet# is entirely negative** (−1.97pp, 95% CI
+  [−3.76, −0.54]). Not arbitrary: that is the weakest of the four base cells (14.2% pass@32k vs.
+  17.6/61.5/70.4%), i.e. the same mechanism as Stage A's uniform harm at smaller amplitude.
+- Step C is **not** comparable via this machinery — its "baseline" is the trapped population by
+  construction (0/N), not a separately-sampled run with its own variance. Raw solve-rate reporting
+  stands there.
+- **The methods finding that came out of it:** miniF2F retrieval's bootstrap CI on the original run is
+  entirely positive ([+0.82, +6.15]pp at 8k), but an independent replication run's own CI
+  ([−1.78, +3.14]pp) **does not overlap it at all** (`scripts/retrieval_replication_ci.py`,
+  `results/RETRIEVAL_REPLICATION_CI.md`). A within-run bootstrap CI bounds within-run sampling
+  variance only — not run-to-run campaign variance. This is now a first-class reporting lesson in the
+  paper.
+
+**Item 2 — Contamination-boundary test (free half only).** Is the execution floor just "where
+training-set recall ends"? **No.** Trapped problems are marginally *more* similar to the training
+corpus than solved ones, not less (Mann-Whitney p=0.049, rank-biserial r=−0.173) — the wrong direction
+for the memorization account, so the paid escalation (mutation probes / miniF2F-v2) was **not**
+triggered. A recovery-level cross-check: of the 9 calibration recoveries across both models, 4 are
+harness artifacts (both models' heartbeat/header flips) and exactly 1 (`amc12a_2021_p8`) has a known
+exact training-corpus overlap — binomial vs. the trapped-population base rate gives p=0.281, not
+elevated. **Stated precisely: no evidence for the memorization-boundary account, weak evidence against
+it.** Two caveats travel with the claim (fragile at n=55 vs 189; TF-IDF is a proxy for one corpus, not
+either model's actual pretraining mix). `results/phase6/CONTAMINATION_CORRELATION.md`.
+
+**Item 3 — Decomposition arm: NO-GO on both models, promoted to a mechanism finding.** Built the full
+decompose → sketch-check → prove-subgoals → splice pipeline (`src/atp/agents/decomposition.py`, 20/20
+tests green) and ran **5 independent smoke rounds** on trapped problems — 4 on Goedel (including a
+revised prompt, a larger budget, and finally a few-shot example with an explicit "use MORE THAN ONE
+`have`" instruction) and 1 on DeepSeek. **Neither prover ever produced a genuine multi-`have`,
+`sorry`-deferred decomposition on a problem it could not already solve.** Two failure shapes recurred:
+a full inline attempt with zero sorries, or the whole goal wrapped in one degenerate `have` closed by a
+bare `sorry`. DeepSeek got closest — it stated *three* correct-looking intermediate facts, then punted
+on the close.
+
+The distinction that matters: this is **not an inability to identify subgoals** — it is specifically an
+inability (or unwillingness) to **defer** them with `sorry`. Whole-proof training appears to remove the
+deferral mode, not the decomposition vocabulary. Together with Phase 7's tactic-level null (two
+independent probes, two granularities, same answer), this is a structural claim about frozen
+whole-proof provers, and it is what scopes the paper's floor to *frozen* provers rather than to
+decomposition-trained systems. Phrased as an existence claim — never observed across five rounds — not
+as a measured rate from a systematic sweep. The pre-registered stopping rule fired as written, so the
+55-problem array was never launched: **~2.3 GPU-h total**. `results/phase_decomp/DESIGN.md`.
+
+**Item 4 — Phase 4 predictor v2: negative, closed on its own rule.** Pre-registered *before any code*
+(`results/phase4/PREDICTOR_V2_DESIGN.md`): decision rule (AUC gain < 0.05 → caveat stands; ≥0.85 AND
+DeepSeek clears 1σ → framing revises) plus a CV guard — **seed 2, the seed behind DeepSeek's −51%
+per-seed saving collapse, held out entirely** from feature and model selection, with cross-validation
+by problem group on seeds {0,1} only and exactly one final evaluation on the held-out seed. Added 5
+candidate features additively (`FEATURE_NAMES_V2`, a strict superset, so v1 behavior is byte-identical),
+10 new tests, all green. **Result: max AUC gain +0.033, under the bar; several cells got worse.** Rule
+triggers NO-CHANGE — the model-dependence framing stands as written.
+
+Folded into the paper as a small independent corroboration rather than a null nobody needed:
+trapped-ness is **not** more legible in the richer generation signal than elapsed spend and proof-depth
+plateau already make it, which is what an execution floor predicts — the predictability cost is
+ranking-limited, not floor-limited. `results/phase4/PREDICTOR_V2_RESULT.md`.
+
+**Item 6 — housekeeping.** (a) pass@32 reconciliation: 195/244 ≈ 80%, folded in. (b) Phase 7
+fresh-control extended to 3 seeds (450/450 cells): Mode 3 gives 5/450 solved cells (4 distinct
+problems) vs. the control's 2/450 — Fisher exact p=0.45 cell-level, p=0.68 distinct-problem level.
+**Confirms the single-seed NULL, does not overturn it.** (c) DeepSeek trapped-core calibration on
+miniF2F: pass@32 = 4.9% (3/61), but 2/3 overlap the known heartbeat-fix flip list → overlap-corrected
+clean rate 1/61 (1.6%). Sound; DeepSeek remains uncalibrated on ProofNet#, a logged scope limit.
+
+**Item 5 — artifact release packaging.** Queued, never done. Still the most useful remaining follow-on:
+the trapped-core subsets with provenance, the failed-attempt trace corpus, and the harness with its
+five-bug catalogue and regression tests.
+
+**Sprint outcome.** Every item landed as a *confirmation* — nothing changed a headline; several claims
+got materially more precise (Stage B's per-combination harm, the contamination effect size and its
+caveats, the decomposition finding's promotion from a scope limit to a mechanism claim, and the
+replication-CI lesson). That pattern — successive rounds all confirming — is what closed the analysis
+track and moved the project to writing.

@@ -1,5 +1,17 @@
 # Budget-Bounded Agentic Theorem Proving — Full Research Compilation
 
+> ## ⓘ POINT-IN-TIME SNAPSHOT (2026-07-03) — accurate as of its date, but not current
+>
+> A standalone compilation prepared for external review. It predates Phase 8's withdrawal, the
+> independent audit, the 2026-07-25 corrections log, and the WS6 sprint. Everything in it was true
+> when written; several framings have since been sharpened or retracted.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md); for the corrections read `SYNTHESIS.md`'s
+> "Corrections log".**
+
+---
+
+
 *Standalone snapshot for external review (advisor + a fresh coding agent). Assumes zero prior
 context. Compiled 2026-07-03 from the repo's lab notebooks (`PROGRESS.md`, `DECISIONS.md`) and the
 per-phase results docs (`results/*/`, `SYNTHESIS.md`). Every number below traces to a committed

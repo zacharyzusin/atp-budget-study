@@ -1,5 +1,17 @@
 # Phase 2 — From negative result to mechanism
 
+> ## ⓘ HISTORICAL DOCUMENT — not current state
+>
+> The Phase 2 plan (2026-06-17). Executed; the mechanism result it aimed at is in
+> `results/phase2/MECHANISM.md`. Note that its stated thesis ("compute budget is the lever") was
+> **revised by later evidence** — the surviving positive is cross-problem *allocation* (Phase 4), not
+> raw budget, and Phase 5 showed more budget on trapped problems buys ~nothing.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md).**
+
+---
+
+
 **Thesis we are writing toward:** *Compute budget, not agentic scaffolding, is the lever for
 whole-proof proving at this scale — and here is precisely where and why budget stops paying off
 (diversity collapse / capability floor on OOD problems), validated across two prover models, with a

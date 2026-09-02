@@ -1,5 +1,17 @@
 # Phase 3 — Hardening & Writeup Plan (lock the negative thesis, reviewer-proof)
 
+> ## ⓘ HISTORICAL DOCUMENT — not current state
+>
+> The Phase 3 hardening plan (2026-06-20). Executed: the four CPU hardening checks (H1–H4) passed and
+> the hammer/SMT probe returned NO-GO (`results/phase3/HAMMER_PROBE.md`). Its framing of Phase 3 as
+> "lock the thesis and write up" was overtaken — the project continued through Phases 4–8 and an
+> independent audit.
+>
+> **For current state read [`HANDOFF.md`](HANDOFF.md).**
+
+---
+
+
 *Created 2026-06-20. Origin: external review of the completed Phase 2 arc (see scratch/NEXT_STEPS_QUERY.md
 for the results message that prompted it). Verdict from that review: the scientific arc is COMPLETE and
 reached the right way (Phase 1 null → Phase 2 mechanism → F6 interventional close, on two provers). Before
