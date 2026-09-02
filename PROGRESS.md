@@ -4343,3 +4343,73 @@ corroborating value. Six corrections logged, two Phase 0 characterizations fixed
 paper can claim that it couldn't before. Next work on this project is drafting (intro, thesis framing,
 Phase 4 vs. adaptive-allocation literature positioning), not further analysis, per explicit user
 guidance.
+
+---
+
+## 2026-09-02 — Project close: repository wrap-up and handoff
+
+**Context.** User is wrapping up the research project: no further experiments will be run. Task was
+to make the repository clean, organized, up to date, bug-free and documented well enough to hand to
+someone with no context ("what the aim was, what the experiments were, what the results were, and
+where things stand"). No GPU work; nothing scientific re-run or re-derived.
+
+**Audit first.** Baseline before touching anything: fast suite green, `ruff check .` 325 errors, tree
+clean at `3489d8b`, paper 14pp compiling. Found nine handoff gaps, four of them significant:
+
+1. **`README.md` was badly stale** — described the project as "Phase 0 complete, baseline sweep
+   currently running, no headline numbers claimed yet," with a learned controller as future work. A
+   newcomer would have read the wrong project entirely.
+2. **All 28 per-phase result docs were untracked.** `results/` was gitignored wholesale, but
+   `SYNTHESIS.md`/`PROJECT_SUMMARY.md` cite `results/phase1/FINDINGS.md`, `phase4/ALLOCATION.md` etc.
+   as the numeric source of truth — so a clone had dangling references to every receipt.
+3. **No navigation.** Ten top-level markdown files with overlapping roles, several historical plans
+   reading as current state.
+4. **Both summary docs stale at the end** — `PROJECT_SUMMARY.md` §17 still said "paper work is
+   paused"; neither covered WS6.
+
+**What was done.**
+- **Receipts now tracked** (`959c57f`): the 28 result docs, every `metrics.json`, every
+  `run_manifest.json` (git SHA / model revision / mathlib commit / Lean version per run), and the
+  top-level analysis JSON — ~0.9 MB. Still ignored: `results/*/problems/` (GB-scale). Required
+  changing the ignore pattern from `results/` to `results/**`; git will not descend into an excluded
+  *directory*, so the trailing-slash form made the re-includes unreachable.
+- **`README.md` rewritten** as a real front door, and **`HANDOFF.md` written** as the guided tour:
+  live-vs-historical doc roles, a phase-by-phase index (question / what ran / result / receipt), what
+  was tried and eliminated, a "what NOT to trust" section (Phase 8 withdrawn, the corrections log,
+  Phase 4's CI crossing zero, the 7–8B scope limit), open threads, and the cluster gotchas.
+- **Summary docs brought current**: `SYNTHESIS.md` got an appended final-state section (Phase 8
+  withdrawal + WS6), `PROJECT_SUMMARY.md` a corrected §17 and a full §18 on WS6. Append-only
+  discipline preserved — no existing text edited.
+- **Status banners** on the six historical plan docs; `CLAUDE.md` reoriented from "start Phase 0" to
+  "the project is closed, read HANDOFF first."
+- **Per-directory indexes** for `results/`, `scripts/` (64 scripts grouped by phase), `slurm/`,
+  `configs/`, `env/`, `paper/floor/`.
+- **`LICENSE`** (MIT) and **`env/`** (frozen pip + conda listings; pins match the documented stack:
+  vllm 0.8.5.post1 / torch 2.6.0 / transformers 4.51.3).
+- **Lint: 325 → 0**, `make verify` added as the commit gate.
+
+**One real bug found and fixed** (`15f947c`): **`make test` was broken, and had been.** Five
+`tests/test_phase8_*.py` modules import from `scripts.`, which needs the repo root on `sys.path`. A
+bare `pytest` — exactly what `make test` runs — fails collection on all five with
+`ModuleNotFoundError`; `python -m pytest` silently works because it adds the cwd itself. So the
+documented entry point was broken while every ad-hoc invocation looked fine. Confirmed pre-existing
+by checking out `3489d8b` in a scratch worktree and reproducing. Fixed with `pythonpath = ["."]` in
+the pytest config rather than an `__init__.py`, since `scripts/` is standalone programs, not a
+package.
+
+**Verification (all run, not assumed).** `make verify` → 698 fast tests pass, ruff clean.
+`make test-all` → 701 passed, 1 skipped. Paper → 14pp, 0 LaTeX errors, 0 undefined refs, 0 undefined
+citations (with bibtex). All 49 markdown docs' internal links resolve; every qualified repo path
+cited in the live docs exists. For the lint work specifically, behavior-neutrality was *proved* per
+file rather than trusted: AST comparison plus a literal-by-literal diff against the previous commit —
+every non-docstring literal byte-identical, the only AST diffs being the docstring rewraps, and no
+module `__doc__` changed (several scripts pass `__doc__` to argparse, so that would have altered
+user-facing `--help`).
+
+**Not done, deliberately:** no experiments, no GPU jobs, no 32B cell; `PROGRESS.md`/`DECISIONS.md`
+not rewritten (append-only, the audit trail is an asset); the paper's remaining `\todo`s (citation
+pass, three figures, author list, and folding the 13 corrected heartbeat cells into the summary
+tables) are writing work, left open and documented in `paper/floor/README.md` and `HANDOFF.md` §6.
+
+**Where things stand:** repository is clean, lint-clean, tested, and self-documenting from a cold
+start. 163 commits remain unpushed to `origin/main` — pushing is the user's call.

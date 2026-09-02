@@ -2805,3 +2805,57 @@ cell).
 Full detail: `results/calibration_trapped32_deepseek_minif2f/metrics.json`. Will fold into
 `paper/floor/main.tex`'s scope-limits list (narrow "uncalibrated on both benchmarks" to
 "ProofNet# only" for DeepSeek) in the next writing pass.
+
+---
+
+## 2026-09-02 — Wrap-up decisions (project close)
+
+Five judgment calls made while preparing the repository for handoff, recorded because each had a
+defensible alternative.
+
+**1. Track the result docs and small JSON in git; keep `results/*/problems/` out.** The summary docs
+cite `results/*/` paths as their numeric source of truth, so a clone that omits them has dangling
+references to every receipt — the docs stop being verifiable. Tracking the 28 result docs, the
+`metrics.json` files, the `run_manifest.json` provenance records and the top-level analysis JSON
+costs ~0.9 MB, which is nothing, and makes the repo self-contained. The per-problem output stays out
+because it is GB-scale and nothing in the docs depends on it. *Alternative rejected:* leaving
+`results/` fully ignored and telling the recipient to ask for a tarball — that makes the audit trail
+conditional on a second transfer that may never happen.
+
+**2. Write a new `HANDOFF.md` rather than expanding `SYNTHESIS.md` or `PROJECT_SUMMARY.md`.** Those
+two are *narratives* with append-only discipline and specific dated scopes; bending either into a
+navigation document would have meant editing existing text, which this project deliberately does not
+do. A newcomer needs an entry point that says "here is what's live, here is what's history, here is
+what not to trust" — a different job from either existing doc.
+
+**3. Historical plan docs get banners, not deletion or archival.** `PROJECT_PLAN.md`, `PLAN_NEXT.md`,
+`PHASE2_PLAN.md`, `PHASE3_PLAN.md`, `AUDIT_PLAN.md` and `RESEARCH_COMPILATION.md` all describe states
+the project has moved past — `PROJECT_PLAN.md` in particular plans a learned controller that was
+superseded by the mechanism work. They stay in place with a header saying when they were written and
+what superseded them. They hold the pre-registrations, which are the record of what was committed to
+*before* each result was known; that is worth more than a tidy directory.
+
+**4. Targeted `ruff format` on the 37 files with violations, not a repo-wide reformat.** A blanket
+format was tried first: it fixed more E501s but touched 122 files and 2,833 lines. This project
+treats its history as an asset (append-only notebooks, corrections logged rather than edited), and
+burying the substantive lint fixes under a mass reformat works against that. The targeted version
+gets to zero lint errors with a diff proportionate to the problem. *Verification standard applied:*
+every formatting change was proved behavior-neutral by AST comparison plus a literal-by-literal diff,
+not by eyeballing — the 37-file reformat came back AST-identical and literal-identical.
+
+**5. Two files get `per-file-ignores` for E501 instead of being rewrapped.**
+`src/atp/agents/decomposition.py` holds the model-facing decomposition prompt, whose exact wording
+(including the "MORE THAN ONE such `have`" instruction) is the *independent variable* of the WS6
+decomposition probe — five rounds of deliberate prompt revision are documented in
+`results/phase_decomp/DESIGN.md`. `scripts/contamination_correlation.py` holds the generated Markdown
+report template; reflowing it would silently change `results/phase6/CONTAMINATION_CORRELATION.md` on
+rerun. Both keep their long lines inside triple-quoted strings, where an inline `# noqa` is
+impossible — it would become part of the string. Reformatting research inputs to satisfy a style rule
+is the wrong trade; the exemption is recorded in `pyproject.toml` with the reason.
+
+**One bug fixed, not a decision but worth the entry:** `make test` had been broken — a bare `pytest`
+does not put the repo root on `sys.path`, so the five `tests/test_phase8_*.py` modules that import
+from `scripts.` failed collection, while `python -m pytest` worked. The documented entry point failed
+while ad-hoc invocation succeeded, which is why it survived this long. Fixed with
+`pythonpath = ["."]` in `[tool.pytest.ini_options]`; `scripts/` deliberately does not become a
+package, since it is a directory of standalone programs.
