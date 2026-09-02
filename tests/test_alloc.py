@@ -27,6 +27,14 @@ from atp.eval.records import ProblemResult
 ROOT = Path(__file__).resolve().parents[1]
 PROOFNET = ROOT / "results" / "proofnet_baseline"
 
+# The per-problem records under results/*/problems/ are cluster-only: they are gitignored bulk
+# output (GB-scale), so a fresh clone does not have them. The tests below are integration checks
+# against that real logged data, not unit tests -- skip rather than fail when it is absent.
+needs_real_runs = pytest.mark.skipif(
+    not (PROOFNET / "problems").is_dir(),
+    reason="needs results/proofnet_baseline/problems/ (cluster-only, gitignored bulk output)",
+)
+
 
 def _cell(name: str, seed: int, solved: bool, tts: int | None) -> ProblemResult:
     return ProblemResult(
@@ -67,6 +75,7 @@ def test_unsolved_cost_is_inf():
 
 
 @pytest.mark.skipif(not PROOFNET.exists(), reason="baseline run not on disk")
+@needs_real_runs
 def test_solved_identity_on_real_cells():
     # On real logged cells: cost<=128k must equal the logged `solved` flag, and the §0 identity must
     # reproduce solve/no-solve at a couple of intermediate budgets too.
@@ -82,6 +91,7 @@ def test_solved_identity_on_real_cells():
 # ---- policy invariants ---------------------------------------------------------------------------
 
 
+@needs_real_runs
 def test_uniform_reproduces_logged_pass_at_b_real():
     # The load-bearing calibration: uniform at T = N*b solves exactly pass@b * N cells.
     if not PROOFNET.exists():
@@ -269,6 +279,7 @@ def test_features_never_include_label():
 
 
 @pytest.mark.skipif(not PROOFNET.exists(), reason="baseline run not on disk")
+@needs_real_runs
 def test_real_rows_build_and_respect_causality():
     rows = build_feature_rows(PROOFNET, checkpoints=(2000, 8000))
     assert rows, "no rows built"

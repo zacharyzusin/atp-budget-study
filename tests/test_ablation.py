@@ -19,6 +19,14 @@ from atp.eval.ablation import (
 )
 
 PHASE1 = CONFIGS_DIR / "phase1_ablation.yaml"
+
+# The retrieval cell validates against the BM25 premise corpus, a large build artifact that lives in
+# gitignored scratch/ (built by scripts/build_premise_corpus.py). Absent in a fresh clone.
+_PREMISE_CORPUS = list((CONFIGS_DIR.parent / "scratch" / "premises").glob("*.jsonl"))
+needs_premise_corpus = pytest.mark.skipif(
+    not _PREMISE_CORPUS,
+    reason="needs scratch/premises/*.jsonl (build with scripts/build_premise_corpus.py)",
+)
 PHASE1_SMOKE = CONFIGS_DIR / "phase1_ablation_smoke.yaml"
 
 
@@ -119,6 +127,7 @@ def test_cli_ablation_cell_id_out_of_range():
     assert rc == 2
 
 
+@needs_premise_corpus
 def test_phase1_cells_pass_check():
     # The shipped config must be fully runnable: every expanded cell validates (schema+components).
     validate_cells(expand_ablation(load_config(PHASE1)))
