@@ -52,6 +52,8 @@ filesystem at the project root; nothing else here depends on them being present.
 | `phase8/CONTROL_AUDIT_STATUS.md` | Why the harness-sanity control did not catch the bug (it only covered whole-proof-format models). |
 | `phase8/CHECKIN2_REVIEW_SUMMARY.md` | Mid-phase review. |
 | **The audit** | |
+| `audit/BUG_CATALOGUE.md` | **The reusable artifact.** All five harness bugs + the two measurement gaps, each with mechanism, blast radius, direction of error, the regression test that locks it, and a "check your own harness" test. Written to be useful outside this project. |
+| `audit/HEARTBEAT_CORRECTED_CURVES.md` | The `maxHeartbeats` fold-in: per-cell before/after, plus the check that the uncorrected recompute reproduces every committed `metrics.json` exactly. |
 | `audit/AUDIT_FINDINGS.md` | ~30 independent checks. **Check A1** = the P0 `no_goal` verifier bug that withdrew Phase 8; **Check B** = the material `maxHeartbeats` scoring correction (13/1212 cells). Most other checks re-derived committed numbers *exactly*, with code importing none of the project's own analysis. |
 | **WS6 — strengthening sprint** | |
 | `EQUIVALENCE_BOUNDS.md` | Paired per-problem bootstrap CIs replacing "within noise" — Phase 1 components and Phase 6 Stage A/B. |
@@ -59,6 +61,14 @@ filesystem at the project root; nothing else here depends on them being present.
 | `phase_decomp/DESIGN.md` | The decomposition probe: pre-registration, all five smoke rounds, and the two-model NO-GO. The second worked example of a pre-registered stopping rule doing its job (~2.3 GPU-h instead of a full array). |
 | **Not run** | |
 | `phase_scale32b/FEASIBILITY.md` | Scoping for a 32B calibration cell — fits via vLLM `--tensor-parallel-size 2` on this cluster's dual-l40s nodes, no quantization. **Deliberately not run.** Recorded so the decision is informed rather than re-investigated. |
+
+## Reusable artifacts
+
+| Path | What |
+|---|---|
+| `trapped_cores/` | The five trapped-core problem lists (the population the execution floor lives in), with provenance and the three caveats that travel with them. Ported out of gitignored `scratch/` at project close. |
+| `audit/BUG_CATALOGUE.md` | The five harness bugs and two measurement gaps, written for reuse. |
+| `phase0/ATTEMPTS_PER_BUDGET_TABLE.md` | The pass@budget -> pass@N conversion table. |
 
 ## Run directories
 

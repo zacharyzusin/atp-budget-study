@@ -159,7 +159,7 @@ None are blocking; all are documented.
 | 2 | **Paper finishing work.** Figures **done** (all four generated and embedded 2026-09-02 via `scripts/make_paper_figures.py`, including the attempts-per-budget curve promoted to the front half as the standing note asked). **Remaining: the related-work citation pass** (2 `\todo`s) **and the author list** (deliberately blank for anonymization). | Partly open |
 | 3 | **Scale (32B+)** — see §5.5. Feasibility scoped, not run. | Open by choice |
 | 4 | **Phase 4 confirmation on a second model** — the natural next validation if anyone continues. | Open |
-| 5 | **Artifact release packaging** — trapped-core benchmark subsets with provenance, the failed-attempt trace corpus, and the harness with its five-bug catalogue + regression tests. Genuinely reusable; queued but never done. | Open |
+| 5 | **Artifact release packaging.** The parts that fit in the repo are **done** (2026-09-02): `results/trapped_cores/` (the five lists + provenance + caveats, ported out of gitignored `scratch/`) and `results/audit/BUG_CATALOGUE.md` (all five bugs + two measurement gaps, each with mechanism, blast radius, direction of error, and its regression test). **Remaining: the failed-attempt trace corpus**, which is GB-scale and needs a hosting decision, not a repo change. | Mostly closed |
 | 6 | Audit step 4: broaden the reverify from the trapped core to a sample of near-frontier failures, to check for a similar mid-curve heartbeat effect. | Flagged, not done |
 
 ---

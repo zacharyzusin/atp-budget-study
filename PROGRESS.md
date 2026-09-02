@@ -4509,3 +4509,32 @@ let something through: same shape as the `make test` bug and the mean-only repro
 
 **Verification:** `make verify` -> 715 tests pass, ruff clean. Paper -> 15pp, 0 errors, 0 undefined
 refs/citations.
+
+---
+
+## 2026-09-02d — Artifact release: the reusable parts shipped into the repo
+
+WS6 item 5 (queued since July, never done). The parts that belong in a git repo are now in it; the
+part that doesn't is scoped and left.
+
+- **`results/trapped_cores/`** — the five trapped-core problem lists (55/150/61/140 + the 2-problem
+  decomposition smoke subset). These are the population the entire execution-floor argument is about,
+  and they existed **only in gitignored `scratch/phase2/`** — a clone did not get them, and every
+  "0% by construction" baseline in Phases 2/3/5/7 and WS6 is defined against them. Copied byte-
+  identically (verified with `cmp`), with a README covering provenance and the three caveats that
+  must travel with them: they are defined against a specific harness version (13 cells later flipped
+  under the heartbeat fix), "trapped" is not "unprovable" (pass@32 recovers ~11% with no budget cap),
+  and only Goedel x miniF2F has a dedicated resampling calibration cell.
+- **`results/audit/BUG_CATALOGUE.md`** — the standalone version of the paper's first contribution.
+  All five harness bugs and both measurement gaps, each with mechanism, blast radius, **direction of
+  error** (understates vs. overstates capability — the thing that matters when you find one in your
+  own harness), the regression test that locks it, and a concrete "check your own harness" test.
+  Verified that all four named regression tests exist and pass. Written to be useful to someone who
+  does not care about our model question at all, which is the point.
+- Indexed from `README.md` ("Reusable artifacts"), `results/README.md`, and `HANDOFF.md`.
+
+**Left undone, deliberately:** the failed-attempt trace corpus. It is GB-scale, lives in
+`results/*/problems/`, and needs a hosting decision (Zenodo or similar) rather than a repo change —
+recorded in `HANDOFF.md` §6 as the remaining piece of item 5.
+
+`make verify`: 715 tests pass, ruff clean. All 52 markdown docs' internal links resolve.

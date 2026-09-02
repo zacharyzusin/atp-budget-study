@@ -110,6 +110,19 @@ Plus two gaps that change how any comparable result should be read:
   hard way: a retrieval effect whose CI was entirely positive on one run ([+0.82,+6.15]pp) failed to
   reproduce on an independent replication whose own CI ([−1.78,+3.14]pp) does not even overlap it.
 
+### Reusable artifacts
+
+If you take one thing from this repo, take one of these — each is written to be useful without
+caring about our specific model question:
+
+- [`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md) — the five bugs and two
+  measurement gaps above, each with its mechanism, blast radius, **direction of error**, the
+  regression test that locks it, and a concrete "check your own harness" test.
+- [`results/trapped_cores/`](results/trapped_cores/) — the five trapped-core problem lists (the
+  population the floor lives in), with provenance and the three caveats that travel with them.
+- [`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md) — the
+  pass@budget → pass@N conversion table.
+
 ---
 
 ## Where things stand
