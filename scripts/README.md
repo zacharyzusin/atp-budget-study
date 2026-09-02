@@ -8,7 +8,7 @@ read already-logged data from `results/`; the ones that generate (`phase*_run.py
 safe and re-derive published numbers from data already on disk.
 
 Descriptions below are each script's own docstring. For what each phase asked and found, see
-[`../README.md` §4](../README.md#4-phase-by-phase).
+[`../README.md` §3](../README.md#3-findings).
 
 
 ## Data & setup
@@ -107,7 +107,7 @@ Descriptions below are each script's own docstring. For what each phase asked an
 | `phase7_elaborate_gate_check.py` | Phase 7 Track 1 — sanity-check the Mode 3 `elaborate` boundary gate on REAL Lean (CPU-only). |
 | `phase7_format_e_diagnostic.py` | Diagnostic: print RAW (unextracted) TacticTemplate completions for a few real trapped goal |
 
-## Phase 8 — model zoo (headline WITHDRAWN, see ../README.md §5.1)
+## Phase 8 — model zoo (headline WITHDRAWN, see ../README.md §3.4)
 
 | script | what it does |
 |---|---|

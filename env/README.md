@@ -8,7 +8,7 @@ Captured 2026-09-02 at project close, from the conda env that produced every res
 | `pip-freeze.txt` | `pip freeze` — exact versions of all 203 Python packages |
 | `conda-explicit.txt` | `conda list --explicit` — conda-level packages with URLs, usable with `conda create --file` |
 
-Key pins, which match the ones documented in the top-level `README.md` §9:
+Key pins, which match the ones documented in the top-level `README.md` §6:
 
 ```
 vllm==0.8.5.post1
