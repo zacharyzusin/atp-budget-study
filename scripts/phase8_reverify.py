@@ -59,7 +59,7 @@ def _load_attempts(agent_state_path):
 
 def run_reverify(agent_state_files, out_problems_dir, theorem_by_name, verifier):
     """Resumable: skips any cell whose output file already exists (job requeue/timeout tolerance —
-    CLAUDE.md rule 3, "sweeps must skip already-completed cells on resume"). Returns
+    CONVENTIONS.md rule 3, "sweeps must skip already-completed cells on resume"). Returns
     (n_total, n_flipped_to_solved, n_skipped_done)."""
     os.makedirs(out_problems_dir, exist_ok=True)
     n_flipped_to_solved = 0

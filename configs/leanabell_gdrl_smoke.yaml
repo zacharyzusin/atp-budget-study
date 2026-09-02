@@ -1,4 +1,4 @@
-# Phase 8 second-pair pin triage — GPU smoke (CLAUDE.md rule 5) for Leanabell-Prover-GD-RL. See
+# Phase 8 second-pair pin triage — GPU smoke (CONVENTIONS.md rule 5) for Leanabell-Prover-GD-RL. See
 # configs/leanabell_gdsft_smoke.yaml for the rationale, including the 2026-07-06 format revision.
 defaults: leanabell_gdrl_minif2f
 

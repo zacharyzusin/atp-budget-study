@@ -60,7 +60,7 @@ Only launch the full probe if (a)+(b)+(c) pass.
 
 ## 5. GPU-h budget
 - subset harvest ~10 + GRPO ~20–25 + base/RL held-out eval ~3 ≈ **~35 GPU-h; HARD STOP at 40**
-  (abort + report per CLAUDE.md rule 8). Lean verification is CPU (Phase-0 concurrency infra), not
+  (abort + report per CONVENTIONS.md rule 8). Lean verification is CPU (Phase-0 concurrency infra), not
   counted in GPU-h but is the throughput bottleneck to watch.
 
 ## 6. Open decisions — RESOLVED (user, 2026-07-01: "yes do what you recommend")

@@ -77,7 +77,8 @@ _BATTERY_CONFIGS = [
 def test_battery_config_caps_budget_at_32k(path):
     cfg = load_config(path)
     assert cfg.budget.values == [2000, 8000, 32000]
-    assert cfg.eval.seeds == [0, 1, 2]  # headline numbers still need >=3 seeds (CLAUDE.md rule 7)
+    # headline numbers still need >=3 seeds (CONVENTIONS.md rule 7)
+    assert cfg.eval.seeds == [0, 1, 2]
 
 
 def test_battery_configs_still_carry_their_base_config_pin():

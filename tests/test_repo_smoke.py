@@ -31,9 +31,7 @@ ATP_SUBMODULES = [
     "atp.models",
     "atp.agents",
     "atp.agents.components",
-    "atp.search",
     "atp.budget",
-    "atp.controller",
     "atp.data",
     "atp.eval",
 ]

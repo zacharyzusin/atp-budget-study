@@ -10,7 +10,8 @@ vLLM applies when the agent posts the user turn), and labels mask everything up 
 turn (completion-only loss). `build_labels` is the pure, fake-tokenizer-tested core; the
 Trainer/PEFT/CUDA parts are the thin GPU wrapper.
 
-Restartable (CLAUDE.md rule 3): Trainer checkpoints every --save-steps; rerun resumes from latest.
+Restartable (CONVENTIONS.md rule 3): Trainer checkpoints every --save-steps; rerun resumes
+from the latest checkpoint.
 
 Usage (one arm, one seed):
   python scripts/phase6_train_sft.py --config configs/phase6_harvest_goedel.yaml \

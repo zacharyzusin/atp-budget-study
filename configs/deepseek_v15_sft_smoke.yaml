@@ -1,4 +1,4 @@
-# Phase 8 Cluster A pin triage — GPU smoke (CLAUDE.md rule 5) for DeepSeek-Prover-V1.5-SFT: confirms
+# Phase 8 Cluster A pin triage — GPU smoke (CONVENTIONS.md rule 5) for DeepSeek-Prover-V1.5-SFT: confirms
 # vLLM serves the model, the raw-completion DeepSeekV15Template prompt yields Lean proof attempts,
 # and they verify against the (reused, already-built) Goedel-pin Lean env. Tiny: 2 miniF2F-test
 # problems, one cheap budget point, one seed — mirrors configs/deepseek_smoke.yaml's pattern.

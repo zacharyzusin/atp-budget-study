@@ -319,6 +319,11 @@ more CPUs rather than a bigger `--mem-per-cpu`. Account: `edu`.
 ## 8. Repository layout
 
 ```
+README.md         # this file — the whole record
+CONVENTIONS.md    # the engineering rules the code was written under, cited by rule number
+Makefile          # make verify / test / smoke / lint
+pyproject.toml    # package + pinned dependencies + ruff/pytest config
+
 src/atp/
 ├── lean/         # Lean 4 REPL backend, whole-proof verifier, compiler-error parser
 ├── models/       # vLLM client, budget meter, prompt templates
@@ -338,14 +343,22 @@ tests/            # mirrors src/ (markers: slow, gpu, lean)
 env/              # frozen pip + conda listings for the environment that produced every result
 ```
 
-**Conventions**, if you continue the work: test-first (`make verify` before anything is "done");
-configs, not magic numbers — every experiment is a versioned YAML emitting a `run_manifest.json`;
-restartable everything (>20 min ⇒ checkpoint and resume); and **pre-registration** — write the
-decision rule and risk list *before* the expensive run. Two probes here were closed early by their
-own pre-registered stopping rules (decomposition at ~2.3 GPU-h instead of a full array; predictor v2
-on a committed AUC bar), which is that practice doing its job. Worked examples:
-[`results/phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md),
-[`results/phase4/PREDICTOR_V2_DESIGN.md`](results/phase4/PREDICTOR_V2_DESIGN.md).
+### Conventions
+
+The rules this code was written under — test-first, configs not magic numbers, restartable
+everything, pre-registration of expensive runs — are in [`CONVENTIONS.md`](CONVENTIONS.md), numbered
+as the comments throughout the tree cite them. Two probes here were closed early by their own
+pre-registered stopping rules (decomposition at ~2.3 GPU-h instead of a full array; predictor v2 on
+a committed AUC bar), which is that practice doing its job.
+
+### A note on citations to files that aren't here
+
+Roughly 200 comments in `src/`, `tests/`, `configs/`, `scripts/` and `results/` cite the project's
+dated lab notebooks and phase plans — `DECISIONS.md`, `PROGRESS.md`, `PROJECT_PLAN.md`,
+`PLAN_NEXT.md`, `AUDIT_PLAN.md` and the superseded summaries. **Those files are not in the working
+tree**; this README replaced them at project close. Read such a citation as a provenance stamp —
+*this was decided on this date* — rather than a live link. The originals are in git history through
+commit `baa9eb9` (`git show baa9eb9:DECISIONS.md`). See [`CONVENTIONS.md`](CONVENTIONS.md) rule 2.
 
 ---
 

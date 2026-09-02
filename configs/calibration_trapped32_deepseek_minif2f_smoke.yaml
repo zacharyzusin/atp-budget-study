@@ -1,5 +1,5 @@
 # Smoke variant of calibration_trapped32_deepseek_minif2f.yaml -- 2 problems, max_rounds=4, before
-# committing GPU time to the real 61-problem x 32-sample cell. Per CLAUDE.md rule 5 / this project's
+# committing GPU time to the real 61-problem x 32-sample cell. Per CONVENTIONS.md rule 5 / this project's
 # "smoke one cell (small data.limit) before the full array" convention -- mirrors
 # calibration_trapped32_goedel_minif2f_smoke.yaml exactly.
 

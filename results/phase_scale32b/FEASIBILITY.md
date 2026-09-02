@@ -34,7 +34,7 @@ the actual published bf16 model, served faithfully, just across 2 GPUs instead o
   effective GPU-h cost is plausibly higher than the original single-GPU-equivalent estimate, likely in
   the 80-150 GPU-h range pending an actual smoke-test timing measurement. This still needs a real
   timed smoke test before committing to the full 55-problem array, per this project's own "smoke
-  before scale" rule (CLAUDE.md rule 5) -- not estimated further here without one.
+  before scale" rule (CONVENTIONS.md rule 5) -- not estimated further here without one.
 - Disk: 65.5GB new model download into `scratch/hf-cache` (or wherever `ATP_HF_HOME` points for this
   run) -- filesystem has ~1.2TB free (`df -h /insomnia001`), not a constraint.
 

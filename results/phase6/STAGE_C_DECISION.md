@@ -41,7 +41,7 @@ rather than redundant.
 
 GRPO with Lean-in-the-loop is expensive: per step we sample K proofs per problem and **verify
 every one in Lean** (the bottleneck, not the forward pass). A meaningful single-model pilot is
-likely **>50 GPU-h** → crosses the CLAUDE.md approval line and needs an explicit OK. A full
+likely **>50 GPU-h** → crosses the CONVENTIONS.md approval line and needs an explicit OK. A full
 two-model, multi-seed RL sweep would be multi-day.
 
 ## Options

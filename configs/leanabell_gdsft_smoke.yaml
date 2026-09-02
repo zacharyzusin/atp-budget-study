@@ -1,4 +1,4 @@
-# Phase 8 second-pair pin triage — GPU smoke (CLAUDE.md rule 5) for Leanabell-Prover-GD-SFT.
+# Phase 8 second-pair pin triage — GPU smoke (CONVENTIONS.md rule 5) for Leanabell-Prover-GD-SFT.
 # REVISED 2026-07-06: the original whole_proof/chat_completions choice passed THIS smoke's shallow
 # "coherent-looking text" bar but failed at real battery scale (0/2025 solves — see
 # PROGRESS.md/DECISIONS.md 2026-07-06). Re-testing the corrected raw-completion `goedel_sft` template

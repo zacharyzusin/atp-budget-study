@@ -163,7 +163,7 @@ norm_num / false-rejection probe all passed cleanly on the (reused, already-buil
 direct runtime evidence the pin finding above is correct. vLLM itself failed to start
 (`ValueError: Invalid repository ID or local directory specified`) because none of these 5 new
 models have ever been downloaded to `scratch/hf-cache`, and `slurm/sweep_array.sh` defaults
-`HF_HUB_OFFLINE=1` (serve only from a pre-staged cache, per CLAUDE.md storage hygiene — never
+`HF_HUB_OFFLINE=1` (serve only from a pre-staged cache, per CONVENTIONS.md storage hygiene — never
 trigger a live download inside a Slurm job).
 
 **Blocked on a shared-resource decision, not a technical one:** `df -h /insomnia001` reads 99% used,

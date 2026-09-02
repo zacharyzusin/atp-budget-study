@@ -1,4 +1,4 @@
-# Makefile — convenience targets. See CLAUDE.md / PROJECT_PLAN.md.
+# Makefile — convenience targets. See README.md §7 and CONVENTIONS.md.
 
 PROJECT_ROOT := /insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study
 ENV_PATH     := $(PROJECT_ROOT)/scratch/conda-envs/atp

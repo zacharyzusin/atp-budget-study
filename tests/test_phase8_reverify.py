@@ -81,8 +81,8 @@ def _write_agent_state(states_dir, name, seed, attempts):
 
 
 def test_run_reverify_resumes_by_skipping_already_written_cells(tmp_path):
-    """CLAUDE.md rule 3: sweeps must skip already-completed cells on resume — this job hit a 3-hour
-    Slurm TIMEOUT mid-pass for 3 of the 10 configs (2026-07-06); resubmitting must not silently redo
+    """CONVENTIONS.md rule 3: sweeps must skip already-completed cells on resume — this job hit
+    a 3-hour Slurm TIMEOUT mid-pass for 3 of the 10 configs (2026-07-06); resubmitting must not redo
     (and re-spend CPU time on) cells the first attempt already finished."""
     states_dir = str(tmp_path / "agent_states")
     out_dir = str(tmp_path / "problems")

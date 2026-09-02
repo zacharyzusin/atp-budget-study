@@ -1,4 +1,4 @@
-# Phase 2 Step B — DeepSeek GPU smoke (CLAUDE.md rule 5: smoke before scale). Tiny end-to-end on the
+# Phase 2 Step B — DeepSeek GPU smoke (CONVENTIONS.md rule 5: smoke before scale). Tiny end-to-end on the
 # exact production path (parameterized sweep_array.sh): serve DeepSeek-Prover-V2-7B via vLLM, prove a
 # couple of easy miniF2F problems, verify against the DeepSeek Lean env. Confirms vLLM serves the model,
 # the chat-template/prompt yields Lean proofs, and the env verifies — BEFORE the full baselines.

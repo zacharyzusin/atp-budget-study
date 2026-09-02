@@ -86,7 +86,7 @@ echo "[sweep] env OK: python=$(command -v python)"
 # HF_HOME holds the model weights. Default = repo scratch (Goedel); a second model (DeepSeek, cached
 # under ~/.hf_cache) overrides via ATP_HF_HOME so vLLM finds it without re-download.
 export HF_HOME="${ATP_HF_HOME:-$PROJ/scratch/hf-cache}"
-# Serve OFFLINE from the cache: weights are always pre-staged (CLAUDE.md rule 6), and some compute
+# Serve OFFLINE from the cache: weights are always pre-staged (CONVENTIONS.md rule 6), and some compute
 # nodes can't resolve huggingface.co — vLLM's revision-check (list_repo_files) then dies at startup
 # with NameResolutionError before any GPU work (10786402, and the Phase 5 pilot). Offline skips that
 # network call entirely → robust + reproducible. Override with ATP_HF_OFFLINE=0 if a download is ever

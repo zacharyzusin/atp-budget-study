@@ -104,7 +104,7 @@ genuine execution-axis result rather than another sampling-volume effect.
   submitting the full array, exactly like the calibration cell's own GPU-hour estimate — do not
   skip this step even though it feels like "we already know the pattern from the calibration cell."
 
-## Test plan (write failing tests first, per CLAUDE.md rule 1)
+## Test plan (write failing tests first, per CONVENTIONS.md rule 1)
 
 1. `test_parse_decomposition_completion` — realistic multi-have + MAIN completion text -> correct
    parsed `(haves: list[(name, stmt)], main: str)`, including edge cases (single have, have with a

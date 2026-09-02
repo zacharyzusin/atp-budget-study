@@ -13,9 +13,9 @@ manifest — don't guess from the directory name.
 `phase6_eval_deepseek_minif2f_s1.yaml`, `leanabell_gdrl_proofnet_battery.yaml`.
 
 - `*_smoke.yaml` — tiny 2–5 problem end-to-end sanity configs. **Always run the smoke config before
-  submitting the full sweep** (`CLAUDE.md` rule 5).
+  submitting the full sweep** (`CONVENTIONS.md` rule 5).
 - `*_battery.yaml` — the Phase 8 model-zoo batteries (whose headline is withdrawn; see
-  [`../HANDOFF.md`](../HANDOFF.md) §5).
+  [`../README.md` §5.1](../README.md#51-phase-8s-headline-is-withdrawn)).
 - `phase6_*` — the SFT/RL training and eval arms.
 - `calibration_trapped32_*` — the trapped-core resampling calibration cells.
 
@@ -38,5 +38,5 @@ manifest — don't guess from the directory name.
 Model revisions and Lean/mathlib commits in these files are pinned exactly, and the two models use
 **different** Lean toolchains and mathlib commits (Goedel needs a custom mathlib fork built from
 source). Mathlib API drift silently lowers a prover's pass rate rather than erroring, so changing a
-pin invalidates comparisons without failing loudly. Full rationale: `paper/floor/PINS.md` and
-`DECISIONS.md` (2026-06-04).
+pin invalidates comparisons without failing loudly. The exact pins are tabulated in
+[`../README.md` §9](../README.md#9-reproducibility-pins).

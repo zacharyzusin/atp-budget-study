@@ -2,7 +2,7 @@
 
 Every job here is **restartable by design**: the cluster preempts and requeues from scratch, so any
 job over ~20 minutes checkpoints to disk and skips already-completed `(config, seed, problem)` cells
-on resume. That is a hard convention (`CLAUDE.md` rule 3), not a nicety.
+on resume. That is a hard convention (`CONVENTIONS.md` rule 3), not a nicety.
 
 **The project is closed — do not submit these without asking.**
 
