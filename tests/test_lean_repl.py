@@ -181,8 +181,16 @@ def test_build_repl_source_reconstructs_theorem_header_for_continuation_only_pro
             "theorem exercise_10_1_13 {R : Type*} [Ring R] {x : R}\n"
             "  (hx : IsNilpotent x) : IsUnit (1 + x)"
         ),
-        opens=("Function", "Fintype", "Subgroup", "Ideal", "Polynomial", "Submodule", "Zsqrtd",
-               "BigOperators"),
+        opens=(
+            "Function",
+            "Fintype",
+            "Subgroup",
+            "Ideal",
+            "Polynomial",
+            "Submodule",
+            "Zsqrtd",
+            "BigOperators",
+        ),
     )
     continuation_proof = (
         "obtain ⟨n, hn⟩ := hx\n  use 1 - x\n  rw [← sub_eq_zero] at hn\n"
@@ -400,10 +408,14 @@ def test_elaborate_returns_single_sorry_goal():
     # error) and the intermediate goal in `sorries[].goal`.
     resp = {
         "env": 1,
-        "sorries": [{"goal": "a b : ℝ\n⊢ b = a", "proofState": 3,
-                     "pos": {"line": 2, "column": 2}}],
-        "messages": [{"severity": "warning", "data": "declaration uses 'sorry'",
-                      "pos": {"line": 1, "column": 0}}],
+        "sorries": [{"goal": "a b : ℝ\n⊢ b = a", "proofState": 3, "pos": {"line": 2, "column": 2}}],
+        "messages": [
+            {
+                "severity": "warning",
+                "data": "declaration uses 'sorry'",
+                "pos": {"line": 1, "column": 0},
+            }
+        ],
     }
     b = _backend(_import_then(resp))
     out = b.elaborate(THM, "theorem t : True := by\n  sorry")
@@ -412,8 +424,11 @@ def test_elaborate_returns_single_sorry_goal():
 
 
 def test_elaborate_counts_error_severity():
-    resp = {"messages": [{"severity": "error", "data": "unsolved goals",
-                          "pos": {"line": 2, "column": 2}}]}
+    resp = {
+        "messages": [
+            {"severity": "error", "data": "unsolved goals", "pos": {"line": 2, "column": 2}}
+        ]
+    }
     b = _backend(_import_then(resp))
     out = b.elaborate(THM, "theorem t : True := by\n  foo\n  sorry")
     assert out["errors"] == 1 and out["sorries"] == []
@@ -427,7 +442,9 @@ def test_old_header_reverify_backend_omits_max_heartbeats_override():
     import importlib.util
     import pathlib
 
-    script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "header_confound_reverify.py"
+    script_path = (
+        pathlib.Path(__file__).resolve().parents[1] / "scripts" / "header_confound_reverify.py"
+    )
     spec = importlib.util.spec_from_file_location("header_confound_reverify", script_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

@@ -49,7 +49,7 @@ def opening_tactic(proof: str) -> str:
     if not proof:
         return ""
     m = _BY_RE.search(proof)
-    tail = proof[m.end():] if m else proof
+    tail = proof[m.end() :] if m else proof
     for line in tail.splitlines():
         s = line.strip()
         if s and not s.startswith("--"):
@@ -98,40 +98,53 @@ def normalized_error(feedback: str) -> str:
 @dataclass
 class CheckpointRow:
     """Leakage-free features for a cell observed by spend `checkpoint`, plus its eventual label."""
+
     problem_name: str
     seed: int
     checkpoint: int
     # observed-by-c features
     tokens_so_far: int
     n_attempts: int
-    best_depth: int          # max step reached over attempts completed by c (F3, real)
-    last_depth: int          # depth of the most recent attempt by c
-    depth_growth: int        # best_depth(recent half) - best_depth(early half): still climbing?
-    stalled_attempts: int    # attempts since best_depth last improved (plateau / stuck detector)
-    distinct_openings: int   # F1 diversity (included, not leaned on)
-    compiled_past_step1: int # 1 if any attempt by c reached depth >= 2
-    solved_by_c: bool        # already solved within c (not a decision target)
+    best_depth: int  # max step reached over attempts completed by c (F3, real)
+    last_depth: int  # depth of the most recent attempt by c
+    depth_growth: int  # best_depth(recent half) - best_depth(early half): still climbing?
+    stalled_attempts: int  # attempts since best_depth last improved (plateau / stuck detector)
+    distinct_openings: int  # F1 diversity (included, not leaned on)
+    compiled_past_step1: int  # 1 if any attempt by c reached depth >= 2
+    solved_by_c: bool  # already solved within c (not a decision target)
     # WS6 item 4 (2026-07-26): richer features, additive, all default 0.0 so existing v1 call sites
     # (tests, older callers) that never set them still construct a valid row.
-    frac_syntax_error: float = 0.0       # fraction of attempts classified error_kind=="syntax"
+    frac_syntax_error: float = 0.0  # fraction of attempts classified error_kind=="syntax"
     frac_elaboration_error: float = 0.0  # fraction classified "elaboration"
-    frac_infra_error: float = 0.0        # fraction classified "infra"
-    depth_slope: float = 0.0             # linear-fit slope of best-depth-so-far vs. cumulative tokens
-    depth_slope_resid: float = 0.0       # residual std of that fit (0 if <3 points)
-    tokens_per_depth: float = 0.0        # tokens_so_far / max(best_depth, 1) -- efficiency
-    frac_refine: float = 0.0             # fraction of attempts with kind=="refine"
-    error_diversity: int = 0             # count of distinct normalized error messages seen
+    frac_infra_error: float = 0.0  # fraction classified "infra"
+    depth_slope: float = 0.0  # linear-fit slope of best-depth-so-far vs. cumulative tokens
+    depth_slope_resid: float = 0.0  # residual std of that fit (0 if <3 points)
+    tokens_per_depth: float = 0.0  # tokens_so_far / max(best_depth, 1) -- efficiency
+    frac_refine: float = 0.0  # fraction of attempts with kind=="refine"
+    error_diversity: int = 0  # count of distinct normalized error messages seen
     # label / bookkeeping (never a feature)
     eventual_solve: bool = False
     tokens_to_solve: int | None = None
 
     FEATURE_NAMES = (
-        "tokens_so_far", "n_attempts", "best_depth", "last_depth",
-        "depth_growth", "stalled_attempts", "distinct_openings", "compiled_past_step1",
+        "tokens_so_far",
+        "n_attempts",
+        "best_depth",
+        "last_depth",
+        "depth_growth",
+        "stalled_attempts",
+        "distinct_openings",
+        "compiled_past_step1",
     )
     FEATURE_NAMES_V2 = FEATURE_NAMES + (
-        "frac_syntax_error", "frac_elaboration_error", "frac_infra_error",
-        "depth_slope", "depth_slope_resid", "tokens_per_depth", "frac_refine", "error_diversity",
+        "frac_syntax_error",
+        "frac_elaboration_error",
+        "frac_infra_error",
+        "depth_slope",
+        "depth_slope_resid",
+        "tokens_per_depth",
+        "frac_refine",
+        "error_diversity",
     )
 
     def features(self, names: tuple[str, ...] | None = None) -> dict[str, float]:
@@ -217,25 +230,35 @@ class CellTrace:
             var_x = sum((x - mean_x) ** 2 for x in xs)
             if var_x > 0:
                 slope = (
-                    sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False))
-                    / var_x
+                    sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False)) / var_x
                 )
                 intercept = mean_y - slope * mean_x
                 resids = [y - (slope * x + intercept) for x, y in zip(xs, ys, strict=False)]
-                resid = (sum(r ** 2 for r in resids) / n_pts) ** 0.5
+                resid = (sum(r**2 for r in resids) / n_pts) ** 0.5
 
         return CheckpointRow(
-            problem_name=self.problem_name, seed=self.seed, checkpoint=c,
-            tokens_so_far=toks, n_attempts=n, best_depth=best_depth, last_depth=last_depth,
-            depth_growth=depth_growth, stalled_attempts=stalled,
+            problem_name=self.problem_name,
+            seed=self.seed,
+            checkpoint=c,
+            tokens_so_far=toks,
+            n_attempts=n,
+            best_depth=best_depth,
+            last_depth=last_depth,
+            depth_growth=depth_growth,
+            stalled_attempts=stalled,
             distinct_openings=len(openings),
             compiled_past_step1=int(best_depth >= 2),
             solved_by_c=solved_by_c,
-            frac_syntax_error=frac_syntax, frac_elaboration_error=frac_elab,
-            frac_infra_error=frac_infra, depth_slope=slope, depth_slope_resid=resid,
-            tokens_per_depth=tokens_per_depth, frac_refine=frac_refine,
+            frac_syntax_error=frac_syntax,
+            frac_elaboration_error=frac_elab,
+            frac_infra_error=frac_infra,
+            depth_slope=slope,
+            depth_slope_resid=resid,
+            tokens_per_depth=tokens_per_depth,
+            frac_refine=frac_refine,
             error_diversity=len(norm_errors),
-            eventual_solve=self.solved, tokens_to_solve=self.tokens_to_solve,
+            eventual_solve=self.solved,
+            tokens_to_solve=self.tokens_to_solve,
         )
 
 
@@ -257,17 +280,21 @@ def load_cell_traces(run_dir: str | Path) -> list[CellTrace]:
                 attempts = json.loads(sj.read_text()).get("attempts", []) or []
             except json.JSONDecodeError:
                 attempts = []
-        out.append(CellTrace(
-            problem_name=summ["problem_name"], seed=int(summ["seed"]),
-            solved=bool(summ["solved"]),
-            tokens_to_solve=summ.get("tokens_to_solve"),
-            attempts=attempts,
-        ))
+        out.append(
+            CellTrace(
+                problem_name=summ["problem_name"],
+                seed=int(summ["seed"]),
+                solved=bool(summ["solved"]),
+                tokens_to_solve=summ.get("tokens_to_solve"),
+                attempts=attempts,
+            )
+        )
     return out
 
 
-def build_feature_rows(run_dir: str | Path,
-                       checkpoints: tuple[int, ...] = CHECKPOINTS) -> list[CheckpointRow]:
+def build_feature_rows(
+    run_dir: str | Path, checkpoints: tuple[int, ...] = CHECKPOINTS
+) -> list[CheckpointRow]:
     rows: list[CheckpointRow] = []
     for cell in load_cell_traces(run_dir):
         for c in checkpoints:

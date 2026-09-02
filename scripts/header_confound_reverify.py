@@ -21,6 +21,7 @@ Usage (real Lean env required, same staging as scripts/audit_trapped_heartbeat_r
         --config configs/calibration_trapped32_goedel_minif2f.yaml \
         --run-dir results/calibration_trapped32_goedel_minif2f
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,7 +48,8 @@ def _load_proof(agent_state_path: str) -> str | None:
 
 
 def build_old_header_backend(config, ReplBackend):
-    """A ReplBackend that skips the maxHeartbeats override -- simulates the pre-2026-07-06 verifier."""
+    """A ReplBackend that skips the maxHeartbeats
+    override -- simulates the pre-2026-07-06 verifier."""
 
     class OldHeaderReplBackend(ReplBackend):
         def _build_repl_source(self, theorem, proof: str) -> str:  # noqa: N802 (match base signature)
@@ -111,12 +113,18 @@ def main() -> int:
             "header_dependent": bool(current.ok and not old.ok),
         }
         results.append(row)
-        tag = "HEADER-DEPENDENT (old verifier rejects)" if row["header_dependent"] else "genuine (verifies under old default too)"
+        tag = (
+            "HEADER-DEPENDENT (old verifier rejects)"
+            if row["header_dependent"]
+            else "genuine (verifies under old default too)"
+        )
         print(f"[header-confound] {name}: current={current.ok} old={old.ok} -> {tag}", flush=True)
 
     n_header_dependent = sum(1 for r in results if r["header_dependent"])
-    print(f"\n[header-confound] FINAL: {n_header_dependent}/{len(results)} of the 6 recoveries are "
-          "header/verifier-fix dependent (fail under the pre-2026-07-06 default heartbeat setting).")
+    print(
+        f"\n[header-confound] FINAL: {n_header_dependent}/{len(results)} of the 6 recoveries are "
+        "header/verifier-fix dependent (fail under the pre-2026-07-06 default heartbeat setting)."
+    )
 
     out_path = os.path.join(args.run_dir, "header_confound_result.json")
     with open(out_path, "w") as f:

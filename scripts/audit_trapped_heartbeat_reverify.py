@@ -9,6 +9,7 @@ Usage (real Lean env required):
         --config configs/proofnet_baseline.yaml --run-dir results/proofnet_baseline \
         --trapped-file scratch/phase2/trapped_proofnet.txt --limit-problems 15
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,9 +27,12 @@ def main() -> int:
     ap.add_argument("--run-dir", required=True)
     ap.add_argument("--trapped-file", required=True)
     ap.add_argument("--limit-problems", type=int, default=None)
-    ap.add_argument("--checkpoint", default=None,
-                     help="JSONL file to append results to; on startup, (name,seed) pairs "
-                          "already present are skipped. Defaults to <run-dir>/audit_checkpoint.jsonl")
+    ap.add_argument(
+        "--checkpoint",
+        default=None,
+        help="JSONL file to append results to; on startup, (name,seed) pairs "
+        "already present are skipped. Defaults to <run-dir>/audit_checkpoint.jsonl",
+    )
     args = ap.parse_args()
 
     from atp.config import load_config
@@ -51,8 +55,9 @@ def main() -> int:
                     continue
                 rec = json.loads(line)
                 done[(rec["name"], rec["seed"])] = rec
-        print(f"[audit] resuming from checkpoint: {len(done)} cells already done "
-              f"({checkpoint_path})")
+        print(
+            f"[audit] resuming from checkpoint: {len(done)} cells already done ({checkpoint_path})"
+        )
 
     config = load_config(args.config)
     ds = load_dataset(config)
@@ -65,8 +70,11 @@ def main() -> int:
     agent_states_dir = os.path.join(args.run_dir, "agent_states")
     n_checked = sum(1 for (n, _) in done if n in trapped_set)
     n_flipped = sum(1 for rec in done.values() if rec["name"] in trapped_set and rec["solved"])
-    flipped_names = [f"{rec['name']}__seed{rec['seed']}" for rec in done.values()
-                      if rec["name"] in trapped_set and rec["solved"]]
+    flipped_names = [
+        f"{rec['name']}__seed{rec['seed']}"
+        for rec in done.values()
+        if rec["name"] in trapped_set and rec["solved"]
+    ]
     ckpt_f = open(checkpoint_path, "a")
     for name in trapped_names:
         theorem = theorem_by_name.get(name)
@@ -84,23 +92,37 @@ def main() -> int:
                 continue
             result = reverify_cell(attempts, theorem, verifier)
             n_checked += 1
-            ckpt_f.write(json.dumps({
-                "name": name, "seed": seed, "solved": bool(result.solved),
-                "tokens_to_solve": result.tokens_to_solve,
-            }) + "\n")
+            ckpt_f.write(
+                json.dumps(
+                    {
+                        "name": name,
+                        "seed": seed,
+                        "solved": bool(result.solved),
+                        "tokens_to_solve": result.tokens_to_solve,
+                    }
+                )
+                + "\n"
+            )
             ckpt_f.flush()
             if result.solved:
                 n_flipped += 1
                 flipped_names.append(f"{name}__seed{seed}")
-                print(f"[audit] FLIPPED TO SOLVED: {name} seed={seed} "
-                      f"tokens_to_solve={result.tokens_to_solve}", flush=True)
+                print(
+                    f"[audit] FLIPPED TO SOLVED: {name} seed={seed} "
+                    f"tokens_to_solve={result.tokens_to_solve}",
+                    flush=True,
+                )
             if n_checked % 5 == 0:
-                print(f"[audit] progress: {n_checked} cells checked, {n_flipped} flipped so far",
-                      flush=True)
+                print(
+                    f"[audit] progress: {n_checked} cells checked, {n_flipped} flipped so far",
+                    flush=True,
+                )
     ckpt_f.close()
 
-    print(f"\n[audit] FINAL: {n_checked} cells re-verified across {len(trapped_set)} trapped "
-          f"problems, {n_flipped} flipped to solved.")
+    print(
+        f"\n[audit] FINAL: {n_checked} cells re-verified across {len(trapped_set)} trapped "
+        f"problems, {n_flipped} flipped to solved."
+    )
     if flipped_names:
         print("[audit] flipped cells:", flipped_names)
     return 0

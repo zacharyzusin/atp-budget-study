@@ -21,6 +21,7 @@ plain independent sampling with no agentic refinement layered on top); total (pr
 attempt counts are reported separately since that's the other plausible reading of "how many shots
 did the model get."
 """
+
 from __future__ import annotations
 
 import glob
@@ -65,7 +66,7 @@ def load_problems(run_dir: str) -> list[dict]:
 
 
 def pct(n: int, d: int) -> str:
-    return f"{100*n/d:.2f}%" if d else "n/a"
+    return f"{100 * n / d:.2f}%" if d else "n/a"
 
 
 def check1_pass_at_n(states_by_run: dict[str, list[dict]]) -> str:
@@ -123,19 +124,19 @@ def check1_pass_at_n(states_by_run: dict[str, list[dict]]) -> str:
         # per-seed mean/std for the max N actually reached by most problems (report at a few N)
         lines.append(f"\n## {run_key} (`{run_dir}`)\n")
         lines.append(
-            f"- propose-attempt count per (problem,seed): mean={statistics.mean(propose_counts):.2f}, "
+            f"- propose-attempt count per (problem,seed): mean={statistics.mean(propose_counts):.2f}, "  # noqa: E501
             f"median={statistics.median(propose_counts):.0f}, "
-            f"p90={sorted(propose_counts)[int(0.9*len(propose_counts))]}, "
+            f"p90={sorted(propose_counts)[int(0.9 * len(propose_counts))]}, "
             f"max={max(propose_counts)}\n"
-            f"- total attempt count (propose+refine): mean={statistics.mean(total_attempt_counts):.2f}, "
+            f"- total attempt count (propose+refine): mean={statistics.mean(total_attempt_counts):.2f}, "  # noqa: E501
             f"median={statistics.median(total_attempt_counts):.0f}, "
-            f"p90={sorted(total_attempt_counts)[int(0.9*len(total_attempt_counts))]}, "
+            f"p90={sorted(total_attempt_counts)[int(0.9 * len(total_attempt_counts))]}, "
             f"max={max(total_attempt_counts)}\n"
         )
         lines.append("| N (propose attempts) | pass@N |")
         lines.append("|---|---|")
         for n in ns:
-            lines.append(f"| {n} | {100*pass_at_n[n]:.1f}% |")
+            lines.append(f"| {n} | {100 * pass_at_n[n]:.1f}% |")
         lines.append("")
     return "\n".join(lines)
 
@@ -151,7 +152,7 @@ def check2_truncation_and_timeout(states_by_run: dict[str, list[dict]]) -> str:
         "clamped below CALL_CAP by remaining budget, which this proxy would miss.\n"
         "(b) Heartbeat-in-refinement: among REFINE attempts, how many were preceded by a prior "
         "attempt (in the same chain) whose feedback contains the Lean heartbeat-timeout marker "
-        "text, vs. a separate harness-level wall-clock verification timeout (`reason == 'timeout'`, "
+        "text, vs. a separate harness-level wall-clock verification timeout (`reason == 'timeout'`, "  # noqa: E501
         "distinct bucket, 120s Lean-process timeout, not a Lean elaboration heartbeat).\n"
     )
     for run_key, run_dir in RUN_DIRS.items():
@@ -189,11 +190,11 @@ def check2_truncation_and_timeout(states_by_run: dict[str, list[dict]]) -> str:
         )
         lines.append(
             f"- REFINE steps immediately preceded by a Lean heartbeat-timeout error: "
-            f"{refine_after_heartbeat}/{refine_total} ({pct(refine_after_heartbeat, refine_total)})\n"
+            f"{refine_after_heartbeat}/{refine_total} ({pct(refine_after_heartbeat, refine_total)})\n"  # noqa: E501
         )
         lines.append(
             f"- REFINE steps immediately preceded by a harness wall-clock verification timeout "
-            f"(120s, distinct from the Lean heartbeat): {refine_after_wallclock_timeout}/{refine_total} "
+            f"(120s, distinct from the Lean heartbeat): {refine_after_wallclock_timeout}/{refine_total} "  # noqa: E501
             f"({pct(refine_after_wallclock_timeout, refine_total)})\n"
         )
     return "\n".join(lines)

@@ -65,8 +65,10 @@ def main() -> None:
         res = paired_bootstrap_bound(base_solved, var_solved, args.n_boot, rng)
         res["budget"] = b
         report.append(res)
-        print(f"budget={b:6d}  n={res['n_problems']:3d}  point={res['point_delta_pp']:+.2f}pp  "
-              f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp")
+        print(
+            f"budget={b:6d}  n={res['n_problems']:3d}  point={res['point_delta_pp']:+.2f}pp  "
+            f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp"
+        )
 
     out_json = ROOT / "results" / "retrieval_replication_ci.json"
     out_json.write_text(json.dumps(report, indent=2))
@@ -82,14 +84,24 @@ def main() -> None:
         "|---|---|---|---|",
     ]
     for r in report:
-        lines.append(f"| {r['budget']} | {r['n_problems']} | {r['point_delta_pp']:+.2f} | "
-                      f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] |")
+        lines.append(
+            f"| {r['budget']} | {r['n_problems']} | {r['point_delta_pp']:+.2f} | "
+            f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] |"
+        )
     lines.append("")
-    lines.append("**Reading.** If these CIs do not all contain the original run's [+0.82,+6.15]pp @8k")
-    lines.append("point, that is direct, quantified confirmation that within-run bootstrap CIs bound")
+    lines.append(
+        "**Reading.** If these CIs do not all contain the original run's [+0.82,+6.15]pp @8k"
+    )
+    lines.append(
+        "point, that is direct, quantified confirmation that within-run bootstrap CIs bound"
+    )
     lines.append("only sampling variance conditional on one generation campaign, not run-to-run")
-    lines.append("(campaign-level) variance -- the stronger, more general methods lesson (applies to")
-    lines.append("any paper reporting a bootstrap CI over a single generation run, not just this one).")
+    lines.append(
+        "(campaign-level) variance -- the stronger, more general methods lesson (applies to"
+    )
+    lines.append(
+        "any paper reporting a bootstrap CI over a single generation run, not just this one)."
+    )
     out_md = ROOT / "results" / "RETRIEVAL_REPLICATION_CI.md"
     out_md.write_text("\n".join(lines) + "\n")
     print(f"\nWrote {out_json} and {out_md}")

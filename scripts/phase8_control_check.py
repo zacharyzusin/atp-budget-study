@@ -6,6 +6,7 @@ solved. Targeted and fast, unlike a full re-verify: samples N cells the ORIGINAL
 the current backend, and reports how many still verify. A real, if partial, harness-sanity signal
 without re-running the full (slow, many-attempts-per-cell) re-verify pass end to end.
 """
+
 import argparse
 import glob
 import json
@@ -72,7 +73,9 @@ def main() -> int:
     verifier = Verifier.from_config(config, backend)
 
     sample, n_solved_total = sample_solved_cells(args.run_dir, args.n)
-    print(f"[control] {args.run_dir}: {n_solved_total} cells originally solved; sampling {len(sample)}")
+    print(
+        f"[control] {args.run_dir}: {n_solved_total} cells originally solved; sampling {len(sample)}"  # noqa: E501
+    )
 
     n_still_ok = 0
     n_checked = 0
@@ -82,12 +85,16 @@ def main() -> int:
             continue
         result = verifier.verify(theorem, proof)
         n_checked += 1
-        status = "STILL OK" if result.ok else f"NOW FAILS ({result.reason}: {result.feedback[:100]})"
+        status = (
+            "STILL OK" if result.ok else f"NOW FAILS ({result.reason}: {result.feedback[:100]})"
+        )
         print(f"  {name}__seed{seed}: {status}")
         if result.ok:
             n_still_ok += 1
 
-    print(f"[control] {n_still_ok}/{n_checked} sampled historically-solved cells still verify as OK")
+    print(
+        f"[control] {n_still_ok}/{n_checked} sampled historically-solved cells still verify as OK"
+    )
     return 0
 
 

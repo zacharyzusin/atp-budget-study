@@ -11,22 +11,31 @@ model emits attempts in the two UNSOUND modes the verifier audit fixed:
 pipeline would be exposed to. Claim under test: scaffolding systematically inflates this surface.
 All rates are per-FAILED-attempt (ok attempts excluded) so the comparison is about output quality.
 """
+
 import glob
 import json
 import os
 from collections import Counter
 
 BENCHES = {
-    "miniF2F":   "results/phase1_ablation",
+    "miniF2F": "results/phase1_ablation",
     "ProofNet#": "results/phase1_proofnet",
 }
-COMPONENTS = ["baseline", "retrieval__1", "memory__1", "reviewer__1",
-              "tactic_skeletons__1", "budget_alloc__0", "budget_alloc__2"]
+COMPONENTS = [
+    "baseline",
+    "retrieval__1",
+    "memory__1",
+    "reviewer__1",
+    "tactic_skeletons__1",
+    "budget_alloc__0",
+    "budget_alloc__2",
+]
 # Step C diversity arms (different run dirs; their baselines are the full-budget baselines)
 STEPC = {
-    "miniF2F":   ("results/diversity_minif2f",          "results/baseline"),
-    "ProofNet#": ("results/diversity_proofnet",         "results/proofnet_baseline"),
+    "miniF2F": ("results/diversity_minif2f", "results/baseline"),
+    "ProofNet#": ("results/diversity_proofnet", "results/proofnet_baseline"),
 }
+
 
 def rates(run):
     c = Counter()
@@ -50,9 +59,12 @@ def rates(run):
     trunc = 100 * c["truncation"] / n
     return loop, trunc, loop + trunc, n
 
+
 for bench, root in BENCHES.items():
     print(f"\n===== {bench} — unsound surface per component (per failed attempt) =====")
-    print(f"  {'component':22s} {'loophole%':>9s} {'trunc%':>7s} {'UNSOUND%':>9s}  {'Δ vs base':>9s}  (n)")
+    print(
+        f"  {'component':22s} {'loophole%':>9s} {'trunc%':>7s} {'UNSOUND%':>9s}  {'Δ vs base':>9s}  (n)"  # noqa: E501
+    )
     base = rates(os.path.join(root, "baseline"))
     base_surf = base[2]
     for comp in COMPONENTS:
@@ -68,5 +80,7 @@ for bench, root in BENCHES.items():
     if os.path.isdir(div_run):
         bl = rates(div_base)
         dv = rates(div_run)
-        print(f"  {'diversity (Step C)':22s} {dv[0]:9.2f} {dv[1]:7.2f} {dv[2]:9.2f}  {dv[2]-bl[2]:+9.2f}  ({dv[3]})"
-              f"   [vs its own baseline {bl[2]:.2f}%]")
+        print(
+            f"  {'diversity (Step C)':22s} {dv[0]:9.2f} {dv[1]:7.2f} {dv[2]:9.2f}  {dv[2] - bl[2]:+9.2f}  ({dv[3]})"  # noqa: E501
+            f"   [vs its own baseline {bl[2]:.2f}%]"
+        )

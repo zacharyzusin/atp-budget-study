@@ -30,19 +30,30 @@ PROOFNET = ROOT / "results" / "proofnet_baseline"
 
 def _cell(name: str, seed: int, solved: bool, tts: int | None) -> ProblemResult:
     return ProblemResult(
-        problem_name=name, seed=seed, budget=BMAX, solved=solved,
+        problem_name=name,
+        seed=seed,
+        budget=BMAX,
+        solved=solved,
         stop_reason="solved" if solved else "budget_exhausted",
-        tokens_to_solve=tts, tokens_spent=tts if solved else BMAX, n_attempts=1,
-        benchmark="t", split="test",
+        tokens_to_solve=tts,
+        tokens_spent=tts if solved else BMAX,
+        n_attempts=1,
+        benchmark="t",
+        split="test",
     )
 
 
 # ---- §0 identity ---------------------------------------------------------------------------------
 
+
 def test_solve_cost_matches_solved_within():
     # solve_cost is the §0 identity as a number: (cost <= b) must equal solved_within(b) for all b.
-    cells = [_cell("a", 0, True, 500), _cell("b", 0, True, 30_000),
-             _cell("c", 0, False, None), _cell("d", 0, True, BMAX)]
+    cells = [
+        _cell("a", 0, True, 500),
+        _cell("b", 0, True, 30_000),
+        _cell("c", 0, False, None),
+        _cell("d", 0, True, BMAX),
+    ]
     for r in cells:
         cost = solve_cost(r)
         for b in (0, 499, 500, 8000, 30_000, BMAX, BMAX + 1):
@@ -63,11 +74,13 @@ def test_solved_identity_on_real_cells():
     for r in tbl.results:
         assert (solve_cost(r) <= BMAX) == r.solved
         for b in (2000, 8000, 32_000):
-            assert r.solved_within(b) == (r.solved and r.tokens_to_solve is not None
-                                          and r.tokens_to_solve <= b)
+            assert r.solved_within(b) == (
+                r.solved and r.tokens_to_solve is not None and r.tokens_to_solve <= b
+            )
 
 
 # ---- policy invariants ---------------------------------------------------------------------------
+
 
 def test_uniform_reproduces_logged_pass_at_b_real():
     # The load-bearing calibration: uniform at T = N*b solves exactly pass@b * N cells.
@@ -104,10 +117,10 @@ def test_oracle_knapsack_cheapest_first():
     costs = [100.0, 5000.0, 50_000.0, math.inf]
     assert oracle_solved(costs, 0) == 0
     assert oracle_solved(costs, 100) == 1
-    assert oracle_solved(costs, 5100) == 2          # 100 + 5000
-    assert oracle_solved(costs, 55_099) == 2        # can't afford the 50k yet
-    assert oracle_solved(costs, 55_100) == 3        # 100 + 5000 + 50000
-    assert oracle_solved(costs, 10 ** 12) == 3      # never funds the inf cell
+    assert oracle_solved(costs, 5100) == 2  # 100 + 5000
+    assert oracle_solved(costs, 55_099) == 2  # can't afford the 50k yet
+    assert oracle_solved(costs, 55_100) == 3  # 100 + 5000 + 50000
+    assert oracle_solved(costs, 10**12) == 3  # never funds the inf cell
 
 
 def test_oracle_min_T_to_match():
@@ -151,7 +164,7 @@ def test_attempt_depth_parses_failed_at_step():
     assert attempt_depth(False, "Failed at step 5 (`foo`): unsolved goals") == 5
     assert attempt_depth(False, "Failed at step 0 (`x`): REPL_INFRA_ERROR ...") == 0
     assert attempt_depth(False, "some unparseable noise") == 0  # infra/unknown -> 0
-    assert attempt_depth(True, "Proof verified.") == 10_000     # reached the end
+    assert attempt_depth(True, "Proof verified.") == 10_000  # reached the end
 
 
 def test_opening_tactic_after_by():
@@ -162,20 +175,32 @@ def test_opening_tactic_after_by():
 
 def _att(tokens: int, ok: bool, step: int | None, opening: str = "intro") -> dict:
     fb = "Proof verified." if ok else f"Failed at step {step} (`x`): unsolved goals"
-    return {"completion_tokens": tokens, "ok": ok, "feedback": fb,
-            "proof": f"theorem t := by\n  {opening}\n"}
+    return {
+        "completion_tokens": tokens,
+        "ok": ok,
+        "feedback": fb,
+        "proof": f"theorem t := by\n  {opening}\n",
+    }
 
 
 def test_checkpoint_only_sees_attempts_finished_by_c():
     # 3 attempts of 1000 tokens each (cum ends 1000/2000/3000). At c=2000 only the first two are
     # observable; the third (depth 9) must NOT influence any feature -> causality.
-    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 3), _att(1000, False, 5), _att(1000, False, 9),
-    ])
+    cell = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 3),
+            _att(1000, False, 5),
+            _att(1000, False, 9),
+        ],
+    )
     r = cell.checkpoint_row(2000)
     assert r.n_attempts == 2
     assert r.tokens_so_far == 2000
-    assert r.best_depth == 5          # the depth-9 attempt (cum 3000 > 2000) is invisible
+    assert r.best_depth == 5  # the depth-9 attempt (cum 3000 > 2000) is invisible
     assert r.last_depth == 5
     # at a later checkpoint the third attempt becomes visible
     assert cell.checkpoint_row(3000).best_depth == 9
@@ -183,29 +208,52 @@ def test_checkpoint_only_sees_attempts_finished_by_c():
 
 def test_partial_attempt_at_boundary_excluded():
     # an attempt whose END exceeds c is not yet observed (we only see *completed* attempts).
-    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None,
-                     attempts=[_att(1500, False, 4), _att(1500, False, 12)])
+    cell = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[_att(1500, False, 4), _att(1500, False, 12)],
+    )
     r = cell.checkpoint_row(2000)  # second attempt ends at 3000 > 2000
     assert r.n_attempts == 1 and r.best_depth == 4
 
 
 def test_stalled_and_growth_signals():
     # best depth climbs 2->6 at attempt 1, then never improves: a genuine plateau (stuck).
-    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 2), _att(1000, False, 6), _att(1000, False, 4), _att(1000, False, 5),
-    ])
+    cell = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 2),
+            _att(1000, False, 6),
+            _att(1000, False, 4),
+            _att(1000, False, 5),
+        ],
+    )
     r = cell.checkpoint_row(4000)
     assert r.best_depth == 6
-    assert r.stalled_attempts == 2     # best (6) last hit at idx 1; two attempts since -> stuck
+    assert r.stalled_attempts == 2  # best (6) last hit at idx 1; two attempts since -> stuck
     # depth_growth: early half best = max(2,6)=6, recent half best = max(4,5)=5 -> -1 (declining)
     assert r.depth_growth == -1
     assert r.distinct_openings == 1
     assert r.compiled_past_step1 == 1
 
     # contrast: a cell still climbing has positive growth and zero stall
-    climbing = CellTrace("q", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 2), _att(1000, False, 3), _att(1000, False, 5), _att(1000, False, 9),
-    ])
+    climbing = CellTrace(
+        "q",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 2),
+            _att(1000, False, 3),
+            _att(1000, False, 5),
+            _att(1000, False, 9),
+        ],
+    )
     rc = climbing.checkpoint_row(4000)
     assert rc.stalled_attempts == 0 and rc.depth_growth > 0
 
@@ -246,11 +294,19 @@ from atp.alloc.predict import (  # noqa: E402
 
 def _row(name, seed, c, *, solved_by_c, eventual, best_depth=3, stalled=0, growth=1):
     return CheckpointRow(
-        problem_name=name, seed=seed, checkpoint=c,
-        tokens_so_far=c, n_attempts=4, best_depth=best_depth, last_depth=best_depth,
-        depth_growth=growth, stalled_attempts=stalled, distinct_openings=2,
+        problem_name=name,
+        seed=seed,
+        checkpoint=c,
+        tokens_so_far=c,
+        n_attempts=4,
+        best_depth=best_depth,
+        last_depth=best_depth,
+        depth_growth=growth,
+        stalled_attempts=stalled,
+        distinct_openings=2,
         compiled_past_step1=int(best_depth >= 2),
-        solved_by_c=solved_by_c, eventual_solve=eventual,
+        solved_by_c=solved_by_c,
+        eventual_solve=eventual,
         tokens_to_solve=(c - 1 if eventual else None),
     )
 
@@ -258,7 +314,7 @@ def _row(name, seed, c, *, solved_by_c, eventual, best_depth=3, stalled=0, growt
 def test_rows_to_xy_excludes_already_solved_and_other_checkpoints():
     rows = [
         _row("a", 0, 2000, solved_by_c=False, eventual=True),
-        _row("b", 0, 2000, solved_by_c=True, eventual=True),    # already solved -> excluded
+        _row("b", 0, 2000, solved_by_c=True, eventual=True),  # already solved -> excluded
         _row("c", 0, 8000, solved_by_c=False, eventual=False),  # wrong checkpoint -> excluded
     ]
     X, y, groups, names = rows_to_xy(rows, 2000)
@@ -271,6 +327,7 @@ def test_rows_to_xy_excludes_already_solved_and_other_checkpoints():
 def test_grouped_cv_has_no_problem_in_both_splits():
     # two seeds per problem; GroupKFold must never split a problem across train/test.
     from sklearn.model_selection import GroupKFold
+
     rows = []
     for p in range(10):
         for s in (0, 1):
@@ -285,8 +342,17 @@ def test_cv_auc_separable_is_high_degenerate_is_nan():
     rows = []
     for p in range(20):
         ev = p % 2 == 0
-        rows.append(_row(f"p{p}", 0, 2000, solved_by_c=False, eventual=ev,
-                         best_depth=(20 if ev else 1), growth=(5 if ev else -5)))
+        rows.append(
+            _row(
+                f"p{p}",
+                0,
+                2000,
+                solved_by_c=False,
+                eventual=ev,
+                best_depth=(20 if ev else 1),
+                growth=(5 if ev else -5),
+            )
+        )
     X, y, groups, _ = rows_to_xy(rows, 2000)
     auc, _ = cv_auc(X, y, groups, logistic_factory, n_splits=5)
     assert auc > 0.9
@@ -298,9 +364,11 @@ def test_cv_auc_separable_is_high_degenerate_is_nan():
 
 
 def test_rows_to_xy_by_seed_filters_to_requested_seeds():
-    rows = [_row("a", 0, 2000, solved_by_c=False, eventual=True),
-            _row("a", 1, 2000, solved_by_c=False, eventual=True),
-            _row("b", 2, 2000, solved_by_c=False, eventual=False)]
+    rows = [
+        _row("a", 0, 2000, solved_by_c=False, eventual=True),
+        _row("a", 1, 2000, solved_by_c=False, eventual=True),
+        _row("b", 2, 2000, solved_by_c=False, eventual=False),
+    ]
     X, y, groups, _ = rows_to_xy_by_seed(rows, 2000, {0, 1})
     assert len(X) == 2 and set(groups) == {"a"}
     Xh, yh, gh, _ = rows_to_xy_by_seed(rows, 2000, {2})
@@ -316,22 +384,51 @@ def test_holdout_seed_eval_separable_is_high_and_excludes_holdout_from_fit():
     for p in range(20):
         ev = p % 2 == 0
         for s in (0, 1):
-            rows.append(_row(f"p{p}", s, 2000, solved_by_c=False, eventual=ev,
-                              best_depth=(20 if ev else 1), growth=(5 if ev else -5)))
+            rows.append(
+                _row(
+                    f"p{p}",
+                    s,
+                    2000,
+                    solved_by_c=False,
+                    eventual=ev,
+                    best_depth=(20 if ev else 1),
+                    growth=(5 if ev else -5),
+                )
+            )
     for p in range(20):
         ev = p % 2 == 0
-        rows.append(_row(f"h{p}", 2, 2000, solved_by_c=False, eventual=ev,
-                          best_depth=(20 if ev else 1), growth=(5 if ev else -5)))
-    auc = holdout_seed_eval(rows, 2000, holdout_seed=2, train_seeds={0, 1},
-                             model_factory=logistic_factory)
+        rows.append(
+            _row(
+                f"h{p}",
+                2,
+                2000,
+                solved_by_c=False,
+                eventual=ev,
+                best_depth=(20 if ev else 1),
+                growth=(5 if ev else -5),
+            )
+        )
+    auc = holdout_seed_eval(
+        rows, 2000, holdout_seed=2, train_seeds={0, 1}, model_factory=logistic_factory
+    )
     assert auc > 0.9
 
     # degenerate holdout (all-one-class on the held-out seed) -> nan, not a crash
-    degenerate = [_row(f"p{p}", 0, 2000, solved_by_c=False, eventual=(p % 2 == 0),
-                        best_depth=(20 if p % 2 == 0 else 1)) for p in range(10)]
+    degenerate = [
+        _row(
+            f"p{p}",
+            0,
+            2000,
+            solved_by_c=False,
+            eventual=(p % 2 == 0),
+            best_depth=(20 if p % 2 == 0 else 1),
+        )
+        for p in range(10)
+    ]
     degenerate += [_row(f"h{p}", 2, 2000, solved_by_c=False, eventual=False) for p in range(5)]
-    a2 = holdout_seed_eval(degenerate, 2000, holdout_seed=2, train_seeds={0},
-                            model_factory=logistic_factory)
+    a2 = holdout_seed_eval(
+        degenerate, 2000, holdout_seed=2, train_seeds={0}, model_factory=logistic_factory
+    )
     assert a2 != a2  # nan
 
 
@@ -376,7 +473,7 @@ def test_realizable_tau_high_abandons_all_unsolved():
     scores = [INF, 0.4, 0.4, 0.4]
     c = 2000
     comp, solv = realizable_point(costs, scores, c, tau=0.5)
-    assert solv == 1                       # only the 500-cost cell solved by c
+    assert solv == 1  # only the 500-cost cell solved by c
     assert comp == 500 + 2000 + 2000 + 2000  # the rest ran to c then stopped
 
 
@@ -391,9 +488,9 @@ def test_oracle_le_realizable_le_uniform_compute_at_matched_accuracy():
         if cost <= c:
             scores.append(INF)
         elif cost <= BMAX:
-            scores.append(0.9)   # winnable, predicted keep
+            scores.append(0.9)  # winnable, predicted keep
         else:
-            scores.append(0.1)   # trapped, predicted abandon
+            scores.append(0.1)  # trapped, predicted abandon
     # realizable: keep winnable (>=0.5), abandon trapped -> solves all n_solved cheaply
     r_comp, r_solv = realizable_point(costs, scores, c, tau=0.5)
     assert r_solv == n_solved
@@ -408,7 +505,7 @@ def test_oracle_le_realizable_le_uniform_compute_at_matched_accuracy():
 
 def test_min_compute_for_solves_and_capture_edges():
     curve = [(0.1, 100.0, 1), (0.2, 250.0, 3), (0.3, 400.0, 3)]
-    assert min_compute_for_solves(curve, 3) == 250.0   # cheapest point reaching >=3
+    assert min_compute_for_solves(curve, 3) == 250.0  # cheapest point reaching >=3
     assert min_compute_for_solves(curve, 5) == math.inf
     # full capture (realizable == oracle) -> 1.0; none (== uniform) -> 0.0
     assert capture_of_oracle(1000, 200, 200) == 1.0
@@ -453,8 +550,7 @@ def test_sh_monotone_in_keep_frac():
     # lower keep_frac drops more cells earlier -> never spends more compute (monotone non-increase).
     costs = [400.0, 3000.0, 9000.0, 40_000.0, 120_000.0, INF, INF, INF, INF, INF]
     scores = _flat_scores(len(costs))
-    comps = [successive_halving(costs, scores, keep_frac=kf)[0]
-             for kf in (0.1, 0.3, 0.5, 0.7, 1.0)]
+    comps = [successive_halving(costs, scores, keep_frac=kf)[0] for kf in (0.1, 0.3, 0.5, 0.7, 1.0)]
     assert comps == sorted(comps), comps
 
 
@@ -462,10 +558,10 @@ def test_sh_low_keep_frac_approaches_first_rung_floor():
     # keep_frac -> 0 promotes a single survivor per cut: everyone pays rung[0], ~one cell continues.
     # So compute ≈ rungs[0]*N (the floor), well below the single-checkpoint c*=8k or 16k floor.
     n = 40
-    costs = [INF] * n                       # all trapped: nobody solves, pure scheduling cost
+    costs = [INF] * n  # all trapped: nobody solves, pure scheduling cost
     comp, solv = successive_halving(costs, _flat_scores(n), keep_frac=0.001)
     assert solv == 0
-    floor = RUNGS[0] * n                     # 2000 * 40 = 80_000
+    floor = RUNGS[0] * n  # 2000 * 40 = 80_000
     # the lone survivor walks the remaining rungs to bmax; bound the overage generously
     assert floor <= comp <= floor + BMAX
     # and it is far below the single-checkpoint floor (c*=8000 -> 320_000)
@@ -484,8 +580,8 @@ def test_sh_perfect_predictor_helps_and_beats_uniform():
     for kf in (0.3, 0.5, 0.8):
         p_comp, p_solv = successive_halving(costs, perfect, keep_frac=kf)
         f_comp, f_solv = successive_halving(costs, flat, keep_frac=kf)
-        assert p_solv >= f_solv, kf          # ranking trapped last never loses a solve
-        assert p_comp <= f_comp + 1e-9, kf   # and never costs more
+        assert p_solv >= f_solv, kf  # ranking trapped last never loses a solve
+        assert p_comp <= f_comp + 1e-9, kf  # and never costs more
     # When winnable cells solve at spread-out rungs (so they don't co-compete for one slot), a
     # perfect predictor retains every winnable cell while cutting the trapped pool -> all solves for
     # a fraction of uniform's compute, the headline mechanism. Costs solve at rungs 0..4 in order.
@@ -495,7 +591,7 @@ def test_sh_perfect_predictor_helps_and_beats_uniform():
     p_comp, p_solv = successive_halving(costs2, perfect2, keep_frac=0.5)
     assert p_solv == n_winnable
     u_comp, _ = uniform_point(costs2, BMAX)
-    assert p_comp < u_comp                   # same solves as uniform, far less compute
+    assert p_comp < u_comp  # same solves as uniform, far less compute
     # never cheaper than the oracle (which pays only the winnable costs, no rung overhead)
     o_comp, o_solv = oracle_point(costs2, sum(c for c in costs2 if c <= BMAX))
     assert o_solv == n_winnable and p_comp >= o_comp
@@ -517,6 +613,7 @@ def test_sh_curve_endpoints_and_shape():
 
 # ---- multi-round THRESHOLD (keep score>=τ each rung; quality-set variant of halving) -------------
 
+
 def test_mrt_tau0_equals_uniform_max():
     # τ = 0 keeps every cell at every cut -> no abandonment -> exactly uniform@bmax.
     costs = [500.0, 9000.0, 60_000.0, 127_000.0, INF, INF]
@@ -526,10 +623,11 @@ def test_mrt_tau0_equals_uniform_max():
 
 def test_mrt_high_tau_abandons_all_unsolved_at_first_rung():
     # τ above every score -> every cell unsolved by rung0 is cut there; only rung0-solves remain.
-    costs = [1500.0, 9000.0, 60_000.0, INF]   # only the 1500 cell solves within rungs[0]=2000
+    costs = [1500.0, 9000.0, 60_000.0, INF]  # only the 1500 cell solves within rungs[0]=2000
     comp, solv = multiround_threshold(costs, _flat_scores(len(costs)), tau=0.9)
     assert solv == 1
-    assert comp == 1500 + 2000 + 2000 + 2000   # the rest ran to rung0 then stopped
+    assert comp == 1500 + 2000 + 2000 + 2000  # the rest ran to rung0 then stopped
+
 
 def test_mrt_monotone_and_bounded_by_uniform():
     costs = [400.0, 3000.0, 9000.0, 40_000.0, 120_000.0, INF, INF, INF]
@@ -537,7 +635,7 @@ def test_mrt_monotone_and_bounded_by_uniform():
     scores = [[0.2, 0.4, 0.6, 0.8, 0.3, 0.1, 0.5, 0.7] for _ in range(len(RUNGS) - 1)]
     u_comp, _ = uniform_point(costs, BMAX)
     comps = [multiround_threshold(costs, scores, tau=t)[0] for t in (0.0, 0.25, 0.5, 0.75, 1.01)]
-    assert comps == sorted(comps, reverse=True)   # higher τ -> more cut -> less compute
+    assert comps == sorted(comps, reverse=True)  # higher τ -> more cut -> less compute
     for c in comps:
         assert c <= u_comp + 1e-9
 
@@ -549,7 +647,7 @@ def test_mrt_keeps_all_winnable_where_sh_sheds_one():
     n_winnable = sum(1 for c in costs if c <= BMAX)
     perfect = [[1.0 if c <= BMAX else 0.0 for c in costs] for _ in range(len(RUNGS) - 1)]
     m_comp, m_solv = multiround_threshold(costs, perfect, tau=0.5)
-    assert m_solv == n_winnable                 # SH only managed n_winnable-1 here (SH test note)
+    assert m_solv == n_winnable  # SH only managed n_winnable-1 here (SH test note)
     # and it solves them for less than uniform, no cheaper than oracle
     u_comp, _ = uniform_point(costs, BMAX)
     o_comp, o_solv = oracle_point(costs, sum(c for c in costs if c <= BMAX))
@@ -571,6 +669,7 @@ def test_mrt_curve_endpoints():
 # ---- WS6 item 4: richer features (additive, pre-registered results/phase4/PREDICTOR_V2_DESIGN.md)
 # --
 
+
 def test_error_kind_classification():
     assert error_kind(True, "Proof verified.") == "solved"
     assert error_kind(False, "Failed at step 3 (`x`): unsolved goals") == "step"
@@ -587,9 +686,17 @@ def test_normalized_error_strips_step_number_so_repeats_dedupe():
 
 def test_v2_features_are_additive_and_v1_unaffected():
     # v1 FEATURE_NAMES / features() must be byte-identical regardless of the new fields' presence.
-    cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 2), _att(1000, False, 2), _att(1000, False, 2),
-    ])
+    cell = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 2),
+            _att(1000, False, 2),
+            _att(1000, False, 2),
+        ],
+    )
     r = cell.checkpoint_row(3000)
     v1 = r.features()
     assert set(v1) == set(CheckpointRow.FEATURE_NAMES)
@@ -605,8 +712,12 @@ def test_v2_error_fractions_and_diversity():
     attempts = [
         _att(1000, False, 3),
         _att(1000, False, 5),
-        {"completion_tokens": 1000, "ok": False, "feedback": "error: unexpected token",
-         "proof": "theorem t := by\n  bad\n"},
+        {
+            "completion_tokens": 1000,
+            "ok": False,
+            "feedback": "error: unexpected token",
+            "proof": "theorem t := by\n  bad\n",
+        },
     ]
     cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=attempts)
     r = cell.checkpoint_row(3000)
@@ -617,15 +728,33 @@ def test_v2_error_fractions_and_diversity():
 
 
 def test_v2_depth_slope_positive_when_climbing_negative_when_flat():
-    climbing = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 1), _att(1000, False, 3), _att(1000, False, 6), _att(1000, False, 9),
-    ])
+    climbing = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 1),
+            _att(1000, False, 3),
+            _att(1000, False, 6),
+            _att(1000, False, 9),
+        ],
+    )
     rc = climbing.checkpoint_row(4000)
     assert rc.depth_slope > 0
 
-    flat = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=[
-        _att(1000, False, 3), _att(1000, False, 3), _att(1000, False, 3), _att(1000, False, 3),
-    ])
+    flat = CellTrace(
+        "p",
+        0,
+        solved=False,
+        tokens_to_solve=None,
+        attempts=[
+            _att(1000, False, 3),
+            _att(1000, False, 3),
+            _att(1000, False, 3),
+            _att(1000, False, 3),
+        ],
+    )
     rf = flat.checkpoint_row(4000)
     assert rf.depth_slope == pytest.approx(0.0, abs=1e-9)
     assert rf.depth_slope_resid == pytest.approx(0.0, abs=1e-9)  # perfectly flat -> zero residual
@@ -633,12 +762,27 @@ def test_v2_depth_slope_positive_when_climbing_negative_when_flat():
 
 def test_v2_frac_refine_and_tokens_per_depth():
     attempts = [
-        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 2 (`x`): unsolved goals",
-         "proof": "theorem t := by\n  intro\n", "kind": "propose"},
-        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 4 (`x`): unsolved goals",
-         "proof": "theorem t := by\n  intro\n", "kind": "refine"},
-        {"completion_tokens": 1000, "ok": False, "feedback": "Failed at step 4 (`x`): unsolved goals",
-         "proof": "theorem t := by\n  intro\n", "kind": "refine"},
+        {
+            "completion_tokens": 1000,
+            "ok": False,
+            "feedback": "Failed at step 2 (`x`): unsolved goals",
+            "proof": "theorem t := by\n  intro\n",
+            "kind": "propose",
+        },
+        {
+            "completion_tokens": 1000,
+            "ok": False,
+            "feedback": "Failed at step 4 (`x`): unsolved goals",
+            "proof": "theorem t := by\n  intro\n",
+            "kind": "refine",
+        },
+        {
+            "completion_tokens": 1000,
+            "ok": False,
+            "feedback": "Failed at step 4 (`x`): unsolved goals",
+            "proof": "theorem t := by\n  intro\n",
+            "kind": "refine",
+        },
     ]
     cell = CellTrace("p", 0, solved=False, tokens_to_solve=None, attempts=attempts)
     r = cell.checkpoint_row(3000)

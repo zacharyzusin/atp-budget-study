@@ -27,6 +27,7 @@ Usage: analyze_allocation.py [--results-root results] [--out results/phase4]
 Writes ALLOCATION_MECHANISM.json; prints a human-readable summary; the .md writeup is separate
 (ALLOCATION_MECHANISM.md, written by hand from this script's output, per repo convention).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -85,7 +86,9 @@ def m1_problem_heterogeneity(table) -> dict:
         "trapped_pct": round(100 * trapped / n, 1),
         "partial_pct": round(100 * partial / n, 1),
         "robust_pct": round(100 * robust / n, 1),
-        "trapped": trapped, "partial": partial, "robust": robust,
+        "trapped": trapped,
+        "partial": partial,
+        "robust": robust,
     }
 
 
@@ -128,7 +131,9 @@ def load_predictor_cstars(results_root: Path) -> dict[tuple[str, str], int]:
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--results-root", default="results")
     ap.add_argument("--out", default="results/phase4")
     args = ap.parse_args()
@@ -143,8 +148,11 @@ def main():
         cstar = cstars[(model, benchmark)]
         label = f"{model}_{benchmark}"
         results[label] = {
-            "run_dir": run_dir, "model": model, "benchmark": benchmark,
-            "n_cells": table.n_cells, "n_solved": table.n_solved,
+            "run_dir": run_dir,
+            "model": model,
+            "benchmark": benchmark,
+            "n_cells": table.n_cells,
+            "n_solved": table.n_solved,
             "M1_problem_heterogeneity": m1_problem_heterogeneity(table),
             "M2_post_cstar_decomposition": m2_post_cstar_decomposition(table, cstar),
         }
@@ -152,13 +160,17 @@ def main():
     outp = out_dir / "ALLOCATION_MECHANISM.json"
     json.dump(results, open(outp, "w"), indent=2)
 
-    print(f"{'model x benchmark':<24}{'partial%':>9}{'trapped%':>9}{'robust%':>9}   |  "
-          f"{'c*':>6}{'n_post_c*':>11}{'late-bloom%':>13}{'cost_CV':>9}")
+    print(
+        f"{'model x benchmark':<24}{'partial%':>9}{'trapped%':>9}{'robust%':>9}   |  "
+        f"{'c*':>6}{'n_post_c*':>11}{'late-bloom%':>13}{'cost_CV':>9}"
+    )
     for label, r in results.items():
         m1, m2 = r["M1_problem_heterogeneity"], r["M2_post_cstar_decomposition"]
-        print(f"{label:<24}{m1['partial_pct']:>8}%{m1['trapped_pct']:>8}%{m1['robust_pct']:>8}%   |  "
-              f"{m2['cstar']:>6}{m2['n_still_running_at_cstar']:>11}"
-              f"{m2['late_bloomer_pct_of_post_cstar_pool']:>12}%{str(m2['late_bloomer_cost_cv']):>9}")
+        print(
+            f"{label:<24}{m1['partial_pct']:>8}%{m1['trapped_pct']:>8}%{m1['robust_pct']:>8}%   |  "
+            f"{m2['cstar']:>6}{m2['n_still_running_at_cstar']:>11}"
+            f"{m2['late_bloomer_pct_of_post_cstar_pool']:>12}%{str(m2['late_bloomer_cost_cv']):>9}"
+        )
     print(f"\nwrote {outp}")
 
 

@@ -43,7 +43,7 @@ def _opening_tactic(proof: str) -> str | None:
     if not proof:
         return None
     m = re.search(r":=\s*by\b", proof) or re.search(r":=", proof)
-    body = proof[m.end():] if m else proof
+    body = proof[m.end() :] if m else proof
     for raw in re.split(r"[\n;]", body):
         s = raw.strip().lstrip("·•-{}⟨ ").strip()
         if not s or s.startswith("--"):
@@ -84,7 +84,7 @@ class DiversityInjection(Component):
             return prompt
         listed = ", ".join(f"`{t}`" for t in tried[: self.max_listed])
         return (
-            f"{prompt}\n\n{_DIVERSITY_PREFIX}{listed}. Do NOT reuse any of these opening tactics or "
-            "their overall strategy. Begin with a different opening tactic and pursue a fundamentally "
+            f"{prompt}\n\n{_DIVERSITY_PREFIX}{listed}. Do NOT reuse any of these opening tactics or "  # noqa: E501
+            "their overall strategy. Begin with a different opening tactic and pursue a fundamentally "  # noqa: E501
             "different proof approach."
         )

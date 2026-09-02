@@ -59,8 +59,14 @@ def _rows(names, by_name) -> list[dict]:
         p = by_name.get(n)
         if p is None:
             continue
-        out.append({"name": n, "statement": p.statement,
-                    "opens": list(p.opens), "imports": list(p.imports)})
+        out.append(
+            {
+                "name": n,
+                "statement": p.statement,
+                "opens": list(p.opens),
+                "imports": list(p.imports),
+            }
+        )
     return out
 
 
@@ -74,10 +80,14 @@ def main() -> int:
     ap.add_argument("--hi-frac", type=float, default=10 / 16)
     ap.add_argument("--n-train", type=int, default=256)
     ap.add_argument("--n-heldout", type=int, default=200)
-    ap.add_argument("--min-samples", type=int, default=8,
-                    help="drop problems with fewer attempted seeds than this (partial-coverage cells "
-                         "from cancelled shards): the absolute-count band assumes ~k samples, so a "
-                         "low-coverage all-solve problem would otherwise be mis-banded as in-band")
+    ap.add_argument(
+        "--min-samples",
+        type=int,
+        default=8,
+        help="drop problems with fewer attempted seeds than this (partial-coverage cells "
+        "from cancelled shards): the absolute-count band assumes ~k samples, so a "
+        "low-coverage all-solve problem would otherwise be mis-banded as in-band",
+    )
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -89,8 +99,13 @@ def main() -> int:
     dropped = sorted(n for n, s in seen.items() if s < args.min_samples)
     counts = {n: c for n, c in counts.items() if seen.get(n, 0) >= args.min_samples}
     split = select_by_solve_rate(
-        counts, k=args.k, lo_frac=args.lo_frac, hi_frac=args.hi_frac,
-        n_train=args.n_train, n_heldout=args.n_heldout, seed=args.seed,
+        counts,
+        k=args.k,
+        lo_frac=args.lo_frac,
+        hi_frac=args.hi_frac,
+        n_train=args.n_train,
+        n_heldout=args.n_heldout,
+        seed=args.seed,
     )
 
     out = Path(args.out_dir)
@@ -98,9 +113,11 @@ def main() -> int:
     train_rows = _rows(split.train, by_name)
     heldout_rows = _rows(split.heldout, by_name)
     (out / "train.jsonl").write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in train_rows))
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in train_rows)
+    )
     (out / "heldout.jsonl").write_text(
-        "\n".join(json.dumps(r, ensure_ascii=False) for r in heldout_rows))
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in heldout_rows)
+    )
 
     # Held-out G1 gate eval reuses the standard lean_workbook loader, so emit the held-out slice as
     # a clean-corpus JSON (same schema as lean_workbook_clean.json) a workbook eval config reads via
@@ -108,29 +125,40 @@ def main() -> int:
     # derives (`_lw_id` or lean_workbook_<i>), so statements/tags are byte-identical to training.
     heldout_set = set(split.heldout)
     raw = json.loads(Path(cfg.data.lean_workbook_path).read_text())
-    heldout_corpus = [d for i, d in enumerate(raw)
-                      if (d.get("_lw_id") or f"lean_workbook_{i}") in heldout_set]
+    heldout_corpus = [
+        d for i, d in enumerate(raw) if (d.get("_lw_id") or f"lean_workbook_{i}") in heldout_set
+    ]
     (out / "heldout_corpus.json").write_text(
-        json.dumps(heldout_corpus, ensure_ascii=False, indent=2))
+        json.dumps(heldout_corpus, ensure_ascii=False, indent=2)
+    )
 
     # solve-count histogram for the smoke gate (a) check: is there any reward signal in the band?
     hist: dict[int, int] = {}
     for c in counts.values():
         hist[c] = hist.get(c, 0) + 1
     summary = {
-        "config": args.config, "run_dir": args.run_dir, "k": args.k,
-        "min_samples": args.min_samples, "n_dropped_low_coverage": len(dropped),
-        "n_full_coverage": len(counts), "band": [split.band_lo, split.band_hi],
-        "band_size": split.band_size, "n_train": len(train_rows),
-        "n_heldout": len(heldout_rows), "disjoint": set(split.train).isdisjoint(split.heldout),
-        "enough": split.enough, "solve_count_hist": {str(k): hist[k] for k in sorted(hist)},
+        "config": args.config,
+        "run_dir": args.run_dir,
+        "k": args.k,
+        "min_samples": args.min_samples,
+        "n_dropped_low_coverage": len(dropped),
+        "n_full_coverage": len(counts),
+        "band": [split.band_lo, split.band_hi],
+        "band_size": split.band_size,
+        "n_train": len(train_rows),
+        "n_heldout": len(heldout_rows),
+        "disjoint": set(split.train).isdisjoint(split.heldout),
+        "enough": split.enough,
+        "solve_count_hist": {str(k): hist[k] for k in sorted(hist)},
         "select_seed": args.seed,
     }
     (out / "subset_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     assert set(split.train).isdisjoint(split.heldout), "train/heldout overlap"
-    print(f"[subset] band [{split.band_lo},{split.band_hi}] of k={args.k}: {split.band_size} "
-          f"eligible -> train {len(train_rows)} / heldout {len(heldout_rows)} "
-          f"(attempted {len(counts)}); enough={split.enough}")
+    print(
+        f"[subset] band [{split.band_lo},{split.band_hi}] of k={args.k}: {split.band_size} "
+        f"eligible -> train {len(train_rows)} / heldout {len(heldout_rows)} "
+        f"(attempted {len(counts)}); enough={split.enough}"
+    )
     print(f"[subset] solve-count hist: {summary['solve_count_hist']}")
     print(f"[subset] wrote {out}/train.jsonl + heldout.jsonl + subset_summary.json")
     return 0

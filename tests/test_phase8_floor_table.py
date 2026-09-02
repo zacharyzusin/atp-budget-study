@@ -10,6 +10,7 @@ of problem names that ALL THREE stages have already completed for that seed — 
 stages
 on a partially-completed sweep instead.
 """
+
 import json
 import os
 
@@ -111,6 +112,8 @@ def test_real_repo_seed_balance_report_runs_cleanly_on_live_run_dirs():
     ]:
         if not os.path.isdir(os.path.join(run_dir, "problems")):
             return
-        report = seed_balance_report(run_dir, expected_seeds=[0, 1, 2], expected_total_per_seed=target)
+        report = seed_balance_report(
+            run_dir, expected_seeds=[0, 1, 2], expected_total_per_seed=target
+        )
         assert set(report.counts.keys()) == {0, 1, 2}
         assert isinstance(report.is_badly_imbalanced, bool)

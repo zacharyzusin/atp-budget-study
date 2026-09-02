@@ -15,6 +15,7 @@ pass@B convention (matches src/atp/eval/metrics.py): mean over seeds of the frac
 with
 solved & tokens_to_solve <= B.
 """
+
 import glob
 import json
 import os
@@ -22,11 +23,13 @@ import statistics as st
 
 BUDGETS = [2000, 8000, 32000, 128000]
 
+
 def failures(path):
     if not os.path.exists(path):
         return None
     d = json.load(open(path))
     return set(f["name"] if isinstance(f, dict) else f for f in d.get("failures", [])), d
+
 
 def load_cells(run_dir):
     """(problem, seed) -> (solved, tokens_to_solve)."""
@@ -35,6 +38,7 @@ def load_cells(run_dir):
         d = json.load(open(f))
         cells.append((d["problem_name"], d["seed"], bool(d["solved"]), d.get("tokens_to_solve")))
     return cells
+
 
 def pass_at_b(cells, names, budgets=BUDGETS):
     """names=None -> all. Returns {b: (mean, std, n_problems)} over seeds."""
@@ -46,17 +50,39 @@ def pass_at_b(cells, names, budgets=BUDGETS):
     out = {}
     n_problems = max((len(v) for v in by_seed.values()), default=0)
     for b in budgets:
-        fr = [sum(1 for s, t in rs if s and t is not None and t <= b) / len(rs)
-              for rs in by_seed.values() if rs]
-        out[b] = (round(100 * st.fmean(fr), 1) if fr else 0.0,
-                  round(100 * (st.stdev(fr) if len(fr) >= 2 else 0.0), 1), n_problems)
+        fr = [
+            sum(1 for s, t in rs if s and t is not None and t <= b) / len(rs)
+            for rs in by_seed.values()
+            if rs
+        ]
+        out[b] = (
+            round(100 * st.fmean(fr), 1) if fr else 0.0,
+            round(100 * (st.stdev(fr) if len(fr) >= 2 else 0.0), 1),
+            n_problems,
+        )
     return out
 
+
 ARMS = [
-    ("miniF2F",   "Goedel",   "results/baseline",                  "results/minif2f/statement_validation.json"),
-    ("miniF2F",   "DeepSeek", "results/deepseek_minif2f_baseline", "results/phase2/deepseek/statement_validation/minif2f_deepseekpin.json"),
-    ("ProofNet#", "Goedel",   "results/proofnet_baseline",         "results/proofnet_sharp/statement_validation.json"),
-    ("ProofNet#", "DeepSeek", "results/deepseek_proofnet_baseline","results/phase2/deepseek/statement_validation/proofnet_deepseekpin.json"),
+    ("miniF2F", "Goedel", "results/baseline", "results/minif2f/statement_validation.json"),
+    (
+        "miniF2F",
+        "DeepSeek",
+        "results/deepseek_minif2f_baseline",
+        "results/phase2/deepseek/statement_validation/minif2f_deepseekpin.json",
+    ),
+    (
+        "ProofNet#",
+        "Goedel",
+        "results/proofnet_baseline",
+        "results/proofnet_sharp/statement_validation.json",
+    ),
+    (
+        "ProofNet#",
+        "DeepSeek",
+        "results/deepseek_proofnet_baseline",
+        "results/phase2/deepseek/statement_validation/proofnet_deepseekpin.json",
+    ),
 ]
 
 # per-benchmark intersection = full set - union of both pins' failures
@@ -69,9 +95,11 @@ for bench, model, _run, valpath in ARMS:
     fset, meta = fv
     fails.setdefault(bench, set())
     fails[bench] |= fset
-    print(f"[validate] {bench:9s} {model:8s} pin={meta.get('lean_toolchain')} "
-          f"mathlib={(meta.get('mathlib_commit') or '')[:10]} "
-          f"elaborated={meta.get('n_elaborated')}/{meta.get('n_problems')} failures={len(fset)}")
+    print(
+        f"[validate] {bench:9s} {model:8s} pin={meta.get('lean_toolchain')} "
+        f"mathlib={(meta.get('mathlib_commit') or '')[:10]} "
+        f"elaborated={meta.get('n_elaborated')}/{meta.get('n_problems')} failures={len(fset)}"
+    )
 
 print()
 for bench, model, run, _ in ARMS:
@@ -81,7 +109,9 @@ for bench, model, run, _ in ARMS:
     inter = allnames - excl
     native = pass_at_b(cells, None)
     isect = pass_at_b(cells, inter)
-    print(f"===== {bench} · {model}  (full={len(allnames)}  excluded={len(excl)}  intersection={len(inter)}) =====")
+    print(
+        f"===== {bench} · {model}  (full={len(allnames)}  excluded={len(excl)}  intersection={len(inter)}) ====="  # noqa: E501
+    )
     print("        budget |   native (n)   | intersection (n)")
     for b in BUDGETS:
         nm, ns, nn = native[b]

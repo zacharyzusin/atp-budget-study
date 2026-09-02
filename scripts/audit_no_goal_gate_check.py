@@ -48,7 +48,9 @@ def main() -> None:
     verifier = Verifier(backend)
 
     print("=" * 70)
-    print("CASE 1: comment-only 'proof' (the exact recorded p8battery2_leanabell_gdrl_proofnet shape)")
+    print(
+        "CASE 1: comment-only 'proof' (the exact recorded p8battery2_leanabell_gdrl_proofnet shape)"
+    )
     print("=" * 70)
     thm1 = Theorem(
         name="exercise_5_7",
@@ -75,7 +77,9 @@ def main() -> None:
     print("CASE 2: a REAL, CORRECT continuation-style bare-tactic proof (no theorem/lemma line)")
     print("=" * 70)
     thm2 = Theorem(name="triv2", statement="theorem triv2 : True")
-    bare_correct_proof = "  trivial"  # what DeepSeekV15Template extraction produces for a trivial goal
+    bare_correct_proof = (
+        "  trivial"  # what DeepSeekV15Template extraction produces for a trivial goal
+    )
     src2 = backend._build_repl_source(thm2, bare_correct_proof)
     print("--- reconstructed source ---")
     print(src2)
@@ -85,13 +89,17 @@ def main() -> None:
     print(f"--- Verifier.verify: ok={res2.ok} reason={res2.reason} feedback={res2.feedback!r} ---")
     print()
     if raw2.success and not res2.ok and res2.reason == "no_goal":
-        print("*** CONFIRMED BUG: backend genuinely ACCEPTED a correct continuation-style proof, "
-              "but Verifier.verify rejected it as no_goal because it checks the wrong operand. ***")
+        print(
+            "*** CONFIRMED BUG: backend genuinely ACCEPTED a correct continuation-style proof, "
+            "but Verifier.verify rejected it as no_goal because it checks the wrong operand. ***"
+        )
     elif raw2.success and res2.ok:
         print("No bug on this case: Verifier correctly scored a genuinely-accepted proof as ok.")
     else:
-        print(f"Backend itself did not accept the bare proof (success={raw2.success}) -- "
-              "no_goal-gate question is moot for this case; investigate the raw output above.")
+        print(
+            f"Backend itself did not accept the bare proof (success={raw2.success}) -- "
+            "no_goal-gate question is moot for this case; investigate the raw output above."
+        )
 
 
 if __name__ == "__main__":

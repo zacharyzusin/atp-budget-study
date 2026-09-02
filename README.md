@@ -193,7 +193,7 @@ measurement-validity argument are in `DECISIONS.md`. A frozen dependency listing
 module load anaconda/2023.09
 conda activate /insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study/scratch/conda-envs/atp
 
-make test     # fast suite — login-node safe, no GPU/Lean (~2 min, 730 tests)
+make test     # fast suite — login-node safe, no GPU/Lean (698 tests, ~10s)
 make lint     # ruff
 make verify   # both of the above — the pre-commit gate
 make smoke    # tiny end-to-end sanity on an interactive GPU session (2–5 problems)

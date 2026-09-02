@@ -31,7 +31,9 @@ from atp.models.client import OpenAITransport, VLLMClient
 from atp.models.templates import WholeProofTemplate
 
 
-def build_decomp_solve_fn(config, run_dir: Path, transport, max_rounds: int, max_subgoal_rounds: int):
+def build_decomp_solve_fn(
+    config, run_dir: Path, transport, max_rounds: int, max_subgoal_rounds: int
+):
     """Mirrors `phase7_stepwise_run.py::build_stepwise_solve_fn` — same thread-local Lean-backend
     pattern, `DecompositionAgent` as the per-cell solver instead of `RegroundStepwiseAgent`."""
     states_dir = run_dir / "agent_states"
@@ -87,7 +89,9 @@ def main() -> int:
     ap.add_argument("--seeds", default=None, help="comma-separated; default = config.eval.seeds")
     ap.add_argument("--budget", type=int, default=None, help="default = max(config.budget.values)")
     ap.add_argument("--max-rounds", type=int, default=8, help="decomposition attempts cap per cell")
-    ap.add_argument("--max-subgoal-rounds", type=int, default=8, help="propose attempts per subgoal")
+    ap.add_argument(
+        "--max-subgoal-rounds", type=int, default=8, help="propose attempts per subgoal"
+    )
     ap.add_argument("--n-workers", type=int, default=None)
     args = ap.parse_args()
 
@@ -117,7 +121,12 @@ def main() -> int:
     seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else None
     try:
         result = run_sweep(
-            config, dataset, solve_fn, run_dir=run_dir, seeds=seeds, budget=args.budget,
+            config,
+            dataset,
+            solve_fn,
+            run_dir=run_dir,
+            seeds=seeds,
+            budget=args.budget,
             n_workers=args.n_workers,
         )
     finally:

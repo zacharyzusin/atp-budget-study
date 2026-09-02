@@ -169,7 +169,7 @@ None are blocking; all are documented.
 ```bash
 module load anaconda/2023.09
 conda activate /insomnia001/depts/edu/COMS-E6998-012/zwz2000/atp-budget-study/scratch/conda-envs/atp
-make verify    # fast tests (730, ~2 min) + ruff. The gate before any commit.
+make verify    # fast tests (698, ~10s) + ruff. The gate before any commit.
 ```
 
 **Layout:** `src/atp/` is the library (see README "Repository tour"), `configs/` holds 81 versioned

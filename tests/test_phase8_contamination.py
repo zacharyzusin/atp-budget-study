@@ -1,6 +1,7 @@
 """Phase 8 — contamination-noted subset tests (see scripts/phase8_contamination.py docstring for
 what this does and does not cover: mechanical checks available from the benchmark data itself, not a
 full training-corpus audit)."""
+
 from dataclasses import dataclass
 
 from scripts.phase8_contamination import (
@@ -20,9 +21,16 @@ def test_proofnet_problem_source_flags_putnam_as_competition():
 
 
 def test_proofnet_low_risk_subset_keeps_only_competition_problems():
-    names = ["Herstein__exercise_1", "Putnam__exercise_1998_b6", "Rudin__exercise_2",
-             "Putnam__exercise_1999_b4"]
-    assert proofnet_low_risk_subset(names) == {"Putnam__exercise_1998_b6", "Putnam__exercise_1999_b4"}
+    names = [
+        "Herstein__exercise_1",
+        "Putnam__exercise_1998_b6",
+        "Rudin__exercise_2",
+        "Putnam__exercise_1999_b4",
+    ]
+    assert proofnet_low_risk_subset(names) == {
+        "Putnam__exercise_1998_b6",
+        "Putnam__exercise_1999_b4",
+    }
 
 
 @dataclass
@@ -84,6 +92,10 @@ def test_real_repo_proofnet_source_breakdown():
         return
     low_risk = proofnet_low_risk_subset(names)
     assert low_risk == {
-        "Putnam__exercise_1998_b6", "Putnam__exercise_1999_b4", "Putnam__exercise_2001_a5",
-        "Putnam__exercise_2014_a5", "Putnam__exercise_2018_a5", "Putnam__exercise_2018_b4",
+        "Putnam__exercise_1998_b6",
+        "Putnam__exercise_1999_b4",
+        "Putnam__exercise_2001_a5",
+        "Putnam__exercise_2014_a5",
+        "Putnam__exercise_2018_a5",
+        "Putnam__exercise_2018_b4",
     }

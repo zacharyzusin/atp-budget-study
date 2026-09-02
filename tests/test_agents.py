@@ -171,6 +171,7 @@ def test_agent_resume_continues_unsolved_with_carried_budget(tmp_path):
 # Phase 5: reclaim-and-reinvest extension (resume a budget-exhausted checkpoint, raise the cap).
 # --------------------------------------------------------------------------------------
 
+
 def _exhausted_checkpoint(tmp_path, limit=25):
     """Run an unsolved cell to budget exhaustion and return (state_path, logged_state)."""
     path = tmp_path / "t.json"
@@ -190,10 +191,10 @@ def test_extend_preserves_prefix_and_solves_in_extension(tmp_path):
     after = agent.extend(THM, path, new_limit=50)
 
     assert after.solved
-    assert after.budget["spent"] > 25            # the solve was paid for past the old cap
-    assert after.budget["spent"] <= 50           # never overran the new cap
+    assert after.budget["spent"] > 25  # the solve was paid for past the old cap
+    assert after.budget["spent"] <= 50  # never overran the new cap
     # Solves_reinvest ⊇ Solves_uniform by construction: every logged attempt is preserved, in order.
-    assert [(a.kind, a.proof, a.completion_tokens) for a in after.attempts[:len(prefix)]] == prefix
+    assert [(a.kind, a.proof, a.completion_tokens) for a in after.attempts[: len(prefix)]] == prefix
     assert after.n_attempts > before.n_attempts  # extension only *added* attempts
 
 
@@ -205,7 +206,7 @@ def test_extend_solved_checkpoint_is_unchanged(tmp_path):
 
     transport = _transport(always_solve=True)
     after = _agent(transport, BudgetMeter(limit=1000)).extend(THM, path, new_limit=500_000)
-    assert after.solved and transport.calls == []          # work not redone
+    assert after.solved and transport.calls == []  # work not redone
     assert after.n_attempts == solved_before.n_attempts
 
 
@@ -230,7 +231,7 @@ def test_extend_stays_unsolved_when_tail_is_dead(tmp_path):
     after = agent.extend(THM, path, new_limit=50)
     assert not after.solved
     assert after.stop_reason == STOP_BUDGET
-    assert after.budget["spent"] == 50           # the reclaimed budget was fully spent, no solve
+    assert after.budget["spent"] == 50  # the reclaimed budget was fully spent, no solve
 
 
 def test_from_config_wires_refinement_policy():
@@ -264,12 +265,16 @@ def test_from_config_sample_max_tokens_override():
     from atp.config import BASE_CONFIG, load_config
 
     cfg = load_config(BASE_CONFIG)
-    assert cfg.model.sample_max_tokens is None  # unset by default — every existing config unaffected
+    assert (
+        cfg.model.sample_max_tokens is None
+    )  # unset by default — every existing config unaffected
     client = VLLMClient(model="m", transport=_transport(), meter=BudgetMeter(limit=10))
     agent_default = WholeProofAgent.from_config(cfg, client, Verifier(_backend()))
     assert agent_default.sample_max_tokens == cfg.model.max_model_len // 2
 
-    cfg2 = cfg.model_copy(update={"model": cfg.model.model_copy(update={"sample_max_tokens": 30000})})
+    cfg2 = cfg.model_copy(
+        update={"model": cfg.model.model_copy(update={"sample_max_tokens": 30000})}
+    )
     agent_override = WholeProofAgent.from_config(cfg2, client, Verifier(_backend()))
     assert agent_override.sample_max_tokens == 30000
 
@@ -322,13 +327,18 @@ def test_from_config_regression_goedel_v2_and_deepseek_v2_still_resolve_whole_pr
     goedel_v2_agent = WholeProofAgent.from_config(goedel_v2_cfg, client, Verifier(_backend()))
     assert isinstance(goedel_v2_agent.template, WholeProofTemplate)
 
-    for path in ["configs/deepseek_minif2f_baseline.yaml", "configs/deepseek_proofnet_baseline.yaml"]:
+    for path in [
+        "configs/deepseek_minif2f_baseline.yaml",
+        "configs/deepseek_proofnet_baseline.yaml",
+    ]:
         deepseek_v2_cfg = load_config(path)
         assert deepseek_v2_cfg.model.prompt_template == "whole_proof", (
             f"{path}: expected whole_proof (this model's own documented official format) — if this "
             "ever changes, the fix above would silently change DeepSeek-V2's actual prompt too"
         )
-        deepseek_v2_agent = WholeProofAgent.from_config(deepseek_v2_cfg, client, Verifier(_backend()))
+        deepseek_v2_agent = WholeProofAgent.from_config(
+            deepseek_v2_cfg, client, Verifier(_backend())
+        )
         assert isinstance(deepseek_v2_agent.template, WholeProofTemplate)
 
 

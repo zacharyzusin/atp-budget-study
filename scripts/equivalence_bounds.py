@@ -36,16 +36,32 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (run_root, baseline_subdir, {label: variant_subdir}, benchmark_label)
 PHASE1_COMPARISONS = [
-    ("phase1_ablation", "baseline", {
-        "retrieval": "retrieval__1", "memory": "memory__1", "reviewer": "reviewer__1",
-        "tactic_skeletons": "tactic_skeletons__1",
-        "budget_alloc__0": "budget_alloc__0", "budget_alloc__2": "budget_alloc__2",
-    }, "minif2f"),
-    ("phase1_proofnet", "baseline", {
-        "retrieval": "retrieval__1", "memory": "memory__1", "reviewer": "reviewer__1",
-        "tactic_skeletons": "tactic_skeletons__1",
-        "budget_alloc__0": "budget_alloc__0", "budget_alloc__2": "budget_alloc__2",
-    }, "proofnet_sharp"),
+    (
+        "phase1_ablation",
+        "baseline",
+        {
+            "retrieval": "retrieval__1",
+            "memory": "memory__1",
+            "reviewer": "reviewer__1",
+            "tactic_skeletons": "tactic_skeletons__1",
+            "budget_alloc__0": "budget_alloc__0",
+            "budget_alloc__2": "budget_alloc__2",
+        },
+        "minif2f",
+    ),
+    (
+        "phase1_proofnet",
+        "baseline",
+        {
+            "retrieval": "retrieval__1",
+            "memory": "memory__1",
+            "reviewer": "reviewer__1",
+            "tactic_skeletons": "tactic_skeletons__1",
+            "budget_alloc__0": "budget_alloc__0",
+            "budget_alloc__2": "budget_alloc__2",
+        },
+        "proofnet_sharp",
+    ),
 ]
 
 
@@ -72,21 +88,24 @@ def load_solved_merged(run_dirs: list[Path]) -> dict[tuple[str, int], bool]:
 # as
 # 3 separate single-seed run dirs (results/p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]).
 STAGE_B_COMPARISONS = [
-    (model, bench, arm)
-    for model in ("g", "d")
-    for bench in ("mf", "pn")
-    for arm in ("A", "B")
+    (model, bench, arm) for model in ("g", "d") for bench in ("mf", "pn") for arm in ("A", "B")
 ]
 
 
 def _p6_dirs(model: str, bench: str, arm: str) -> list[Path]:
     base = f"p6eval_{model}_{bench}_{arm}"
-    return [ROOT / "results" / base, ROOT / "results" / f"{base}_s1", ROOT / "results" / f"{base}_s2"]
+    return [
+        ROOT / "results" / base,
+        ROOT / "results" / f"{base}_s1",
+        ROOT / "results" / f"{base}_s2",
+    ]
 
 
-def paired_bootstrap_bound(baseline: dict, variant: dict, n_boot: int,
-                            rng: np.random.Generator) -> dict | None:
-    """Cluster-by-problem bootstrap on the paired per-cell delta (variant_solved - baseline_solved)."""
+def paired_bootstrap_bound(
+    baseline: dict, variant: dict, n_boot: int, rng: np.random.Generator
+) -> dict | None:
+    """Cluster-by-problem bootstrap on the paired
+    per-cell delta (variant_solved - baseline_solved)."""
     keys = sorted(set(baseline) & set(variant))
     if not keys:
         return None
@@ -108,10 +127,13 @@ def paired_bootstrap_bound(baseline: dict, variant: dict, n_boot: int,
         boot.append(mean_delta(cell_keys))
 
     lo, hi = float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))
-    ub_one_sided = float(np.percentile(boot, 97.5))  # one-sided 97.5th pct == upper end of 95% two-sided
+    ub_one_sided = float(
+        np.percentile(boot, 97.5)
+    )  # one-sided 97.5th pct == upper end of 95% two-sided
     lb_one_sided = float(np.percentile(boot, 2.5))
     return {
-        "n_problems": n, "n_cells": len(keys),
+        "n_problems": n,
+        "n_cells": len(keys),
         "point_delta_pp": 100 * point,
         "ci95_two_sided_pp": [100 * lo, 100 * hi],
         "upper_bound_97_5_pp": 100 * ub_one_sided,
@@ -145,9 +167,11 @@ def main() -> None:
                 continue
             res.update({"benchmark": bench, "component": label, "group": "phase1"})
             report.append(res)
-            print(f"{bench:14s} {label:20s} n={res['n_problems']:3d}  "
-                  f"point={res['point_delta_pp']:+.2f}pp  "
-                  f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp")
+            print(
+                f"{bench:14s} {label:20s} n={res['n_problems']:3d}  "
+                f"point={res['point_delta_pp']:+.2f}pp  "
+                f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp"
+            )
 
     stage_b_report = []
     for model, bench, arm in STAGE_B_COMPARISONS:
@@ -164,40 +188,56 @@ def main() -> None:
         model_label = "Goedel" if model == "g" else "DeepSeek"
         bench_label = "miniF2F" if bench == "mf" else "ProofNet#"
         arm_label = "A (generic RFT)" if arm == "A" else "B (closing-targeted SFT)"
-        res.update({"model": model_label, "benchmark": bench_label, "arm": arm_label,
-                    "group": "stage_b"})
+        res.update(
+            {"model": model_label, "benchmark": bench_label, "arm": arm_label, "group": "stage_b"}
+        )
         stage_b_report.append(res)
-        print(f"stageB {model_label:9s} {bench_label:10s} {arm_label:25s} n={res['n_problems']:3d}  "
-              f"point={res['point_delta_pp']:+.2f}pp  "
-              f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp")
+        print(
+            f"stageB {model_label:9s} {bench_label:10s} {arm_label:25s} n={res['n_problems']:3d}  "
+            f"point={res['point_delta_pp']:+.2f}pp  "
+            f"95% CI [{res['ci95_two_sided_pp'][0]:+.2f}, {res['ci95_two_sided_pp'][1]:+.2f}]pp"
+        )
 
     out_json = ROOT / "results" / "equivalence_bounds.json"
     out_json.write_text(json.dumps(report + stage_b_report, indent=2))
 
-    lines = ["# Equivalence bounds for Phase 1 scaffolding components (WS6 item 1)", "",
-             "Paired per-problem bootstrap (clustered by problem, all seeds of a problem resampled",
-             "together), 95% CI on the mean solve-rate delta (variant - baseline), in percentage",
-             "points. Upper/lower bound columns are the one-sided 97.5th/2.5th percentiles (same",
-             "numbers as the two-sided CI ends, labeled for the equivalence-testing framing: \"this",
-             "component's true effect is below +Xpp with ~97.5% one-sided confidence\").", "",
-             "| benchmark | component | n problems | point (pp) | 95% CI (pp) | upper bound (pp) |",
-             "|---|---|---|---|---|---|"]
+    lines = [
+        "# Equivalence bounds for Phase 1 scaffolding components (WS6 item 1)",
+        "",
+        "Paired per-problem bootstrap (clustered by problem, all seeds of a problem resampled",
+        "together), 95% CI on the mean solve-rate delta (variant - baseline), in percentage",
+        "points. Upper/lower bound columns are the one-sided 97.5th/2.5th percentiles (same",
+        'numbers as the two-sided CI ends, labeled for the equivalence-testing framing: "this',
+        "component's true effect is below +Xpp with ~97.5% one-sided confidence\").",
+        "",
+        "| benchmark | component | n problems | point (pp) | 95% CI (pp) | upper bound (pp) |",
+        "|---|---|---|---|---|---|",
+    ]
     for r in report:
-        lines.append(f"| {r['benchmark']} | {r['component']} | {r['n_problems']} | "
-                      f"{r['point_delta_pp']:+.2f} | "
-                      f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
-                      f"{r['upper_bound_97_5_pp']:+.2f} |")
-    lines += ["", "## Phase 6 Stage A/B (SFT exposure-bias pilot), both models, both benchmarks, 3 seeds",
-               "", "Same paired per-problem bootstrap, base vs. each arm (A = generic RFT, "
-               "B = closing-targeted SFT), merged across 3 single-seed run dirs per arm "
-               "(`p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]`).", "",
-               "| model | benchmark | arm | n problems | point (pp) | 95% CI (pp) | upper bound (pp) |",
-               "|---|---|---|---|---|---|---|"]
+        lines.append(
+            f"| {r['benchmark']} | {r['component']} | {r['n_problems']} | "
+            f"{r['point_delta_pp']:+.2f} | "
+            f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
+            f"{r['upper_bound_97_5_pp']:+.2f} |"
+        )
+    lines += [
+        "",
+        "## Phase 6 Stage A/B (SFT exposure-bias pilot), both models, both benchmarks, 3 seeds",
+        "",
+        "Same paired per-problem bootstrap, base vs. each arm (A = generic RFT, "
+        "B = closing-targeted SFT), merged across 3 single-seed run dirs per arm "
+        "(`p6eval_{g,d}_{mf,pn}_{base,A,B}[_s1|_s2]`).",
+        "",
+        "| model | benchmark | arm | n problems | point (pp) | 95% CI (pp) | upper bound (pp) |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for r in stage_b_report:
-        lines.append(f"| {r['model']} | {r['benchmark']} | {r['arm']} | {r['n_problems']} | "
-                      f"{r['point_delta_pp']:+.2f} | "
-                      f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
-                      f"{r['upper_bound_97_5_pp']:+.2f} |")
+        lines.append(
+            f"| {r['model']} | {r['benchmark']} | {r['arm']} | {r['n_problems']} | "
+            f"{r['point_delta_pp']:+.2f} | "
+            f"[{r['ci95_two_sided_pp'][0]:+.2f}, {r['ci95_two_sided_pp'][1]:+.2f}] | "
+            f"{r['upper_bound_97_5_pp']:+.2f} |"
+        )
     out_md = ROOT / "results" / "EQUIVALENCE_BOUNDS.md"
     out_md.write_text("\n".join(lines) + "\n")
     print(f"\nwrote {out_json}\nwrote {out_md}")

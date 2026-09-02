@@ -26,15 +26,27 @@ itself, plus one well-documented, field-specific risk:
 
 Both checks are logged plainly as what they are: real but partial evidence, not a full audit.
 """
+
 from dataclasses import dataclass
 
-_TEXTBOOK_PREFIXES = frozenset({
-    "Dummit", "Munkres", "Rudin", "Herstein", "Artin", "Axler", "Ireland", "Shakarchi", "Pugh",
-})
+_TEXTBOOK_PREFIXES = frozenset(
+    {
+        "Dummit",
+        "Munkres",
+        "Rudin",
+        "Herstein",
+        "Artin",
+        "Axler",
+        "Ireland",
+        "Shakarchi",
+        "Pugh",
+    }
+)
 
 
 def proofnet_problem_source(name):
-    """The `NAME__exercise_...` prefix convention -> ('textbook', <book>) or ('competition', <src>)."""
+    """The `NAME__exercise_...` prefix convention ->
+    ('textbook', <book>) or ('competition', <src>)."""
     prefix = name.split("__")[0]
     if prefix in _TEXTBOOK_PREFIXES:
         return ("textbook", prefix)

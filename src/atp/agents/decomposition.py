@@ -77,7 +77,7 @@ def parse_decomposition(text: str) -> Decomposition | None:
     if not matches:
         return None
     haves = [(m.group("name"), m.group("stmt")) for m in matches]
-    main = text[matches[-1].end():].strip()
+    main = text[matches[-1].end() :].strip()
     main = re.sub(r"```\s*$", "", main).strip()
     if not main or _BARE_SORRY.match(main) or main.lower() in {"admit", "sorry"}:
         return None
@@ -92,7 +92,9 @@ def split_signature(statement: str) -> tuple[str, str]:
     (`(a b : G)`, `{G : Type*}`), so the last depth-0 colon is always the binders/goal separator,
     regardless of how many binders precede it or what's inside them.
     """
-    s = re.sub(r"^\s*(?:theorem|lemma|example)\b\s*[A-Za-z_][A-Za-z0-9_'.]*\s*", "", statement.strip())
+    s = re.sub(
+        r"^\s*(?:theorem|lemma|example)\b\s*[A-Za-z_][A-Za-z0-9_'.]*\s*", "", statement.strip()
+    )
     depth = 0
     split_at = -1
     for i, ch in enumerate(s):
@@ -104,7 +106,7 @@ def split_signature(statement: str) -> tuple[str, str]:
             split_at = i
     if split_at == -1:
         return "", s.strip()
-    return s[:split_at].strip(), s[split_at + 1:].strip()
+    return s[:split_at].strip(), s[split_at + 1 :].strip()
 
 
 def subgoal_theorem(parent: Theorem, index: int, name: str, prop: str) -> Theorem:
@@ -208,6 +210,7 @@ class DecompositionAgent:
         if existing is not None:
             if existing.budget:
                 from atp.budget.meter import BudgetMeter
+
                 self.client.meter = BudgetMeter.restore(existing.budget)
             return existing
         return AgentState(theorem_name=theorem.name)
@@ -222,27 +225,44 @@ class DecompositionAgent:
             decomp = parse_decomposition(raw_text)
 
             if decomp is None:
-                self._record_attempt(state, "decompose", raw_text, ok=False,
-                                      reason="unparseable", feedback="Could not parse HAVE/MAIN.",
-                                      tokens=completion.completion_tokens)
+                self._record_attempt(
+                    state,
+                    "decompose",
+                    raw_text,
+                    ok=False,
+                    reason="unparseable",
+                    feedback="Could not parse HAVE/MAIN.",
+                    tokens=completion.completion_tokens,
+                )
                 self._checkpoint(state, state_path)
                 continue
 
             sketch = build_sketch(theorem, decomp)
             raw = self.verifier.backend.verify(theorem, sketch)
             if not (raw.success and raw.declares_goal and not raw.timed_out):
-                self._record_attempt(state, "decompose", sketch, ok=False,
-                                      reason="sketch_rejected",
-                                      feedback=f"Sketch did not elaborate: {raw.output[:2000]}",
-                                      tokens=completion.completion_tokens)
+                self._record_attempt(
+                    state,
+                    "decompose",
+                    sketch,
+                    ok=False,
+                    reason="sketch_rejected",
+                    feedback=f"Sketch did not elaborate: {raw.output[:2000]}",
+                    tokens=completion.completion_tokens,
+                )
                 self._checkpoint(state, state_path)
                 continue
 
             # Record the accepted decomposition proposal itself (charges its generation tokens to
             # the audit trail) before spending anything on subgoal proving.
-            self._record_attempt(state, "decompose", sketch, ok=False, reason="sketch_accepted",
-                                  feedback="Structural sketch elaborated; proving subgoals.",
-                                  tokens=completion.completion_tokens)
+            self._record_attempt(
+                state,
+                "decompose",
+                sketch,
+                ok=False,
+                reason="sketch_accepted",
+                feedback="Structural sketch elaborated; proving subgoals.",
+                tokens=completion.completion_tokens,
+            )
             self._checkpoint(state, state_path)
 
             subproofs = self._prove_subgoals(theorem, decomp, state, state_path)
@@ -251,9 +271,15 @@ class DecompositionAgent:
 
             composed = build_composed_proof(theorem, decomp, subproofs)
             result = self.verifier.verify(theorem, composed)
-            self._record_attempt(state, "compose", composed, ok=result.ok,
-                                  reason=result.reason, feedback=result.feedback,
-                                  tokens=0)  # subgoal tokens already charged individually
+            self._record_attempt(
+                state,
+                "compose",
+                composed,
+                ok=result.ok,
+                reason=result.reason,
+                feedback=result.feedback,
+                tokens=0,
+            )  # subgoal tokens already charged individually
             self._checkpoint(state, state_path)
             if result.ok:
                 state.proof = composed
@@ -288,12 +314,28 @@ class DecompositionAgent:
             subproofs[name] = sub_state.proof or ""
         return subproofs
 
-    def _record_attempt(self, state: AgentState, kind: str, proof: str, *, ok: bool,
-                         reason: str, feedback: str, tokens: int) -> None:
-        state.attempts.append(Attempt(
-            index=state.n_attempts, kind=kind, proof=proof, ok=ok, reason=reason,
-            feedback=feedback, completion_tokens=tokens,
-        ))
+    def _record_attempt(
+        self,
+        state: AgentState,
+        kind: str,
+        proof: str,
+        *,
+        ok: bool,
+        reason: str,
+        feedback: str,
+        tokens: int,
+    ) -> None:
+        state.attempts.append(
+            Attempt(
+                index=state.n_attempts,
+                kind=kind,
+                proof=proof,
+                ok=ok,
+                reason=reason,
+                feedback=feedback,
+                completion_tokens=tokens,
+            )
+        )
         if self.client.meter is not None:
             state.budget = self.client.meter.snapshot()
 

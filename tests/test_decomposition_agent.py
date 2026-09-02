@@ -99,9 +99,7 @@ def test_split_signature_simple():
 
 
 def test_split_signature_implicit_and_instance_binders():
-    binders, goal = split_signature(
-        "theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b"
-    )
+    binders, goal = split_signature("theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b")
     assert binders == "{G : Type*} [Group G] (a b : G)"
     assert goal == "a * b = a * b"
 
@@ -209,7 +207,8 @@ def test_sketch_check_accepts_and_all_subgoals_solve_composes_final_proof():
 
 
 def test_sketch_rejected_makes_zero_subgoal_calls():
-    """A MAIN that doesn't reference any have -> sketch structurally rejected -> no subgoal spend."""
+    """A MAIN that doesn't reference any have
+    -> sketch structurally rejected -> no subgoal spend."""
     bad_completion = (
         "theorem foo {G : Type*} [Group G] (a b : G) : a * b = a * b := by\n"
         "  have h1 : True := by sorry\n  trivial\n"  # 'trivial' has no 'exact' -> backend rejects
@@ -251,8 +250,13 @@ def test_unparseable_completion_makes_zero_subgoal_calls():
 def test_one_subgoal_unsolved_tries_a_fresh_decomposition_next_round():
     # h1 always solves; h2 never solves (always bad_tactic) for max_subgoal_rounds, exhausting it.
     transport = _subgoal_transport(solves={"h1": True, "h2": False})
-    agent = _agent(transport, _backend_have_aware(), BudgetMeter(limit=1_000_000), max_rounds=2,
-                    max_subgoal_rounds=2)
+    agent = _agent(
+        transport,
+        _backend_have_aware(),
+        BudgetMeter(limit=1_000_000),
+        max_rounds=2,
+        max_subgoal_rounds=2,
+    )
     state = agent.prove(THM)
     assert not state.solved
     # two decomposition rounds attempted (max_rounds=2), each with subgoal attempts appended

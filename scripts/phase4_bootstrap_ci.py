@@ -47,8 +47,10 @@ def bootstrap_ci(tbl, cstar, oof, med, n_boot: int, rng: np.random.Generator, fr
 
     def saved_frac_for(cells) -> float | None:
         costs = [solve_cost(r) for r in cells]
-        scores = [math.inf if solve_cost(r) <= cstar
-                  else oof.get((r.problem_name, r.seed), med) for r in cells]
+        scores = [
+            math.inf if solve_cost(r) <= cstar else oof.get((r.problem_name, r.seed), med)
+            for r in cells
+        ]
         out = saved_at_target(costs, scores, cstar, frac=frac)
         return out["realizable_saved_frac"] if out is not None else None
 
@@ -86,16 +88,23 @@ def main() -> None:
 
         point, lo, hi, n_ok = bootstrap_ci(tbl, cstar, oof, med, args.n_boot, rng)
         entry = {
-            "model": model, "benchmark": benchmark, "decision_checkpoint": cstar,
+            "model": model,
+            "benchmark": benchmark,
+            "decision_checkpoint": cstar,
             "n_problems": len({r.problem_name for r in tbl.results}),
-            "point_saved_frac": point, "ci95_lo": lo, "ci95_hi": hi,
-            "n_boot_valid": n_ok, "n_boot_requested": args.n_boot,
+            "point_saved_frac": point,
+            "ci95_lo": lo,
+            "ci95_hi": hi,
+            "n_boot_valid": n_ok,
+            "n_boot_requested": args.n_boot,
         }
         report.append(entry)
-        ci_str = f"[{100*lo:+.1f}%, {100*hi:+.1f}%]" if lo is not None else "n/a"
-        pt_str = f"{100*point:+.1f}%" if point is not None else "n/a"
-        print(f"{model:9s} x {benchmark:14s} (c*={cstar}): saved@90% = {pt_str}  "
-              f"95% CI {ci_str}  (n={entry['n_problems']} problems, {n_ok}/{args.n_boot} valid boots)")
+        ci_str = f"[{100 * lo:+.1f}%, {100 * hi:+.1f}%]" if lo is not None else "n/a"
+        pt_str = f"{100 * point:+.1f}%" if point is not None else "n/a"
+        print(
+            f"{model:9s} x {benchmark:14s} (c*={cstar}): saved@90% = {pt_str}  "
+            f"95% CI {ci_str}  (n={entry['n_problems']} problems, {n_ok}/{args.n_boot} valid boots)"
+        )
 
     out = ROOT / "results" / "phase4" / "bootstrap_ci.json"
     out.write_text(json.dumps(report, indent=2))

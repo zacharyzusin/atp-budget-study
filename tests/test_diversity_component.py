@@ -1,4 +1,5 @@
 """Fast tests for the Phase 2 Step C diversity-injection component (no GPU/Lean)."""
+
 from atp.agents.components import DiversityInjection, build_components
 from atp.agents.components.base import PromptContext
 from atp.agents.components.diversity import _distinct_openings, _opening_tactic
@@ -6,22 +7,35 @@ from atp.agents.state import Attempt
 
 
 def _attempt(proof):
-    return Attempt(index=0, kind="propose", proof=proof, ok=False, reason="compile_error",
-                   feedback="x", completion_tokens=10)
+    return Attempt(
+        index=0,
+        kind="propose",
+        proof=proof,
+        ok=False,
+        reason="compile_error",
+        feedback="x",
+        completion_tokens=10,
+    )
 
 
 def _ctx(kind, history):
     class _Thm:
         name = "t"
-    return PromptContext(theorem=_Thm(), kind=kind, round_index=len(history), history=tuple(history))
+
+    return PromptContext(
+        theorem=_Thm(), kind=kind, round_index=len(history), history=tuple(history)
+    )
 
 
 def test_opening_tactic_and_distinct():
     assert _opening_tactic("theorem t := by\n  nlinarith [sq_nonneg x]") == "nlinarith"
     assert _opening_tactic("theorem t := by\n  · simp\n  ring") == "simp"
     assert _opening_tactic("") is None
-    hist = [_attempt("theorem t := by simp"), _attempt("theorem t := by simp [foo]"),
-            _attempt("theorem t := by nlinarith")]
+    hist = [
+        _attempt("theorem t := by simp"),
+        _attempt("theorem t := by simp [foo]"),
+        _attempt("theorem t := by nlinarith"),
+    ]
     assert _distinct_openings(tuple(hist)) == ["simp", "nlinarith"]  # de-duped, first-seen order
 
 
@@ -58,8 +72,10 @@ def test_wiring_off_by_default_on_when_enabled():
 
     class _Cfg:
         agent = AgentCfg(components=ComponentsCfg())
+
     assert build_components(_Cfg()).names == ()  # default off → empty pipeline (Phase 0 identity)
 
     class _Cfg2:
         agent = AgentCfg(components=ComponentsCfg(diversity=DiversityCfg(enabled=True)))
+
     assert "diversity_injection" in build_components(_Cfg2()).names

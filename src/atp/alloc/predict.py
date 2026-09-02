@@ -17,7 +17,9 @@ import numpy as np
 from atp.alloc.features import CheckpointRow
 
 
-def rows_to_xy(rows: list[CheckpointRow], checkpoint: int, feature_names: tuple[str, ...] | None = None):
+def rows_to_xy(
+    rows: list[CheckpointRow], checkpoint: int, feature_names: tuple[str, ...] | None = None
+):
     """Build (X, y, groups, feature_names) for one checkpoint from its not-yet-solved cells.
 
     Filters to `row.checkpoint == checkpoint` and `not row.solved_by_c` (the decision population).
@@ -33,8 +35,12 @@ def rows_to_xy(rows: list[CheckpointRow], checkpoint: int, feature_names: tuple[
     return X, y, groups, names
 
 
-def rows_to_xy_by_seed(rows: list[CheckpointRow], checkpoint: int, seeds: set[int],
-                        feature_names: tuple[str, ...] | None = None):
+def rows_to_xy_by_seed(
+    rows: list[CheckpointRow],
+    checkpoint: int,
+    seeds: set[int],
+    feature_names: tuple[str, ...] | None = None,
+):
     """Same as `rows_to_xy` but restricted to rows whose `.seed` is in `seeds` -- the seed-holdout
     guard (WS6 item 4 pre-registration): feature engineering / model selection must never see the
     held-out seed's rows, and the held-out seed is evaluated exactly once at the end."""
@@ -46,9 +52,14 @@ def rows_to_xy_by_seed(rows: list[CheckpointRow], checkpoint: int, seeds: set[in
     return X, y, groups, names
 
 
-def holdout_seed_eval(rows: list[CheckpointRow], checkpoint: int, holdout_seed: int,
-                       train_seeds: set[int], model_factory,
-                       feature_names: tuple[str, ...] | None = None) -> float:
+def holdout_seed_eval(
+    rows: list[CheckpointRow],
+    checkpoint: int,
+    holdout_seed: int,
+    train_seeds: set[int],
+    model_factory,
+    feature_names: tuple[str, ...] | None = None,
+) -> float:
     """Fit ONE model on `train_seeds`' rows only (already selected via CV on those seeds), evaluate
     ONCE on `holdout_seed`'s rows. Returns AUC (nan if degenerate -- single class or no held-out
     positives). This is the final check, not an average into the CV number (WS6 item 4 CV guard)."""
@@ -64,8 +75,14 @@ def holdout_seed_eval(rows: list[CheckpointRow], checkpoint: int, holdout_seed: 
     return float(roc_auc_score(yho, scores))
 
 
-def cv_auc(X: np.ndarray, y: np.ndarray, groups: np.ndarray, model_factory,
-           n_splits: int = 5, seed: int = 0) -> tuple[float, np.ndarray]:
+def cv_auc(
+    X: np.ndarray,
+    y: np.ndarray,
+    groups: np.ndarray,
+    model_factory,
+    n_splits: int = 5,
+    seed: int = 0,
+) -> tuple[float, np.ndarray]:
     """Out-of-fold ROC-AUC under GroupKFold (no group spans train/test). Returns (auc, oof_scores).
 
     `model_factory` is a 0-arg callable returning a fresh unfitted estimator with `predict_proba`.
@@ -96,6 +113,7 @@ def logistic_factory():
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
+
     return make_pipeline(
         StandardScaler(),
         LogisticRegression(max_iter=1000, class_weight="balanced"),
@@ -104,4 +122,5 @@ def logistic_factory():
 
 def gbt_factory():
     from sklearn.ensemble import GradientBoostingClassifier
+
     return GradientBoostingClassifier(random_state=0)

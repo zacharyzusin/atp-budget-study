@@ -15,6 +15,7 @@ Usage: python scripts/hammer_arm_a.py --config configs/proofnet_baseline.yaml \
          --run results/proofnet_baseline --trapped scratch/phase2/trapped_proofnet.txt --limit 30
          --out OUT
 """
+
 import argparse
 import glob
 import json
@@ -24,6 +25,7 @@ import sys
 
 CLOSER = "first | omega | nlinarith | norm_num | simp_all | decide | aesop"
 _STEP = re.compile(r"Failed at step\s+(\d+)\s+\(`(.+?)`\)", re.DOTALL)
+
 
 def deepest_failing(run_dir, name):
     """Return (full_proof, failing_tactic_text) for the globally deepest attempt of this problem."""
@@ -43,6 +45,7 @@ def deepest_failing(run_dir, name):
             if step > best_step:
                 best, best_step = (a["proof"], m.group(2).strip()), step
     return best
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -77,21 +80,42 @@ def main():
             continue
         n_probed += 1
         modified = proof.replace(fail_tac, f"({CLOSER})", 1)
-        header = proof[: re.search(r":=\s*by\b", proof).end()] if re.search(r":=\s*by\b", proof) else proof
+        header = (
+            proof[: re.search(r":=\s*by\b", proof).end()]
+            if re.search(r":=\s*by\b", proof)
+            else proof
+        )
         rv = backend.verify(Theorem(name=nm, statement=header.rsplit(":=", 1)[0].strip()), modified)
         closed = bool(rv.success)
         n_closed += closed
-        results.append({"name": nm, "status": "CLOSED" if closed else "no",
-                        "failing_tactic": fail_tac[:80]})
-        print(f"[{i+1}/{len(names)}] {nm}: {'CLOSED (leaf swapped for portfolio)' if closed else 'no'}"
-              f"  [stuck on: {fail_tac[:60]}]", flush=True)
+        results.append(
+            {"name": nm, "status": "CLOSED" if closed else "no", "failing_tactic": fail_tac[:80]}
+        )
+        print(
+            f"[{i + 1}/{len(names)}] {nm}: {'CLOSED (leaf swapped for portfolio)' if closed else 'no'}"  # noqa: E501
+            f"  [stuck on: {fail_tac[:60]}]",
+            flush=True,
+        )
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    json.dump({"arm": "A-lite (failing-tactic -> portfolio, in-context)", "run": a.run,
-               "n_problems": len(names), "n_probed": n_probed, "n_closed": n_closed,
-               "closer": CLOSER, "results": results}, open(a.out, "w"), indent=2)
-    print(f"\nARM A-lite: {n_closed}/{n_probed} probed ({len(names)} trapped) closed by portfolio-at-leaf -> {a.out}")
+    json.dump(
+        {
+            "arm": "A-lite (failing-tactic -> portfolio, in-context)",
+            "run": a.run,
+            "n_problems": len(names),
+            "n_probed": n_probed,
+            "n_closed": n_closed,
+            "closer": CLOSER,
+            "results": results,
+        },
+        open(a.out, "w"),
+        indent=2,
+    )
+    print(
+        f"\nARM A-lite: {n_closed}/{n_probed} probed ({len(names)} trapped) closed by portfolio-at-leaf -> {a.out}"  # noqa: E501
+    )
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

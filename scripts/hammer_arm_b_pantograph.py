@@ -12,36 +12,46 @@ Env: run under the sibling venv (PyPantograph 0.3.15) with project_path pointing
 has
 Duper built in, imports=["Mathlib","Duper"].
 """
+
 import argparse
 import json
 import os
 import time
 
 # opens: the dataset's ProofNet opens + the namespaces the v4.29 drift analysis showed are needed
-OPENS = ("Function Fintype Subgroup Ideal Polynomial Submodule BigOperators "
-         "Filter Set Topology Real Module Metric Finset Complex")
+OPENS = (
+    "Function Fintype Subgroup Ideal Polynomial Submodule BigOperators "
+    "Filter Set Topology Real Module Metric Finset Complex"
+)
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--statements", required=True, help="json: {name: statement}")
     ap.add_argument("--project", required=True, help="lean_env (with Duper built) path")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--tactic", default="duper", help="closer tactic (duper / 'duper [*]' / hammer)")
+    ap.add_argument(
+        "--tactic", default="duper", help="closer tactic (duper / 'duper [*]' / hammer)"
+    )
     ap.add_argument("--timeout", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None)
     a = ap.parse_args()
 
     from pantograph import Server
+
     stmts = json.load(open(a.statements))
     items = list(stmts.items())[: a.limit] if a.limit else list(stmts.items())
 
     def start():
         t0 = time.time()
         s = Server(imports=["Mathlib", "Duper"], project_path=a.project, timeout=a.timeout)
-        print(f"[armB] server (re)started in {time.time()-t0:.0f}s", flush=True)
+        print(f"[armB] server (re)started in {time.time() - t0:.0f}s", flush=True)
         return s
 
-    print(f"[armB] starting Pantograph: project={a.project} imports=Mathlib,Duper timeout={a.timeout}", flush=True)
+    print(
+        f"[armB] starting Pantograph: project={a.project} imports=Mathlib,Duper timeout={a.timeout}",  # noqa: E501
+        flush=True,
+    )
     server = start()
 
     results = []
@@ -55,7 +65,9 @@ def main():
         for attempt in (1, 2):
             try:
                 units = server.load_sorry(src)
-                states = [u.goal_state for u in units if getattr(u, "goal_state", None)] if units else []
+                states = (
+                    [u.goal_state for u in units if getattr(u, "goal_state", None)] if units else []
+                )
                 if not states:
                     rec["err"] = "no_goal_state"
                     break
@@ -93,13 +105,28 @@ def main():
         n_elab += rec["elaborated"]
         n_closed += rec["closed"]
         results.append(rec)
-        print(f"[{i+1}/{len(items)}] {name}: elab={rec['elaborated']} closed={rec['closed']} {rec['err'][:50]}", flush=True)
+        print(
+            f"[{i + 1}/{len(items)}] {name}: elab={rec['elaborated']} closed={rec['closed']} {rec['err'][:50]}",  # noqa: E501
+            flush=True,
+        )
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    json.dump({"arm": "B (duper on original statement, off-pin v4.29)", "tactic": a.tactic,
-               "n_problems": len(items), "n_elaborated": n_elab, "n_closed": n_closed,
-               "results": results}, open(a.out, "w"), indent=2)
-    print(f"\nARM B ({a.tactic}): elaborated {n_elab}/{len(items)}, CLOSED {n_closed}/{n_elab} -> {a.out}")
+    json.dump(
+        {
+            "arm": "B (duper on original statement, off-pin v4.29)",
+            "tactic": a.tactic,
+            "n_problems": len(items),
+            "n_elaborated": n_elab,
+            "n_closed": n_closed,
+            "results": results,
+        },
+        open(a.out, "w"),
+        indent=2,
+    )
+    print(
+        f"\nARM B ({a.tactic}): elaborated {n_elab}/{len(items)}, CLOSED {n_closed}/{n_elab} -> {a.out}"  # noqa: E501
+    )
+
 
 if __name__ == "__main__":
     main()

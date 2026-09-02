@@ -11,6 +11,7 @@ Usage: python scripts/hammer_arm0.py --config configs/proofnet_baseline.yaml \
           --trapped scratch/phase2/trapped_proofnet.txt --limit 30 --out
           results/phase3/arm0_goedel_proofnet.json
 """
+
 import argparse
 import json
 import os
@@ -18,9 +19,15 @@ import sys
 import time
 
 PORTFOLIO = [
-    "omega", "nlinarith", "norm_num", "simp_all", "decide", "aesop",
+    "omega",
+    "nlinarith",
+    "norm_num",
+    "simp_all",
+    "decide",
+    "aesop",
     "first | omega | nlinarith | norm_num | simp_all | decide | aesop",
 ]
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -51,14 +58,17 @@ def main() -> int:
         # positive control: portfolio MUST close these trivial goals, else the probe is silently
         # broken
         from atp.lean import Theorem
-        ctrl = [("ctl_normnum", "theorem ctl_normnum : (2 : ℕ) + 2 = 4", "norm_num"),
-                ("ctl_simp", "theorem ctl_simp (n : ℕ) : n + 0 = n", "simp"),
-                ("ctl_omega", "theorem ctl_omega (n : ℕ) : n ≤ n + 1", "omega"),
-                ("ctl_port", "theorem ctl_port : (3 : ℤ) < 5", PORTFOLIO[-1])]
+
+        ctrl = [
+            ("ctl_normnum", "theorem ctl_normnum : (2 : ℕ) + 2 = 4", "norm_num"),
+            ("ctl_simp", "theorem ctl_simp (n : ℕ) : n + 0 = n", "simp"),
+            ("ctl_omega", "theorem ctl_omega (n : ℕ) : n ≤ n + 1", "omega"),
+            ("ctl_port", "theorem ctl_port : (3 : ℤ) < 5", PORTFOLIO[-1]),
+        ]
         allok = True
         for nm, stmt, c in ctrl:
             rv = backend.verify(Theorem(name=nm, statement=stmt), f"{stmt} := by {c}")
-            print(f"[selftest] {nm} `{c}`: {'PASS' if rv.success else 'FAIL — '+rv.output[:120]}")
+            print(f"[selftest] {nm} `{c}`: {'PASS' if rv.success else 'FAIL — ' + rv.output[:120]}")
             allok = allok and rv.success
         print(f"[selftest] {'ALL PASS — probe fires correctly' if allok else 'BROKEN'}")
         return 0 if allok else 3
@@ -77,14 +87,24 @@ def main() -> int:
         results.append({"name": p.name, "closed": closed_by is not None, "closer": closed_by})
         if closed_by:
             n_closed += 1
-        print(f"[{i+1}/{len(probs)}] {p.name}: {'CLOSED by `'+closed_by+'`' if closed_by else 'no'}", flush=True)
+        print(
+            f"[{i + 1}/{len(probs)}] {p.name}: {'CLOSED by `' + closed_by + '`' if closed_by else 'no'}",  # noqa: E501
+            flush=True,
+        )
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
-    report = {"config": a.config, "trapped_file": a.trapped, "n_problems": len(probs),
-              "n_closed": n_closed, "closer_list": a.closers, "results": results}
+    report = {
+        "config": a.config,
+        "trapped_file": a.trapped,
+        "n_problems": len(probs),
+        "n_closed": n_closed,
+        "closer_list": a.closers,
+        "results": results,
+    }
     json.dump(report, open(a.out, "w"), indent=2)
     print(f"\nARM 0: {n_closed}/{len(probs)} trapped problems closed by the portfolio -> {a.out}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

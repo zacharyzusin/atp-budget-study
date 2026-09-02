@@ -45,13 +45,14 @@ OUT_MD = ROOT / "results/phase6/CONTAMINATION_CORRELATION.md"
 
 
 def per_problem_cosine(eval_formal: dict[str, str], train_formal: list[str]) -> dict[str, float]:
-    """Same TF-IDF settings as phase6_disjointness.py's `_top_matches`, full 244-problem coverage."""
+    """Same TF-IDF settings as
+    phase6_disjointness.py's `_top_matches`, full 244-problem coverage."""
     names = list(eval_formal)
     eval_texts = [normalize_formal_statement(eval_formal[n]) for n in names]
     train_texts = [normalize_formal_statement(s) for s in train_formal]
     vec = TfidfVectorizer(ngram_range=(1, 2), min_df=2, sublinear_tf=True)
     X = vec.fit_transform(train_texts + eval_texts)
-    Xtr, Xev = X[: len(train_texts)], X[len(train_texts):]
+    Xtr, Xev = X[: len(train_texts)], X[len(train_texts) :]
     sims = Xev @ Xtr.T
     out = {}
     for i, name in enumerate(names):
@@ -70,9 +71,11 @@ def solved_names(run_dir: Path) -> set[str]:
 
 
 def mann_whitney_u(a: list[float], b: list[float]) -> tuple[float, float]:
-    """Two-sided Mann-Whitney U via scipy if available, else a simple rank-sum fallback (no p-value)."""
+    """Two-sided Mann-Whitney U via scipy if available, else a simple rank-sum fallback (no
+    p-value)."""
     try:
         from scipy.stats import mannwhitneyu
+
         u, p = mannwhitneyu(a, b, alternative="two-sided")
         return float(u), float(p)
     except ImportError:
@@ -105,6 +108,7 @@ def main() -> int:
     solved_exact = sum(1 for n in solved if n in exact_hits)
 
     import statistics as st
+
     report = {
         "n_problems": len(all_names),
         "n_trapped": len(trapped),
@@ -128,13 +132,15 @@ def main() -> int:
 
     alpha = 0.05
     if p != p:  # NaN check
-        verdict = "INCONCLUSIVE (scipy unavailable, no p-value computed -- see means/medians directly)"
+        verdict = (
+            "INCONCLUSIVE (scipy unavailable, no p-value computed -- see means/medians directly)"
+        )
     elif p < alpha and report["trapped_cosine_mean"] < report["solved_cosine_mean"]:
         verdict = f"SIGNAL: trapped problems are significantly LESS similar to the training corpus than solved ones (p={p:.4f}) -- escalate per WS6 item 2's decision rule."
     else:
         verdict = f"NULL: no significant overlap-score difference between trapped and solved problems (p={p:.4f}) -- floor is not explained by training-corpus recall on this test."
 
-    md = f"""# Contamination-correlation check (WS6 item 2, free half) -- {verdict.split(':')[0]}
+    md = f"""# Contamination-correlation check (WS6 item 2, free half) -- {verdict.split(":")[0]}
 
 Pre-registered decision rule (committed before running, PLAN_NEXT.md WS6 item 2): NULL if overlap
 score does not significantly predict trapped status; SIGNAL if trapped problems are significantly
@@ -142,18 +148,18 @@ LESS similar to the Lean-Workbook training corpus than solved ones.
 
 ## Result
 
-- {report['n_problems']} miniF2F problems: {report['n_trapped']} trapped (0/3 baseline seeds solve),
-  {report['n_solved_union']} solved by at least one baseline seed, {report['n_partial']} others.
+- {report["n_problems"]} miniF2F problems: {report["n_trapped"]} trapped (0/3 baseline seeds solve),
+  {report["n_solved_union"]} solved by at least one baseline seed, {report["n_partial"]} others.
 - TF-IDF formal-statement cosine similarity to nearest Lean-Workbook training example (same metric as
   the Phase 6 Section-0 disjointness gate):
-  - trapped: mean {report['trapped_cosine_mean']:.4f}, median {report['trapped_cosine_median']:.4f}
-  - solved:  mean {report['solved_cosine_mean']:.4f}, median {report['solved_cosine_median']:.4f}
-- Mann-Whitney U test (two-sided): U={report['mannwhitney_u']:.1f}, p={report['mannwhitney_p']:.4f}
-- Exact (normalized-statement) overlap: {report['trapped_exact_overlap_count']}/{report['n_trapped']}
-  ({100*(report['trapped_exact_overlap_frac'] or 0):.1f}%) of trapped problems vs.
-  {report['solved_exact_overlap_count']}/{report['n_solved_union']}
-  ({100*(report['solved_exact_overlap_frac'] or 0):.1f}%) of solved problems have an exact
-  normalized-statement match in Lean-Workbook (of {report['total_exact_overlap_count']} total exact
+  - trapped: mean {report["trapped_cosine_mean"]:.4f}, median {report["trapped_cosine_median"]:.4f}
+  - solved:  mean {report["solved_cosine_mean"]:.4f}, median {report["solved_cosine_median"]:.4f}
+- Mann-Whitney U test (two-sided): U={report["mannwhitney_u"]:.1f}, p={report["mannwhitney_p"]:.4f}
+- Exact (normalized-statement) overlap: {report["trapped_exact_overlap_count"]}/{report["n_trapped"]}
+  ({100 * (report["trapped_exact_overlap_frac"] or 0):.1f}%) of trapped problems vs.
+  {report["solved_exact_overlap_count"]}/{report["n_solved_union"]}
+  ({100 * (report["solved_exact_overlap_frac"] or 0):.1f}%) of solved problems have an exact
+  normalized-statement match in Lean-Workbook (of {report["total_exact_overlap_count"]} total exact
   overlaps across the full eval set).
 
 ## Verdict

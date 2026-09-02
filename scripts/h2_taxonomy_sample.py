@@ -14,6 +14,7 @@ can report agreement + the specific reasoning-vs-knowledge confusion rate.
 Usage: python scripts/h2_taxonomy_sample.py <run_dir> --n 70 [--seed 0]   -> prints a labeling
 worksheet.
 """
+
 import argparse
 import glob
 import json
@@ -37,14 +38,17 @@ def last_failures(run_dir):
         if not att or any(a.get("reason") == "ok" for a in att):
             continue  # solved or empty
         last = att[-1]
-        recs.append({
-            "name": d.get("theorem_name") or os.path.basename(f).split("__seed")[0],
-            "auto": _classify(last.get("reason", ""), last.get("feedback", "")),
-            "reason": last.get("reason", ""),
-            "opening": first_tactic(last.get("proof", "")),
-            "feedback": (last.get("feedback") or "").strip(),
-        })
+        recs.append(
+            {
+                "name": d.get("theorem_name") or os.path.basename(f).split("__seed")[0],
+                "auto": _classify(last.get("reason", ""), last.get("feedback", "")),
+                "reason": last.get("reason", ""),
+                "opening": first_tactic(last.get("proof", "")),
+                "feedback": (last.get("feedback") or "").strip(),
+            }
+        )
     return recs
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -54,6 +58,7 @@ def main():
     a = ap.parse_args()
     recs = last_failures(a.run_dir)
     from collections import Counter
+
     dist = Counter(r["auto"] for r in recs)
     rng = random.Random(a.seed)
     # stratified: proportional-ish but guarantee >=5 of any non-empty minority class for scrutiny
@@ -70,12 +75,17 @@ def main():
     sample = sample[: a.n]
     print(f"### H2 worksheet — {a.run_dir}")
     print(f"### unsolved cells={len(recs)}  auto-label dist={dict(dist)}")
-    print(f"### sample n={len(sample)}; for each, HUMAN label in: reasoning|knowledge|syntax|loophole|truncation|other")
+    print(
+        f"### sample n={len(sample)}; for each, HUMAN label in: reasoning|knowledge|syntax|loophole|truncation|other"  # noqa: E501
+    )
     print("=" * 100)
     for i, r in enumerate(sample):
         fb = " ".join(r["feedback"].split())[:500]
-        print(f"\n[{i:02d}] auto={r['auto']}  reason={r['reason']}  opening={r['opening']}  ({r['name']})")
+        print(
+            f"\n[{i:02d}] auto={r['auto']}  reason={r['reason']}  opening={r['opening']}  ({r['name']})"  # noqa: E501
+        )
         print(f"     feedback: {fb}")
+
 
 if __name__ == "__main__":
     main()

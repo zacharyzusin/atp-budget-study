@@ -15,17 +15,20 @@ The candidate 'statement := by <prefix>\n <closer>' is verified on-pin by the ru
 prefix
 just fails to compile (costs recall, never soundness — the fixed verifier gates).
 """
+
 import json
 import os
 import re
 
 _STEP = re.compile(r"Failed at step\s+(\d+)")
 
+
 def _split_header_body(proof: str):
     m = re.search(r":=\s*by\b", proof)
     if not m:
         return None, None
-    return proof[:m.end()], proof[m.end():]
+    return proof[: m.end()], proof[m.end() :]
+
 
 def _body_lines(body: str):
     # tactic lines as the trace tokenizer sees them: split on newlines, keep non-blank non-comment
@@ -35,6 +38,7 @@ def _body_lines(body: str):
         if s.strip() and not s.strip().startswith("--"):
             out.append(s)
     return out
+
 
 def deepest_attempt(state: dict):
     best, best_step = None, -1
@@ -47,10 +51,14 @@ def deepest_attempt(state: dict):
             best, best_step = a, step
     return best, best_step
 
+
 def extract_for_problem(run_dir: str, name: str):
-    """Across seeds, return {statement, prefix_lines, stuck_step, seed} for the globally deepest attempt."""
+    """Across seeds, return {statement, prefix_lines, stuck_step, seed} for the globally deepest
+    attempt."""
     best = None
-    for f in sorted(__import__("glob").glob(os.path.join(run_dir, "agent_states", f"{name}__seed*.json"))):
+    for f in sorted(
+        __import__("glob").glob(os.path.join(run_dir, "agent_states", f"{name}__seed*.json"))
+    ):
         try:
             d = json.load(open(f))
         except (json.JSONDecodeError, ValueError):
@@ -61,14 +69,21 @@ def extract_for_problem(run_dir: str, name: str):
             if header is None:
                 continue
             lines = _body_lines(body)
-            prefix = lines[:step] if step > 0 else []   # steps 0..N-1 applied; N failed
-            best = {"name": name, "statement": header, "prefix_lines": prefix,
-                    "stuck_step": step, "n_body_lines": len(lines),
-                    "seed": int(re.search(r"seed(\d+)", os.path.basename(f)).group(1))}
+            prefix = lines[:step] if step > 0 else []  # steps 0..N-1 applied; N failed
+            best = {
+                "name": name,
+                "statement": header,
+                "prefix_lines": prefix,
+                "stuck_step": step,
+                "n_body_lines": len(lines),
+                "seed": int(re.search(r"seed(\d+)", os.path.basename(f)).group(1)),
+            }
     return best
+
 
 if __name__ == "__main__":
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir")
     ap.add_argument("trapped_file")
@@ -80,7 +95,9 @@ if __name__ == "__main__":
         if not e:
             print(f"\n### {nm}: NO extractable attempt")
             continue
-        print(f"\n### {nm}  (deepest stuck_step={e['stuck_step']} of {e['n_body_lines']} body lines, seed{e['seed']})")
+        print(
+            f"\n### {nm}  (deepest stuck_step={e['stuck_step']} of {e['n_body_lines']} body lines, seed{e['seed']})"  # noqa: E501
+        )
         print(f"STATEMENT: {e['statement'][:200]}")
         print(f"PREFIX ({len(e['prefix_lines'])} lines):")
         for ln in e["prefix_lines"][:12]:

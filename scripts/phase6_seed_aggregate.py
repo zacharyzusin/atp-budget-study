@@ -16,6 +16,7 @@ Usage:
   python scripts/phase6_seed_aggregate.py            # both models
   python scripts/phase6_seed_aggregate.py --model d  # one model
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,8 +66,8 @@ def _ms(xs: list[float]) -> str:
     if not xs:
         return "    --   "
     if len(xs) == 1:
-        return f"{xs[0]*100:5.1f}%   "
-    return f"{statistics.mean(xs)*100:5.1f}±{statistics.stdev(xs)*100:.1f}"
+        return f"{xs[0] * 100:5.1f}%   "
+    return f"{statistics.mean(xs) * 100:5.1f}±{statistics.stdev(xs) * 100:.1f}"
 
 
 def _paired_deltas(model, short, b) -> dict[str, list[float]]:
@@ -98,8 +99,7 @@ def _report_model(model: str) -> None:
         print(f"\n=== {bench} (held-out) ===")
         # availability line
         avail = {
-            arm: [s for s in SEEDS if _load_cells(_run_dir(model, short, arm, s))]
-            for arm in ARMS
+            arm: [s for s in SEEDS if _load_cells(_run_dir(model, short, arm, s))] for arm in ARMS
         }
         ncells = {
             arm: {s: len(_load_cells(_run_dir(model, short, arm, s))) for s in avail[arm]}
@@ -110,7 +110,11 @@ def _report_model(model: str) -> None:
         for arm in ARMS:
             row = f"  {arm:>5} "
             for b in BUDGETS:
-                xs = [v for s in avail[arm] if (v := _pass(_load_cells(_run_dir(model, short, arm, s)), b)) is not None]
+                xs = [
+                    v
+                    for s in avail[arm]
+                    if (v := _pass(_load_cells(_run_dir(model, short, arm, s)), b)) is not None
+                ]
                 row += f"  {_ms(xs):>11}"
             print(row)
         for b in BUDGETS:
@@ -126,7 +130,7 @@ def _report_model(model: str) -> None:
                     seg.append(f"{arm}-base=--")
             print(f"    paired@{b}: " + "  ".join(seg))
     print(
-        "\nNull check (pre-registered): B-base mean ~0, never >=+3pp robust => sampling/exposure-bound "
+        "\nNull check (pre-registered): B-base mean ~0, never >=+3pp robust => sampling/exposure-bound "  # noqa: E501
         "floor; A-base negative => generic RFT hurts."
     )
 
@@ -135,7 +139,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", choices=["g", "d"], help="omit for both")
     args = ap.parse_args()
-    for m in ([args.model] if args.model else ["g", "d"]):
+    for m in [args.model] if args.model else ["g", "d"]:
         _report_model(m)
     return 0
 

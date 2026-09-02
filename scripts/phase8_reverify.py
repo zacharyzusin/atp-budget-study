@@ -15,6 +15,7 @@ Writes corrected `problems/<name>__seed<N>.json` files (same schema `phase8_floo
 reads) reflecting the re-verified `solved`/`tokens_to_solve`, leaving the original run dir
 untouched.
 """
+
 import argparse
 import glob
 import json
@@ -100,7 +101,9 @@ def main() -> int:
     ap.add_argument("--config", required=True)
     ap.add_argument("--run-dir", required=True)
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--limit", type=int, default=None, help="re-verify only the first N cells (smoke)")
+    ap.add_argument(
+        "--limit", type=int, default=None, help="re-verify only the first N cells (smoke)"
+    )
     args = ap.parse_args()
 
     from atp.config import load_config
