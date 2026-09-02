@@ -143,9 +143,13 @@ configs/          # 81 versioned experiment YAMLs (+ base + smoke)
 slurm/            # 31 restartable sbatch scripts
 scripts/          # per-phase analysis + one-off probes (named by phase)
 results/          # per-phase result docs ("the receipts") + metrics + run manifests
+env/              # frozen pip/conda listings for the environment that produced every result
 tests/            # pytest mirroring src/ (markers: slow, gpu, lean)
 paper/floor/      # the paper draft
 ```
+
+`configs/`, `slurm/`, `scripts/`, `results/`, `env/` and `paper/floor/` each have their own `README.md`
+indexing what's inside — start there rather than reading the directory listing.
 
 ## Documentation map
 
