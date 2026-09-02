@@ -57,6 +57,12 @@ atp = "atp.cli:main"
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 testpaths = ["tests"]
+# Put the repo root on sys.path so the five tests that import from `scripts.` collect. Without it,
+# a bare `pytest` (what `make test` runs) fails collection on them with ModuleNotFoundError, while
+# `python -m pytest` silently works because it adds the cwd itself -- so the breakage only showed
+# up through the documented entry point. `scripts/` is a directory of standalone analysis programs,
+# not an installed package, hence pythonpath rather than an __init__.py.
+pythonpath = ["."]
 markers = [
     "slow: tests that take more than a couple seconds",
     "gpu: tests that require a GPU",
