@@ -1,28 +1,51 @@
-# storage hygiene: nothing large or machine-specific in git.
+# Storage hygiene: nothing large, machine-specific, or superseded goes in git.
 # NOTE: git only treats '#' as a comment at the START of a line — keep patterns comment-free.
 
 # conda envs, HF cache, lean cache, model weights, big intermediates
 scratch/
 # slurm-%x_%j.out/.err
 logs/
-# metrics json, curves, per-problem logs, _vllm_endpoint.txt
-results/**
-# EXCEPTION: the per-phase result docs are the "receipts" every summary doc cites by path
-# (results/phase1/FINDINGS.md, phase4/ALLOCATION.md, ...). They are small hand-written markdown,
-# not generated bulk output, and a clone without them has dangling references everywhere.
-# NOTE: ignore results/** (contents), not results/ (the dir) — git will not descend into an
-# excluded directory, so a trailing-slash pattern makes the re-includes below unreachable.
-!results/**/
-!results/**/*.md
-# Also keep the small, hand-citable numeric receipts: the headline metrics, the provenance
-# manifests (git SHA / model revision / mathlib commit / Lean version per run), and the top-level
-# analysis outputs. ~1 MB total. The bulk that stays ignored is the per-problem output and agent
-# checkpoints under results/*/problems/, which is GB-scale.
-!results/*.json
-!results/*/*.json
-results/*/problems/
 # model/agent checkpoints (may live in scratch/ if large)
 checkpoints/
+
+# ---------------------------------------------------------------- results/
+# results/ is bulk generated output (per-problem logs, agent checkpoints, curves) and is ignored
+# wholesale, with narrow exceptions for the hand-written receipts the README cites by path.
+# NOTE: ignore results/** (the contents), not results/ (the directory) — git will not descend into
+# an excluded directory, so a trailing-slash pattern makes every re-include below unreachable.
+results/**
+!results/**/
+# the per-phase result docs, and the trapped-core problem lists (only those .txt --
+# a blanket !results/**/*.txt sweeps in ~800 stray marker/gate files)
+!results/**/*.md
+!results/trapped_cores/*.txt
+# the headline numbers and provenance for the four baseline runs only
+!results/baseline/*.json
+!results/proofnet_baseline/*.json
+!results/deepseek_minif2f_baseline/*.json
+!results/deepseek_proofnet_baseline/*.json
+# never the per-problem output, whatever else matches above
+results/*/problems/
+
+# ---------------------------------------------------------------- superseded / not for the repo
+# The paper draft, the dated lab notebooks, and the superseded planning + narrative documents.
+# All are in git history (through baa9eb9) and on the cluster; the README supersedes them.
+paper/
+PROGRESS.md
+DECISIONS.md
+SYNTHESIS.md
+PROJECT_SUMMARY.md
+HANDOFF.md
+RESEARCH_COMPILATION.md
+CALIBRATION_FINDINGS.md
+PROJECT_PLAN.md
+PLAN_NEXT.md
+AUDIT_PLAN.md
+PHASE2_PLAN.md
+PHASE3_PLAN.md
+# figure generation for the paper, orphaned now that paper/ is out of the repo
+scripts/make_paper_figures.py
+tests/test_make_paper_figures.py
 
 # python
 __pycache__/
@@ -49,8 +72,7 @@ dist/
 # pre-existing duplicate scaffold bundle (kept on disk, not tracked)
 atp-budget-study-starter/
 
-# transient last-submitted job-id pointer (scratch)
+# transient last-submitted job-id pointers
 .last_retrieval_budget_job
-
 .last_validate_job
 .last_proofnet_baseline_job
