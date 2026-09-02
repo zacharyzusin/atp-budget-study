@@ -34,13 +34,18 @@ Build artifacts (`.aux`, `.log`, `.bbl`, `main.pdf`) are gitignored — only sou
    difficulty-to-payoff mapping is *smooth*; this setting differs on two axes — the winnable
    population is *thin*, and success is *verifier-certain* rather than probabilistic. Sharpen against
    actual related work rather than adopting verbatim.
-4. **Three figures**, generation scripts already exist under `scripts/`:
-   - F1 — the 2×2 pass@B grid (miniF2F/ProofNet# × Goedel/DeepSeek).
-   - F4 — Step C before/after diversity + solve panel, all four cells.
-   - F5 — the allocation efficiency frontier (realizable vs. uniform vs. oracle).
-   Standing note on F1: the attempts-per-budget / effective-independent-samples curve is the methods
-   finding most likely to travel beyond this project, so it belongs **on the front page**, not as
-   appendix numbers.
+4. ~~Three figures.~~ **DONE 2026-09-02** — all four figures are generated and embedded, by
+   `scripts/make_paper_figures.py` (CPU-only, from data already on disk; rerun it to regenerate):
+   - `fig_attempts.pdf` — attempts-per-budget. Per the standing note, this is now a **front-half**
+     figure in the pass@B section, not appendix numbers: it is the methods finding most likely to
+     travel beyond this project.
+   - `fig_passb.pdf` — the pass@B curves, split by benchmark (independent y-scales; a shared axis
+     flattens the OOD curve).
+   - `fig_stepc.pdf` — Step C: manipulation fired (left) vs. outcome flat (right).
+   - `fig_frontier.pdf` — the allocation frontier, realizable vs. oracle, both models.
+
+   Palette is the dataviz-validated categorical set (blue/orange/aqua), checked for colorblind
+   separation rather than eyeballed.
 5. ~~Fold the 13 corrected `maxHeartbeats` cells back into the summary tables.~~ **DONE
    2026-09-02** — Table~\ref{tab:passb} and the two prose references now carry the corrected values.
    Largest movement +1.0pp; no qualitative reading changes. Before/after and the reproduction check

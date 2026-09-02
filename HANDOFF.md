@@ -156,7 +156,7 @@ None are blocking; all are documented.
 | # | Thread | Status |
 |---|---|---|
 | ~~1~~ | ~~The 13-cell `maxHeartbeats` scoring correction has not been folded back into the summary tables.~~ **DONE 2026-09-02.** Folded into every headline table (`README.md`, `SYNTHESIS.md`, `PROJECT_SUMMARY.md` §3, `paper/floor/main.tex`); largest movement +1.0pp, no qualitative change. See `results/audit/HEARTBEAT_CORRECTED_CURVES.md`. | **Closed** |
-| 2 | **Paper finishing work**: citation pass, three figures (generation scripts exist under `scripts/`), author list. Per a standing note, Figure 1 should be the attempts-per-budget / effective-independent-samples curve promoted to the front, not left as appendix numbers. | Open |
+| 2 | **Paper finishing work.** Figures **done** (all four generated and embedded 2026-09-02 via `scripts/make_paper_figures.py`, including the attempts-per-budget curve promoted to the front half as the standing note asked). **Remaining: the related-work citation pass** (2 `\todo`s) **and the author list** (deliberately blank for anonymization). | Partly open |
 | 3 | **Scale (32B+)** — see §5.5. Feasibility scoped, not run. | Open by choice |
 | 4 | **Phase 4 confirmation on a second model** — the natural next validation if anyone continues. | Open |
 | 5 | **Artifact release packaging** — trapped-core benchmark subsets with provenance, the failed-attempt trace corpus, and the harness with its five-bug catalogue + regression tests. Genuinely reusable; queued but never done. | Open |

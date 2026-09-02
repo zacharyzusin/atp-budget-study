@@ -4471,3 +4471,41 @@ residual, unchanged.
 
 **Verification:** `make verify` -> 707 tests pass (698 + 9 new), ruff clean. Paper -> 14pp, 0 errors,
 0 undefined refs, 0 undefined citations.
+
+---
+
+## 2026-09-02c — All four paper figures generated and embedded
+
+CPU-only, from data already on disk. New: `scripts/make_paper_figures.py` +
+`tests/test_make_paper_figures.py` (8 tests). Paper is now **15pp**, 0 LaTeX errors, 0 undefined
+refs/citations, and down to **3 `\todo`s** (author list + 2 related-work citation items).
+
+- **`fig_attempts.pdf` — attempts per budget.** Placed in the front half of the pass@B section, per
+  the standing note that this is the methods finding most likely to travel beyond this project. Shows
+  directly that at 2k *every* cell sits below one completed propose attempt, so the 2k point cannot be
+  read as a fair single try, and that the budget↔N gap widens with budget rather than being an offset.
+- **`fig_passb.pdf` — the pass@B curves**, split into one panel per benchmark with independent
+  y-scales (the two differ ~5× in absolute rate; a shared axis flattens the OOD curve into the
+  baseline). Uses the heartbeat-corrected numbers, read straight from
+  `HEARTBEAT_CORRECTED_CURVES.json`, so the figure cannot drift from the table.
+- **`fig_stepc.pdf` — the interventional test.** Two panels on a common numeric range: manipulation
+  fired (+42–70% distinct openings) vs. outcome flat (0–1.2% trapped pass@32k). The contrast is the
+  result.
+- **`fig_frontier.pdf` — the allocation frontier**, realizable vs. oracle, both models' ProofNet#
+  cells. Shows the honest shape: large flat oracle headroom, a modest and *non-monotone* realizable
+  slice on Goedel, weaker and partly negative on DeepSeek.
+
+**Palette validated, not eyeballed** (dataviz skill): blue/orange/aqua, all-pairs light mode — CVD
+ΔE 9.2 worst pair, normal-vision ΔE 24.0, lightness/chroma pass. Aqua falls below 3:1 contrast on
+white, so the relief rule applies and every aqua series carries a legend entry. Each figure was
+rendered to PNG and visually inspected; two label collisions found and fixed that way.
+
+**A paper error the tests caught.** `test_8k_still_does_not_reach_one_full_attempt` failed on first
+run: the paper claimed "mean propose count **0.82–0.87** across the four baselines" at B=8k, but the
+committed table gives **0.68**–0.87 — Goedel×ProofNet# is 0.68 and had been dropped from the stated
+range. Corrected in the paper (and the correction *strengthens* the paper's own point, since 0.68 is
+further from a full attempt). This is the third time today a check covering only part of the output
+let something through: same shape as the `make test` bug and the mean-only reproduction gate.
+
+**Verification:** `make verify` -> 715 tests pass, ruff clean. Paper -> 15pp, 0 errors, 0 undefined
+refs/citations.

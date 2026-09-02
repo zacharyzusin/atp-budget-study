@@ -227,12 +227,24 @@ The two are not interchangeable, and the gap is budget-dependent, not a fixed of
 \emph{median} cell across all four (model, benchmark) baselines completes zero full propose attempts
 --- the first generation call itself does not finish within budget for most cells, so the 2k point
 measures whether a truncated partial attempt happened to already contain a complete proof, not whether
-the model got a fair single try. Attempts-per-cell only approach one full independent sample by $B$=8k
-(mean propose count 0.82--0.87 across the four baselines) and keep climbing well past $N$=1 at every
+the model got a fair single try. Attempts-per-cell still do not reach one full independent sample by $B$=8k
+(mean propose count 0.68--0.87 across the four baselines --- lowest on Goedel$\times$ProofNet\#) and keep climbing well past $N$=1 at every
 larger budget we report (mean propose count at 128k: 1.94/2.22 miniF2F, 4.71/5.85 ProofNet\#, Goedel/
 DeepSeek respectively; full table in \texttt{results/phase0/ATTEMPTS\_PER\_BUDGET\_TABLE.md}). Any
 claim that maps this paper's budget axis onto a literature pass@$N$ number should use this table, not
 assume $B$$\leftrightarrow$$N$ parity.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.62\linewidth]{figs/fig_attempts.pdf}
+  \caption{How many \emph{complete, independent} proposals a token budget actually buys. Below the
+  dotted line a cell has not finished even one full propose attempt, so the budget point cannot be
+  read as a fair single try: at $B$=2k every cell in every configuration sits there. The gap between
+  the budget axis and a pass@$N$ axis is therefore budget-dependent, not a fixed offset --- which is
+  why a pass@\emph{budget} result cannot be compared to a published pass@$N$ number without this
+  conversion. Source: \texttt{results/phase0/ATTEMPTS\_PER\_BUDGET\_TABLE.md}.}
+  \label{fig:attempts}
+\end{figure}
 
 \section{The pass@\emph{B} curve: budget saturation and the in-distribution / OOD asymmetry}
 \label{sec:passb}
@@ -256,9 +268,13 @@ assume $B$$\leftrightarrow$$N$ parity.
 
 \begin{figure}[t]
   \centering
-  \todo{F1: 2$\times$2 pass@B grid (miniF2F/ProofNet\# $\times$ Goedel/DeepSeek), generate from
-  \texttt{results/*/metrics.json} via \texttt{scripts/analyze\_*.py}.}
-  \caption{pass@$B$ curves, all four (model, benchmark) cells.}
+  \includegraphics[width=\linewidth]{figs/fig_passb.pdf}
+  \caption{pass@$B$ curves, all four (model, benchmark) cells; error bars are seed-std over 3 seeds.
+  Panels are separated by benchmark and carry independent $y$-scales --- the two differ by roughly
+  $5\times$ in absolute solve rate, and a shared axis would flatten the out-of-distribution curve into
+  the baseline. The shape asymmetry is the finding: miniF2F saturates by 128k on both models, while
+  ProofNet\# is still climbing from a low base, and the cross-model ordering \emph{reverses} between
+  them. Numbers as in Table~\ref{tab:passb}.}
   \label{fig:passb}
 \end{figure}
 
@@ -389,9 +405,14 @@ seeds, all four cells. We pre-registered the prediction: diversity rises, solves
 
 \begin{figure}[t]
   \centering
-  \todo{F4: Step C before/after diversity + solve panel, all four cells, generate from
-  \texttt{results/phase6/} STAGE\_C / diversity-injection artifacts.}
-  \caption{Step C manipulation check (diversity) and outcome (solves), before/after, all four cells.}
+  \includegraphics[width=\linewidth]{figs/fig_stepc.pdf}
+  \caption{Step C, the interventional test, on all four cells. \textbf{Left:} the manipulation check
+  --- forced diversity raised distinct openings per attempt by 42--70\% over the budget-matched
+  baseline, so the intervention genuinely fired. \textbf{Right:} the outcome --- trapped pass@32k
+  stayed at 0--1.2\% (baseline is 0 by construction, since the trapped core is defined as unsolved by
+  every baseline seed). The two panels measure different quantities and are drawn on a common numeric
+  range deliberately: the contrast between them \emph{is} the result. A null is only interpretable
+  once the manipulation is shown to have worked.}
   \label{fig:stepc}
 \end{figure}
 
@@ -540,10 +561,12 @@ methods everywhere.
 
 \begin{figure}[t]
   \centering
-  \todo{F5: allocation result --- efficiency frontier (realizable vs.\ uniform vs.\ oracle),
-  \texttt{results/phase4/frontier\_*.png}.}
-  \caption{Compute-optimal allocation: realizable policy vs.\ uniform vs.\ oracle ceiling,
-  Goedel$\times$ProofNet\#.}
+  \includegraphics[width=\linewidth]{figs/fig_frontier.pdf}
+  \caption{Compute-optimal allocation: compute saved vs.\ uniform, at each accuracy target, for the
+  realizable during-run policy and the oracle ceiling, on both models' ProofNet\# cells. The oracle
+  headroom is large and nearly flat; the realizable policy captures a modest and \emph{non-monotone}
+  slice of it on Goedel, and a weaker, partly negative one on DeepSeek --- the asymmetry the
+  bootstrap CI in the text quantifies.}
   \label{fig:allocation}
 \end{figure}
 
