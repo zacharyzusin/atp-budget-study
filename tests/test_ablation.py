@@ -6,6 +6,8 @@ guards the actual sweep the team will launch, plus a tiny synthetic sweep for ed
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from atp.agents import WholeProofAgent
@@ -20,13 +22,27 @@ from atp.eval.ablation import (
 
 PHASE1 = CONFIGS_DIR / "phase1_ablation.yaml"
 
+
 # The retrieval cell validates against the BM25 premise corpus, a large build artifact that lives in
-# gitignored scratch/ (built by scripts/build_premise_corpus.py). Absent in a fresh clone.
-_PREMISE_CORPUS = list((CONFIGS_DIR.parent / "scratch" / "premises").glob("*.jsonl"))
+# gitignored scratch/ (built by scripts/build_premise_corpus.py) and so is absent in a fresh clone.
+# The config names the corpus as a path relative to CWD and the loader resolves it that way, so the
+# guard has to resolve it the same way -- resolving against CONFIGS_DIR instead silently finds the
+# corpus of whichever checkout the atp package was installed from, which is how this guard failed
+# the first time.
+def _missing_premise_corpus() -> str | None:
+    for cell in expand_ablation(load_config(PHASE1)):
+        corpus = cell.config.agent.components.retrieval.corpus
+        if corpus and not Path(corpus).exists():
+            return corpus
+    return None
+
+
+_MISSING_CORPUS = _missing_premise_corpus()
 needs_premise_corpus = pytest.mark.skipif(
-    not _PREMISE_CORPUS,
-    reason="needs scratch/premises/*.jsonl (build with scripts/build_premise_corpus.py)",
+    _MISSING_CORPUS is not None,
+    reason=f"needs premise corpus {_MISSING_CORPUS} (build with scripts/build_premise_corpus.py)",
 )
+
 PHASE1_SMOKE = CONFIGS_DIR / "phase1_ablation_smoke.yaml"
 
 
