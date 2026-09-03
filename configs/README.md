@@ -39,4 +39,4 @@ Model revisions and Lean/mathlib commits in these files are pinned exactly, and 
 **different** Lean toolchains and mathlib commits (Goedel needs a custom mathlib fork built from
 source). Mathlib API drift silently lowers a prover's pass rate rather than erroring, so changing a
 pin invalidates comparisons without failing loudly. The exact pins are tabulated in
-[`../README.md` §6](../README.md#6-reproducibility-pins).
+[`../README.md` §7](../README.md#7-reproducibility-pins).

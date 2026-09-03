@@ -65,7 +65,7 @@ recorded here rather than left implicit. **The numbering below is the one those 
 ## Cluster operations (Columbia Insomnia, Slurm)
 
 Environment setup, the cluster gotchas that will silently break new code, and the partition/GPU
-guidance are in [`README.md` §4](README.md#4-running-it). The operational commands:
+guidance are in [`README.md` §5](README.md#5-running-it). The operational commands:
 
 ```bash
 sbatch slurm/<script>.sh            # submit
