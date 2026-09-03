@@ -3,33 +3,32 @@
 **At a fixed per-problem token budget, what actually moves the solve rate of a frozen whole-proof
 Lean prover?** Two open 7-8B provers, two benchmarks, at least 3 seeds everywhere.
 
-Short answer: almost nothing we tried worked. We ran nine test-time interventions and every one of
-them was null against a plain resampling baseline, with two actively hurting. The useful part is the
-mechanism that explains why, and the set of harness bugs we found auditing our own pipeline.
+Nine test-time interventions were tested against a plain resampling baseline. All nine were null and
+two degraded performance. The contributions are the mechanism that explains the nulls, and five
+harness bugs found while auditing the pipeline.
 
 ---
 
 ## 1. What we measured
 
-Everything is scored against a hardware-independent compute budget `B`: the total number of
-LLM-generated tokens spent on one problem, summed across every model call. We report `pass@B` as a
-curve over 2k / 8k / 32k / 128k tokens. GPU-hours are logged but never used as the reported axis,
-since they are not comparable across GPU types.
+Everything is scored against a hardware-independent compute budget `B`: total LLM-generated tokens
+per problem, summed across every model call. `pass@B` is reported as a curve over 2k / 8k / 32k /
+128k tokens. GPU-hours are logged but never used as the reported axis, as they are not comparable
+across GPU types.
 
 - **Two independently trained provers**, so any shared finding is a property of the model class
   rather than a quirk of one model: **Goedel-Prover-V2-8B** and **DeepSeek-Prover-V2-7B**.
 - **Two benchmarks**: **miniF2F-test** (244 problems, competition style, in distribution) and
-  **ProofNet#** (186 problems, undergraduate level, out of distribution and roughly 3-5x harder).
-- **Lean is always the authority.** Solves are verified by the official Lean REPL. No LLM judge ever
-  decides whether a proof counts.
-- **At least 3 seeds** for every headline number, reported as mean plus or minus seed standard
-  deviation.
+  **ProofNet#** (186 problems, undergraduate level, out of distribution, roughly 3-5x harder).
+- **Lean is the sole authority.** Solves are verified by the official Lean REPL; no LLM judge decides
+  whether a proof counts.
+- **At least 3 seeds** per headline number, reported as mean plus or minus seed standard deviation.
 
 ---
 
 ## 2. Results
 
-### 2.1 The baseline curves
+### 2.1 Baseline curves
 
 `pass@B`, mean plus or minus seed standard deviation over 3 seeds:
 
@@ -40,71 +39,72 @@ since they are not comparable across GPU types.
 | 32k  | 69.7% ± 0.8% | 67.3% ± 0.6% | 12.2% ± 0.3% | 18.3% ± 1.6% |
 | 128k | 75.3% ± 1.2% | 73.0% ± 0.4% | 14.9% ± 0.3% | 22.2% ± 1.7% |
 
-miniF2F saturates near 73-75% by 128k while ProofNet# is still climbing from a much lower base. Both
-models show that asymmetry independently, so it looks like a property of the task rather than of one
-model. The cross-model ordering also flips between benchmarks: Goedel is slightly ahead in
-distribution, DeepSeek clearly ahead out of it (+7pp at 128k, widening with budget). Both provers
-attempt identical statement sets, so that gap is real and not a coverage artifact.
-
-Read the 2k column with care. The median cell finishes zero complete attempts in 2k tokens, so it
-mostly measures whether a truncated partial attempt happened to already contain a proof.
+- miniF2F saturates near 73-75% by 128k; ProofNet# is still climbing from a much lower base. Both
+  models show the asymmetry independently, indicating a property of the task rather than of one model.
+- The cross-model ordering flips between benchmarks: Goedel leads in distribution, DeepSeek leads out
+  of it (+7pp at 128k, widening with budget). Both provers attempt identical statement sets, so the
+  gap is not a coverage artifact.
+- The 2k column is attempt-starved. The median cell completes zero attempts within 2k tokens, so it
+  measures whether a truncated fragment happened to contain a proof.
 
 ### 2.2 An execution floor that nothing at test time moved
 
-The nine interventions: premise retrieval, memory of failed attempts, an LLM reviewer step,
-tactic-skeleton hints, forced approach diversity, within-problem budget allocation, hammer/SMT
-closing tactics, supervised fine-tuning, and reinforcement learning. All null. Two hurt.
+The nine interventions, all null against baseline at matched budget:
 
-The experiment that explains why: on the problems every baseline seed gets stuck on, we forced the
-model to try more varied approaches. Measured diversity rose from 42% to 70%, so it genuinely did
-explore more. Solves stayed flat.
+- **Scaffolding**: premise retrieval, failed-attempt memory, an LLM reviewer step, tactic-skeleton
+  hints, forced approach diversity, within-problem budget allocation
+- **Symbolic**: hammer/SMT closing tactics
+- **Training**: supervised fine-tuning, reinforcement learning
 
-That is causal rather than correlational, and it says approach discovery is not the bottleneck.
-Carrying one approach through to a finished proof is. Since every intervention we tried was aimed at
-helping the model think of new ideas, that single mechanism accounts for all nine nulls.
+The experiment that explains why: on the problems every baseline seed fails, we forced the model to
+try more varied approaches. Measured diversity rose from 42% to 70%, confirming the manipulation took
+effect. Solves stayed flat.
+
+This is a causal result, and it locates the bottleneck. Approach discovery is not the constraint;
+carrying one approach through to a finished proof is. Every intervention tested was aimed at helping
+the model generate new ideas, so a single mechanism accounts for all nine nulls.
 
 ### 2.3 The one lever that moved something
 
-Not a model change or a scaffold change, but a policy question: given a fixed budget for a whole
-batch of problems, how should it be split across them? Abandoning problems that a difficulty
-predictor flags as likely hopeless, and spending that budget elsewhere, saves about 30% of compute
-at 90% of full-budget accuracy on Goedel with ProofNet#.
+A policy question rather than a model or scaffold change: given a fixed budget across a batch of
+problems, how should it be split? Abandoning problems a difficulty predictor flags as likely hopeless
+and reallocating that budget saves about 30% of compute at 90% of full-budget accuracy on Goedel with
+ProofNet#. Reported as a point estimate; the paired bootstrap CI crosses zero.
 
-We report this as a point estimate. A paired bootstrap confidence interval on it still crosses zero.
+### 2.4 Five harness bugs
 
-### 2.4 Five bugs in our own harness
+Auditing the pipeline produced a result in its own right:
 
-Auditing the pipeline became a result in its own right. We found a Lean elaboration-timeout
-misconfiguration that silently corrupted 17.8% of one benchmark's refinement feedback, a soundness
-hole that scored truncated non-proofs as solved, a hung-process bug that scored failures as
-successes, a gate that mechanically forced 0% for one class of model output, and a staging race
-condition. Two of our own headline results were retracted because of them.
+- **Elaboration timeout misconfigured.** Silently corrupted 17.8% of one benchmark's refinement
+  feedback.
+- **Soundness hole.** Truncated non-proofs scored as solved.
+- **Hung process scored as success.** Failed cells counted as solves.
+- **Gate reading the wrong operand.** Mechanically forced 0% for one class of model output.
+- **Staging race condition.**
 
-None of these are specific to this codebase. Each is written up with mechanism, blast radius,
-direction of error, and a regression test in
-**[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)**, which is the file to read if
-you run any LLM-plus-verifier evaluation of your own.
+Two of our own headline results were retracted as a result. None of these bugs are specific to this
+codebase. Each is written up with mechanism, blast radius, direction of error, and a regression test
+in **[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)**, which is relevant to any
+LLM-plus-verifier evaluation.
 
 ---
 
-## 3. Why you should believe this
+## 3. Validity checks
 
-A pile of null results is exactly what a broken harness produces, so the pipeline was validated
-against both external published numbers and internal positive controls before any null was trusted.
+Null results are also what a broken harness produces, so the pipeline was validated against external
+published numbers and internal positive controls before any null was trusted.
 
 ### 3.1 Positive controls
 
 | Control | Result |
 |---|---|
-| External calibration | DeepSeek-Prover-V2-7B reproduces its own paper's number to within 0.2pp (see below) |
-| Sensitivity | The baseline moves from 29.6% to 75.3% across the budget sweep, so the metric clearly responds to the thing that should move it |
-| Manipulation check | Forced diversity really did fire, 42% to 70%. The null came from a treatment that worked, not one that never happened |
-| Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as `ok` under the fully patched backend |
-| Self-detection | The harness caught two of its own false results, and both were withdrawn |
+| External calibration | DeepSeek-Prover-V2-7B reproduces its own paper's number to within 0.2pp |
+| Sensitivity | Baseline moves 29.6% to 75.3% across the budget sweep, so the metric responds to the variable that should move it |
+| Manipulation check | Forced diversity took effect, 42% to 70%. The null came from a treatment that fired |
+| Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as `ok` on the fully patched backend |
+| Self-detection | The harness caught two of its own false results; both were withdrawn |
 
 ### 3.2 Consistency with published results
-
-Nothing here contradicts a published number.
 
 | Our result | Published | Verdict |
 |---|---|---|
@@ -115,50 +115,40 @@ Nothing here contradicts a published number.
 | Allocation saves ~30% | Difficulty-aware allocation saves up to 4x ([2408.03314](https://arxiv.org/abs/2408.03314)) | Inside range, conservative |
 | GRPO probe null, 80 steps | V1.5's RL stage gains +1.2 to +2.3pp on ~4,500 theorems ([2408.08152](https://arxiv.org/abs/2408.08152)) | Expected at our scale |
 
-**On the Goedel gap.** It resolves once budget is converted into attempts. Goedel is a
-chain-of-thought model, and [`ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md)
-shows a 128k budget buys it a mean of 1.94 attempts, median 1. That is far closer to pass@2 than to
-pass@32. The gap is the pass@B versus pass@N distinction this project is built on, not evidence
-against it.
-
-**On the scaffolding nulls.** Papers reporting scaffolding gains are typically compute-unmatched,
-comparing a scaffolded system against a cheaper baseline. Holding budget fixed is a stricter
-comparison, so a null where they report a gain is the expected outcome.
-
-**On the training nulls.** Our GRPO probe's flat KL divergence, 0.0021 across all 80 steps, matches
-the documented advantage-collapse mode where identical rewards inside a sample group produce zero
-gradient, reported in 28-45% of training batches in the RL literature. Our SFT signature, near-zero
-teacher-forced loss on a step in isolation yet failure when the model has to reach that step through
-its own generated prefix, is textbook exposure bias, named in scheduled sampling (Bengio et al.,
-2015) and DAgger (Ross and Bagnell, 2011). Both nulls have a known mechanism rather than an unknown
-one.
+- **The Goedel gap resolves once budget is converted into attempts.** Goedel is a chain-of-thought
+  model, and [`ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md) shows a
+  128k budget buys it a mean of 1.94 attempts, median 1, which is far closer to pass@2 than pass@32.
+  The gap is the pass@B versus pass@N distinction the project is built on.
+- **Published scaffolding gains are typically compute-unmatched**, comparing a scaffolded system
+  against a cheaper baseline. Holding budget fixed is a stricter comparison, so a null where they
+  report a gain is the expected outcome.
+- **Both training nulls have a known mechanism.** The GRPO probe's flat KL divergence (0.0021 across
+  all 80 steps) matches the documented advantage-collapse mode, where identical rewards within a
+  sample group produce zero gradient, reported in 28-45% of training batches. The SFT signature,
+  near-zero teacher-forced loss on a step in isolation yet failure when the model reaches that step
+  through its own generated prefix, is exposure bias, named in scheduled sampling (Bengio et al.,
+  2015) and DAgger (Ross and Bagnell, 2011).
 
 ---
 
 ## 4. Limitations
 
-These are boundaries on the claim, and the things to push on first.
-
-**No compute-unmatched positive control.** Every intervention was run budget-matched. We argue that
-is why they came out null, but we never showed this harness detects a scaffolding gain under the
-conditions where the literature reports one. Re-running one intervention at a deliberately unmatched
-budget would close that loop, and is the highest-value remaining check.
-
-**The operating point is narrow.** At 128k, Goedel gets a mean of 1.94 attempts, so a scaffold
-costing 2x per attempt must nearly double per-attempt success just to break even. That follows from
-matching budget rather than being a defect, but "nothing works" should be read as "nothing works at a
-budget that buys about two attempts."
-
-**Some interventions are weaker than their published versions.** Our retrieval is untrained BM25 into
-a whole-proof prompt, where ReProver uses a trained retriever in a stepwise loop; our hammer arm is a
-lite in-context closer, not a real hammer; our RL probe is far smaller than any published RL stage.
-Those nulls constrain our implementations, not the general techniques.
-
-**Scale and scope.** Everything is 7-8B parameters, and whether the floor persists at larger scale is
-the biggest open question this project leaves behind. Models trained specifically for decomposition
-are a different class, and none of this is evidence against them.
-
-**The one positive result is a point estimate**, with a bootstrap CI that crosses zero.
+- **No compute-unmatched positive control.** Every intervention was run budget-matched. We argue that
+  is why they came out null, but never demonstrated that this harness detects a scaffolding gain
+  under the conditions where the literature reports one. Re-running one intervention at a
+  deliberately unmatched budget is the highest-value remaining check.
+- **The operating point is narrow.** At 128k, Goedel gets a mean of 1.94 attempts, so a scaffold
+  costing 2x per attempt must nearly double per-attempt success to break even. This follows from
+  matching budget rather than being a defect, but "nothing works" should be read as "nothing works at
+  a budget buying roughly two attempts."
+- **Some interventions are weaker than their published versions.** Our retrieval is untrained BM25
+  into a whole-proof prompt, where ReProver uses a trained retriever in a stepwise loop; our hammer
+  arm is a lite in-context closer, not a real hammer; our RL probe is far smaller than any published
+  RL stage. Those nulls constrain our implementations, not the general techniques.
+- **Scale and scope.** Everything is 7-8B parameters; whether the floor persists at larger scale is
+  the largest open question. Models trained specifically for decomposition are a different class, and
+  none of this is evidence against them.
+- **The one positive result is a point estimate**, with a bootstrap CI crossing zero.
 
 ---
 
@@ -177,20 +167,20 @@ mkdir -p logs results
 sbatch slurm/sweep.sh configs/phase0_baseline.yaml baseline
 ```
 
-The sweep brings up a vLLM server, runs the agent over the problem set, and writes per-problem JSON,
-a `pass@B` curve, and a manifest to `results/baseline/`. Jobs are restartable: the cluster preempts
-and requeues, and completed `(config, seed, problem)` cells are skipped on resume.
+The sweep starts a vLLM server, runs the agent over the problem set, and writes per-problem JSON, a
+`pass@B` curve, and a manifest to `results/baseline/`. Jobs are restartable: the cluster preempts and
+requeues, and completed `(config, seed, problem)` cells are skipped on resume.
 
-Four cluster gotchas are baked into the harness, and new code that ignores them fails in silent ways:
+Four cluster constraints are baked into the harness. Code that ignores them fails silently:
 
 - `unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy` atop every job script. Slurm jobs inherit a
   per-session SSH proxy that breaks all outbound downloads.
 - Stage Mathlib's oleans to node-local SSD. Loading from shared GPFS causes an open storm that
-  degrades the filesystem for everyone.
+  degrades the filesystem for all users.
 - Drive the Lean REPL over a PTY with a recursive `LEAN_PATH`, and never pickle its environment,
   which silently corrupts verdicts. Force `PATH` after `conda activate`.
 - Every GPU sweep is gated on a probe that must accept a `norm_num` proof and reject a false one, so
-  a broken environment fails loudly instead of looking like a low pass rate.
+  a broken environment fails loudly rather than presenting as a low pass rate.
 
 Partitions: `short` (12h) for eval, `burst` (14 days, preemptible) for sweeps and training.
 `gpu:l40s:1` for inference, `gpu:h100:1` for training. Account `edu`.
@@ -200,7 +190,7 @@ Partitions: `short` (12h) for eval, `burst` (14 days, preemptible) for sweeps an
 ## 6. Repository layout
 
 ```
-CONVENTIONS.md    # the engineering rules the code was written under, cited by rule number
+CONVENTIONS.md    # engineering rules the code was written under, cited by rule number
 Makefile          # make verify / test / smoke / lint
 
 src/atp/
@@ -214,11 +204,11 @@ src/atp/
 └── rl/           # GRPO reward, diversity, subset selection
 
 configs/          # one versioned YAML per experiment. Pins are load-bearing.
-slurm/            # restartable sbatch scripts. Read the gotchas above first.
+slurm/            # restartable sbatch scripts. Read the constraints above first.
 scripts/          # analysis and one-off probes
 results/          # the receipts, see results/README.md
 tests/            # mirrors src/ (markers: slow, gpu, lean)
-env/              # frozen pip + conda listings for the environment that produced every result
+env/              # frozen pip + conda listings for the environment behind every result
 ```
 
 ---

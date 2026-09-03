@@ -15,7 +15,7 @@ manifest — don't guess from the directory name.
 - `*_smoke.yaml` — tiny 2–5 problem end-to-end sanity configs. **Always run the smoke config before
   submitting the full sweep** (`CONVENTIONS.md` rule 5).
 - `*_battery.yaml` — the Phase 8 model-zoo batteries (whose headline is withdrawn; see
-  [`../README.md` §2.4](../README.md#24-five-bugs-in-our-own-harness)).
+  [`../README.md` §2.4](../README.md#24-five-harness-bugs)).
 - `phase6_*` — the SFT/RL training and eval arms.
 - `calibration_trapped32_*` — the trapped-core resampling calibration cells.
 
