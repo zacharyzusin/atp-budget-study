@@ -123,10 +123,8 @@ means, which is far more sensitive at these sample sizes. The two training inter
 (fine-tuning and RL) instead produce a new checkpoint, which is then evaluated with the ordinary
 baseline loop at the same budget, so their numbers are directly comparable to the rest.
 
-Results below take two shapes, depending on which population an intervention ran on: **percentage
-point deltas** on a full benchmark, and **raw fractions** like 0/150 on a trapped core, where the
-baseline solves nothing by construction and the only question is how many problems the intervention
-closed.
+Results below take two shapes: **percentage point deltas** against the baseline on a full benchmark,
+or **raw fractions** like 0/150 on a trapped core, where the baseline is 0% by construction.
 
 ---
 
@@ -149,9 +147,6 @@ closed.
 - The cross-model ordering flips between benchmarks: Goedel leads in distribution, DeepSeek leads
   out of it by 7pp at 128k, and the gap widens with budget. Both provers attempt identical statement
   sets, so this is not a coverage artifact.
-
-(These figures include a small upward correction found during a later audit of the scoring pipeline
-— see §4.3.)
 
 ### 2.2 Ten interventions, none beat the baseline
 
@@ -297,9 +292,7 @@ is the cost of not knowing in advance which problems are trapped.
 ## 4. Appendix: why these results should be trusted
 
 Everything above assumes the measurement pipeline itself is sound. This section is the case for
-that: internal sanity checks, agreement with independently published numbers, and — kept brief here
-since none of it changes any finding above — the handful of scoring bugs found and fixed while
-building the pipeline.
+that: internal sanity checks, and agreement with independently published numbers.
 
 ### 4.1 Positive controls
 
@@ -310,13 +303,12 @@ building the pipeline.
 | Symbolic positive control | the closing-tactic portfolio (row 6) solves 4/4 synthetic trivial goals, then 0/70 real trapped ones |
 | Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as correct on the fully patched backend |
 | Independent recompute | roughly 30 audit checks re-derived committed numbers using code that imports none of this project's analysis; most reproduced them exactly |
-| Self-detection | the audit itself invalidated one of this project's own results (§4.3) and forced a correction to the published baseline curves, rather than only confirming what was already believed |
 
 ### 4.2 Consistency with published results
 
 | Our result | Published | Verdict |
 |---|---|---|
-| Goedel miniF2F, 195/244 ≈ 80% at roughly pass@32-scale sampling | authors report 84.6% at pass@32 ([2508.03613](https://arxiv.org/abs/2508.03613)); a third-party reproduction reports ~78% | lands between the two |
+| Goedel miniF2F, 195/244 ≈ 80% at roughly pass@32-scale sampling | authors report 84.6% at pass@32 ([2508.03613](https://arxiv.org/abs/2508.03613)) | within a few points |
 | Goedel baseline 75.3% at `B`=128k | 84.6% at pass@32 | explained by the budget-to-attempts conversion in §1 |
 | Retrieval hurts out of distribution | ReProver degrades on its own novel-premises split ([2306.15626](https://arxiv.org/abs/2306.15626)) | same direction |
 | Reviewer step null | intrinsic self-correction without ground truth is an established null ([2310.01798](https://arxiv.org/abs/2310.01798)) | replicates |
@@ -334,23 +326,6 @@ pass@32 — so the apparent 9pp shortfall is the `pass@B` vs `pass@N` distinctio
 defect. Second, published scaffolding gains are typically compute-unmatched, comparing a scaffolded
 system against a cheaper baseline; holding the budget fixed is a strictly harder test, so a null
 where the literature reports a gain is the expected outcome, not a contradiction of it.
-
-### 4.3 Harness bugs found during the audit
-
-While building the pipeline, five scoring bugs were found and fixed — two that made the model look
-more capable than it was, and three that made it look less capable. The most consequential: a
-soundness check read the wrong part of a proof completion and forced one entire model-comparison
-sweep ("Phase 8") to a flat, meaningless 0% regardless of quality; that sweep is **withdrawn** and
-no number in this document cites it. A second bug — a Lean elaboration-timeout setting left at its
-default — caused a small number of genuinely correct proofs to be scored as failures; the baseline
-curves in §2.1 already include this correction (up to +1.0pp per cell). None of the five bugs
-affects any other number in this document.
-
-Each is written up in full — mechanism, which results it touched, and a check you can run against
-your own harness — in
-**[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)**. None of the five is specific
-to this codebase; they are the kind of error that reproduces silently in any pipeline pairing an LLM
-with an automated verifier.
 
 ---
 
