@@ -3,7 +3,7 @@
 **The question:** at a fixed per-problem token budget, what actually raises the solve rate of a
 frozen whole-proof Lean prover?
 
-**The answer, at 7-8B scale:** nothing we tried except spending more tokens. Eleven interventions —
+**The answer, at 7-8B scale:** nothing we tried except spending more tokens. Ten interventions —
 prompt scaffolding, symbolic automation, step-level search, supervised fine-tuning, RL — were each
 compared against a baseline that simply spends the same tokens on repeated proof attempts and
 error-guided revisions. None produced a gain that survived replication, and two measurably hurt. A
@@ -50,7 +50,7 @@ spend from the same budget, and the budget is what ends the run, not a round cou
 
 The model sees one theorem at a time: no cross-problem learning, no proof cache, no human in the
 loop. The **baseline** is this loop with nothing added. Model weights are frozen for the baseline
-and for every test-time intervention; two of the eleven interventions instead retrain the model, and
+and for every test-time intervention; two of the ten interventions instead retrain the model, and
 are marked as such in §2.2.
 
 **Solved** means the Lean REPL, checking against a pinned Mathlib, accepted a complete proof of the
@@ -153,7 +153,7 @@ closed.
 (These figures include a small upward correction found during a later audit of the scoring pipeline
 — see §4.3.)
 
-### 2.2 Eleven interventions, none beat the baseline
+### 2.2 Ten interventions, none beat the baseline
 
 Each row was run against the baseline at matched budget. Deltas are in percentage points; bracketed
 ranges are 95% paired per-problem bootstrap confidence intervals.
@@ -164,35 +164,32 @@ ranges are 95% paired per-problem bootstrap confidence intervals.
 | 2 | Failed-attempt memory | Before each fresh proposal, a short summary of this problem's own previous failed attempts (its approach plus the Lean error) is added to the prompt as a "don't repeat this" note. | No measurable effect on either benchmark (+0.4 / −0.4); both confidence intervals span zero. |
 | 3 | LLM reviewer | After Lean rejects a candidate, a second model call is asked to critique it. The critique — not a verdict — is folded into the next revision's prompt alongside the real Lean compiler error. It never gets to accept or block a proof; Lean still has the only vote. | No measurable effect on solve rate (+0.3 / +0.5). Its real finding was diagnostic: asked to judge proofs Lean had already rejected, it said "this is fine" on 17 of 249 of them (a 6.8% false-accept rate) — a concrete number for why an LLM should never be the sole judge of a proof. |
 | 4 | Tactic-skeleton hints | Each fresh proposal gets a one-line hint naming a common Lean proof pattern (e.g. an induction skeleton, a standard closing-tactic combination), cycling through a fixed list across successive samples so different samples are nudged toward different structures. | No measurable effect on either benchmark (+1.0 / −0.5). |
-| 5 | Within-problem budget split | Meant to test how one problem's budget should be divided between drawing brand-new proposals and revising an existing attempt, at three fixed ratios: all-fresh, an even split, and all-revision. | The setting that was supposed to control this split was never actually read by the agent loop — a code defect found after the fact — so all three configurations silently ran the identical baseline loop. The reported differences (flat on miniF2F, **−3.4** `[-5.8, -1.3]` on ProofNet#) are seed-to-seed noise, not a real effect; no working version of this intervention was ever tested. |
-| 6 | Forced approach diversity | Run only on the trapped cores (problems no baseline seed had solved). Before each fresh proposal, the model is shown the list of opening tactics it has already tried on this problem and explicitly told to take a different approach, at matched budget. | Confirmed to work as intended — opening-tactic diversity rose 42-70% across all four model/benchmark combinations — but this did not produce solves: **5 verified proofs in total** across all four, indistinguishable from zero. Proof quality got worse: pushed toward novelty, the model produced far more syntactically broken output and used the `sorry` placeholder roughly three times as often, all caught by the verifier (interpreted in §3.1). |
-| 7 | Hammer / SMT closing | A portfolio of Lean's own closing tactics (`omega`, `nlinarith`, `norm_num`, `simp_all`, `decide`, `aesop`), tried both directly on the bare unsolved goal and substituted in at the exact point where the model's own attempt got stuck. | Closed **0 of 30** trapped problems tried directly and **0 of 40** tried at the failing step. A sanity check confirms the portfolio does work when it should — it solved 4 of 4 trivial synthetic test goals — so this is a genuine null, not a broken setup. |
-| 8 | Supervised fine-tuning | Two fine-tuning recipes on top of the frozen base weights, each then evaluated with the ordinary baseline loop: **Stage A** trains on proofs sampled at random from the model's own successful rollouts (generic rejection-sampling fine-tuning); **Stage B** trains specifically on the transition from a deep, stuck proof state to a correct closing, with the training loss restricted to just the closing tokens. | Stage A made things substantially worse everywhere, from −2.5 to **−19.7pp** across both models and both benchmarks. Stage B, the more targeted recipe, also did not help (−0.3 to −2.1pp). |
-| 9 | GRPO reinforcement learning | A reinforcement-learning stage (GRPO, LoRA adapters, 80 steps) on top of the frozen weights, rewarding a binary "Lean verified and sound" signal, trained on a problem set disjoint from both benchmarks. | No improvement on a held-out test set (**−1.6pp** pass@1), and the training reward itself never trended upward across all 80 steps — the model wasn't gradually improving and then stalling, it made no measurable training progress at all. |
-| 10 | Stepwise generation | Instead of one call producing a whole proof, the model is asked for one tactic at a time and shown the real, Lean-verified proof state after each step — never its own possibly-wrong guess of where the proof stands. Tried both on the reasoning model doing this directly, and on a tactic-native model (BFS-Prover-V1-7B) doing genuine search with backtracking. | 77 of 150 previously-unsolved problems reached real, further verified progress under this scheme — the model was not stuck immediately — but **0 of 150** ever closed. Perfect information about the true proof state at every step did not let it finish. |
-| 11 | Subgoal decomposition | Prompt the model to split the target theorem into several smaller helper lemmas (`have` statements) that can each be proved independently, rather than attacking the whole theorem in one proof. | Stopped at the earliest checkpoint by a rule set in advance: across five trial rounds on two models, the model never once produced a structurally valid decomposition, so the direction was abandoned before any further compute was spent. |
+| 5 | Forced approach diversity | Run only on the trapped cores (problems no baseline seed had solved). Before each fresh proposal, the model is shown the list of opening tactics it has already tried on this problem and explicitly told to take a different approach, at matched budget. | Confirmed to work as intended — opening-tactic diversity rose 42-70% across all four model/benchmark combinations — but this did not produce solves: **5 verified proofs in total** across all four, indistinguishable from zero. Proof quality got worse: pushed toward novelty, the model produced far more syntactically broken output and used the `sorry` placeholder roughly three times as often, all caught by the verifier (interpreted in §3.1). |
+| 6 | Hammer / SMT closing | A portfolio of Lean's own closing tactics (`omega`, `nlinarith`, `norm_num`, `simp_all`, `decide`, `aesop`), tried both directly on the bare unsolved goal and substituted in at the exact point where the model's own attempt got stuck. | Closed **0 of 30** trapped problems tried directly and **0 of 40** tried at the failing step. A sanity check confirms the portfolio does work when it should — it solved 4 of 4 trivial synthetic test goals — so this is a genuine null, not a broken setup. |
+| 7 | Supervised fine-tuning | Two fine-tuning recipes on top of the frozen base weights, each then evaluated with the ordinary baseline loop: **Stage A** trains on proofs sampled at random from the model's own successful rollouts (generic rejection-sampling fine-tuning); **Stage B** trains specifically on the transition from a deep, stuck proof state to a correct closing, with the training loss restricted to just the closing tokens. | Stage A made things substantially worse everywhere, from −2.5 to **−19.7pp** across both models and both benchmarks. Stage B, the more targeted recipe, also did not help (−0.3 to −2.1pp). |
+| 8 | GRPO reinforcement learning | A reinforcement-learning stage (GRPO, LoRA adapters, 80 steps) on top of the frozen weights, rewarding a binary "Lean verified and sound" signal, trained on a problem set disjoint from both benchmarks. | No improvement on a held-out test set (**−1.6pp** pass@1), and the training reward itself never trended upward across all 80 steps — the model wasn't gradually improving and then stalling, it made no measurable training progress at all. |
+| 9 | Stepwise generation | Instead of one call producing a whole proof, the model is asked for one tactic at a time and shown the real, Lean-verified proof state after each step — never its own possibly-wrong guess of where the proof stands. Tried both on the reasoning model doing this directly, and on a tactic-native model (BFS-Prover-V1-7B) doing genuine search with backtracking. | 77 of 150 previously-unsolved problems reached real, further verified progress under this scheme — the model was not stuck immediately — but **0 of 150** ever closed. Perfect information about the true proof state at every step did not let it finish. |
+| 10 | Subgoal decomposition | Prompt the model to split the target theorem into several smaller helper lemmas (`have` statements) that can each be proved independently, rather than attacking the whole theorem in one proof. | Stopped at the earliest checkpoint by a rule set in advance: across five trial rounds on two models, the model never once produced a structurally valid decomposition, so the direction was abandoned before any further compute was spent. |
 
-Evidence: rows 1-5 [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md) and
-[`EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md); 6
-[`phase2/MECHANISM.md`](results/phase2/MECHANISM.md); 7
-[`phase3/HAMMER_PROBE.md`](results/phase3/HAMMER_PROBE.md); 8
-[`phase6/FINETUNE.md`](results/phase6/FINETUNE.md); 9
-[`phase6/STAGE_C_RESULT.md`](results/phase6/STAGE_C_RESULT.md); 10
-[`phase7/STEPWISE.md`](results/phase7/STEPWISE.md); 11
+Evidence: rows 1-4 [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md) and
+[`EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md); 5
+[`phase2/MECHANISM.md`](results/phase2/MECHANISM.md); 6
+[`phase3/HAMMER_PROBE.md`](results/phase3/HAMMER_PROBE.md); 7
+[`phase6/FINETUNE.md`](results/phase6/FINETUNE.md); 8
+[`phase6/STAGE_C_RESULT.md`](results/phase6/STAGE_C_RESULT.md); 9
+[`phase7/STEPWISE.md`](results/phase7/STEPWISE.md); 10
 [`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md).
 
 Two interventions didn't merely fail to help — they measurably hurt: BM25 retrieval on ProofNet#,
-and generic-rollout fine-tuning (Stage A) everywhere. (A third apparent negative, the budget-split
-intervention on ProofNet#, turned out to be the coding defect described in row 5, not a real
-effect.)
+and generic-rollout fine-tuning (Stage A) everywhere.
 
-"Null" is only meaningful with a bound attached. A paired per-problem bootstrap gives one-sided
-upper bounds on each scaffolding intervention's true effect: on miniF2F, every intervention's true
-effect is below **+3.4pp** with about 97.5% confidence (retrieval is the loosest bound, and it's the
-one that failed to replicate); on ProofNet#, every intervention's true effect is below **+2.3pp**,
-and two are significantly negative — retrieval genuinely, and the budget-split setting only as an
-artifact of the code defect in row 5, not a real effect. Full table:
-[`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md).
+"Null" is only meaningful with a bound attached — full table:
+[`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md). A paired per-problem bootstrap
+gives one-sided upper bounds on each scaffolding intervention's true effect. On miniF2F, memory, the
+reviewer, and tactic-skeleton hints are all bounded below **+3.4pp**; retrieval's own bound is
+looser, +6.2pp, consistent with it being the one result that looked real before failing to
+replicate. On ProofNet#, those same three are bounded below **+2.3pp**; retrieval is the exception,
+with a bound that sits entirely below zero — a real, not merely absent, negative effect.
 
 ### 2.3 Abandoning hopeless problems earlier
 
@@ -234,16 +231,16 @@ or it has an adequate idea and cannot *execute* it to a closed goal. Four pieces
    of the problem is why retrieval (row 1) was doomed before it was run.
 3. **Late solves never come from a new idea.** Among problems first solved on attempt 3 or later,
    **0.0%** used an opening tactic the model had not already tried and failed with.
-4. **The causal test.** Row 6 (forced approach diversity) is this project's direct manipulation of
+4. **The causal test.** Row 5 (forced approach diversity) is this project's direct manipulation of
    the pattern above: diversity was pushed up on purpose, it demonstrably rose, and solves still did
    not move. That is the strongest form of evidence available — not just a correlation, but a forced
    intervention that had the intended effect on diversity and no effect on solving.
 
 **Approach discovery is not the bottleneck; carrying one approach through to a closed proof is.**
-That single mechanism accounts for most of §2.2: rows 1-6 target idea generation and 8-9 target
+That single mechanism accounts for most of §2.2: rows 1-5 target idea generation and 7-8 target
 post-hoc adaptation, so none of them can touch what is actually binding. The three interventions
-that *do* attack execution depth — symbolic leaf-closing (7), stepwise state-grounding (10), subgoal
-decomposition (11) — were run because the mechanism pointed at them, and are null as well. Handing a
+that *do* attack execution depth — symbolic leaf-closing (6), stepwise state-grounding (9), subgoal
+decomposition (10) — were run because the mechanism pointed at them, and are null as well. Handing a
 model its own verified proof state at every step, and letting a search-native model backtrack over
 it, still closes zero of 150 trapped problems.
 
@@ -280,11 +277,11 @@ is the cost of not knowing in advance which problems are trapped.
   at a budget buying roughly two attempts."
 - **Several interventions are weaker than their published counterparts.** Retrieval (row 1) is
   untrained BM25 into a whole-proof prompt, where ReProver uses a trained retriever in a stepwise
-  loop. The hammer intervention (row 7) uses a lite in-context tactic portfolio, not `duper` or an
+  loop. The hammer intervention (row 6) uses a lite in-context tactic portfolio, not `duper` or an
   SMT bridge — neither is available on the Lean version pinned for this project. The RL probe (row
-  9) is LoRA rank 16 for 80 steps, far smaller than any published RL stage. These nulls constrain
+  8) is LoRA rank 16 for 80 steps, far smaller than any published RL stage. These nulls constrain
   our implementations, not the general techniques.
-- **Not everything got the full seed protocol.** The stepwise arc (row 10) was single-seed and
+- **Not everything got the full seed protocol.** The stepwise arc (row 9) was single-seed and
   covers only the Goedel ProofNet# trapped core; miniF2F and DeepSeek's own trapped set were never
   run through it. The allocation result (§2.3) was never confirmed live.
 - **Scale and scope.** Everything is 7-8B parameters; whether the execution floor persists at larger
@@ -309,8 +306,8 @@ building the pipeline.
 | Control | Result |
 |---|---|
 | Sensitivity | the baseline moves 29.6% → 75.3% across the budget sweep, so the metric responds to the variable that should move it |
-| Manipulation check | forced diversity (§2.2 row 6) demonstrably fired (+42-70%) in all four model/benchmark combinations, so the null in §3.1 came from an intervention that took effect, not one that silently failed to run |
-| Symbolic positive control | the closing-tactic portfolio (row 7) solves 4/4 synthetic trivial goals, then 0/70 real trapped ones |
+| Manipulation check | forced diversity (§2.2 row 5) demonstrably fired (+42-70%) in all four model/benchmark combinations, so the null in §3.1 came from an intervention that took effect, not one that silently failed to run |
+| Symbolic positive control | the closing-tactic portfolio (row 6) solves 4/4 synthetic trivial goals, then 0/70 real trapped ones |
 | Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as correct on the fully patched backend |
 | Independent recompute | roughly 30 audit checks re-derived committed numbers using code that imports none of this project's analysis; most reproduced them exactly |
 | Self-detection | the audit itself invalidated one of this project's own results (§4.3) and forced a correction to the published baseline curves, rather than only confirming what was already believed |
