@@ -14,88 +14,71 @@ carry one idea through to a closed goal.
 
 ## 1. Setup
 
-### Why the question is asked at a fixed budget
+### Why a fixed budget
 
-Work on LLM theorem provers regularly reports gains from *scaffolding*: retrieve relevant lemmas,
-let the model critique its own output, remember what already failed, hint at a proof skeleton. Those
-gains are normally measured at a fixed number of attempts — `pass@N`, meaning "draw `N` independent
-proofs, count the problem solved if any of them verifies."
+Work on LLM theorem provers regularly reports gains from *scaffolding* — retrieve relevant lemmas,
+let the model critique itself, remember what already failed, hint at a proof skeleton. Those gains
+are normally measured at `pass@N`: draw `N` independent proofs, count the problem solved if any
+verifies.
 
-`pass@N` holds *tries* fixed, which is not the same as holding *cost* fixed. Attempts are not
-equally expensive: a chain-of-thought prover can spend ten times as many tokens per attempt as a
-terse one. And every scaffold makes an attempt more expensive — retrieval lengthens the prompt, a
-critic step adds an entire extra generation, refinement spends tokens re-reading compiler errors.
-Scored at fixed `N`, a scaffolded system is quietly handed a larger compute budget than the baseline
-it is compared against, so a reported gain can be partly, or entirely, the extra spend.
+`pass@N` holds *tries* fixed, not *cost*. Attempts are not equally expensive — a chain-of-thought
+prover can spend ten times the tokens per attempt of a terse one — and every scaffold makes an
+attempt dearer still: retrieval lengthens the prompt, a critic adds an entire extra generation,
+refinement spends tokens re-reading compiler errors. At fixed `N` the scaffolded arm is quietly
+handed more compute than its baseline, so a reported gain can be partly, or entirely, the extra
+spend.
 
-Fixing the budget instead of the attempt count removes that confound and leaves a sharper question:
+Fixing the budget instead leaves a sharper question:
 
 > **Given a fixed number of tokens to spend on one Lean theorem, is there anything better to do with
 > them than repeatedly sampling whole proofs and repairing them from compiler errors?**
 
-Under this accounting a scaffold has to pay for itself out of tokens the baseline could otherwise
-have spent on more attempts. For the two models tested, nothing did.
+A scaffold now has to pay for itself out of tokens the baseline could have spent on more attempts.
+For the two models tested, none did.
 
 ### The experiment
 
-The unit of work is a **cell**: one (problem, seed) pair. A cell runs this loop over a single
-theorem statement, against a fixed token ledger
-([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
+The unit of work is a **cell**: one (problem, seed) pair, running this loop over a single theorem
+against a fixed token ledger ([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
 
 > **propose** a complete Lean proof → **verify** it with Lean → on failure, append the compiler error
 > to the prompt and ask for a **revision** → repeat until Lean accepts a proof or the ledger empties.
 
-Up to 4 revisions chain off a proposal before the agent discards that line of attack and draws a
-fresh proposal from scratch. So there are two kinds of try, and they are not interchangeable: a
-**proposal** is a new independent attempt — this is what `pass@N`'s *N* counts — while a
-**revision** is another pass at the current attempt with the error message attached. Both spend from
-the same ledger, and the ledger, not any round count, is what ends the run.
+Up to 4 revisions chain off a proposal before the agent discards it and starts a fresh one. The two
+kinds of try are not interchangeable: a **proposal** is a new independent attempt — what `pass@N`'s
+*N* counts — while a **revision** is another pass at the current one with the error attached. Both
+spend from the same ledger, and the ledger is what ends the run.
 
-The model sees one theorem at a time. There is no cross-problem learning, no proof cache and no
-human in the loop; the failed-attempt memory tested in §2.2 is within a single problem. The
-**baseline** is exactly the loop above with nothing added. Model weights are frozen for the baseline
-and for every test-time intervention; two of the eleven arms deliberately modify the weights, and
-are marked as training arms.
+The model sees one theorem at a time: no cross-problem learning, no proof cache, no human in the
+loop. The **baseline** is this loop with nothing added, and weights are frozen for it and for every
+test-time arm; the two training arms in §2.2 are marked as such.
 
-**Solved** means the Lean REPL, running against a pinned Mathlib, accepted a complete proof of the
-stated theorem. It does not mean "compiled without error": a solve requires a declared goal and a
-proof free of `sorry` or equivalent escapes. Lean is the only authority — no LLM ever decides
-whether a proof counts. That distinction is not pedantic; two of the five harness bugs in §2.6 were
-cases where output that merely failed to raise an error was being scored as a proof.
+**Solved** means the Lean REPL, on a pinned Mathlib, accepted a complete proof of the stated theorem
+— a declared goal and no `sorry` or equivalent escape, not merely the absence of a compiler error.
+Lean is the only authority; no LLM is ever in the accept path. Two of the five bugs in §2.6 were
+cases where output that failed to raise an error was being scored as a proof.
 
-One term recurs below: a benchmark's **trapped core** is the set of problems that no baseline seed
-solved even at the full 128k budget. It is the population where the ceiling actually sits, and
-several interventions were tested there specifically, against a baseline that is 0% by construction.
+A benchmark's **trapped core** is the set of problems no baseline seed solved even at 128k. Several
+interventions were tested there specifically, against a baseline that is 0% by construction.
 
-### How the budget is counted, and what `pass@B` means
+### Budget and `pass@B`
 
-**Budget `B`** is the total number of tokens the model *generates* on one problem, summed across
-every call the loop makes — proposals and revisions alike. It is metered exactly, from the serving
-stack's own `completion_tokens`, and the loop stops the moment the ledger is empty. Because it
-counts tokens rather than seconds, it is hardware-independent; GPU-hours were logged but are never
-the reported axis, since they are not comparable across GPU types.
+**`B`** is the number of tokens the model *generates* on one problem, across every call the loop
+makes. It is metered from the serving stack's own `completion_tokens`, so it is exact and
+hardware-independent; GPU-hours were logged but never reported, being incomparable across GPU types.
+Only generated tokens are charged, not prompt tokens — so context-enlarging scaffolds got their
+context free and still lost.
 
-**`pass@B`** is the fraction of problems for which Lean accepted a proof before cumulative
-generation passed `B` tokens, reported at 2k / 8k / 32k / 128k.
+**`pass@B`** is the fraction of problems whose proof Lean accepted before cumulative generation
+passed `B`, reported at 2k / 8k / 32k / 128k. Each cell is run once against the 128k cap, recording
+the token count at which its proof verified; smaller budgets are re-scored from that same run. The
+four columns of a curve are four readings of one trajectory, not four runs.
 
-The curves are produced by running each cell once against the 128k cap, recording the cumulative
-token count at which its proof verified, and re-scoring at smaller `B`: a cell counts as solved@B if
-its proof arrived within `B` tokens. Nothing is regenerated per budget level, so the four columns of
-a curve are four readings of one run, not four runs.
+### What a budget buys
 
-One asymmetry is worth knowing, because it cuts in favour of the interventions rather than against
-them: only generated tokens are charged, not prompt tokens. A scaffold that works by enlarging the
-prompt — retrieved premises, remembered failures, strategy hints — gets that context for free under
-this accounting. It was still unable to beat the baseline.
-
-The cost of choosing `pass@B` is that these numbers cannot be set beside published `pass@N` numbers
-without a conversion, and no constant performs it — how many attempts a budget buys depends on the
-model and on the problem set. The next section is that conversion.
-
-### What a budget actually buys, and what a fractional attempt means
-
-Complete proposals per problem, by budget — mean across problems, from
-[`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md):
+A `pass@B` number cannot be set beside a published `pass@N` without a conversion, and no constant
+performs it. Complete proposals per problem, averaged across problems
+([`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md)):
 
 | budget | Goedel x miniF2F | Goedel x ProofNet# |
 |---|---|---|
@@ -104,55 +87,39 @@ Complete proposals per problem, by budget — mean across problems, from
 | 32k | 1.11 | 1.51 |
 | 128k | 1.94 (median 1) | 4.71 |
 
-These are averages over problems, not fractions of an attempt within a problem. "0.30 attempts at
-2k" means roughly 30% of problems got one complete proposal inside 2k tokens while the other 70% did
-not finish even their first — for those, generation was still running when the ledger emptied, and
-they are failures at that budget by construction.
+These are averages over problems, not fractions of an attempt within one. "0.30 at 2k" means about
+30% of problems completed a proposal inside 2k tokens while the rest were still generating when the
+ledger emptied — failures at that budget by construction. The 2k column is therefore close to
+uninformative, measuring mostly which problems admit a *short* proof, and no claim here rests on it.
 
-At small `B`, then, a large share of problems cannot succeed no matter what, which makes the 2k
-column close to uninformative. What survives there is mostly the set of problems the model happened
-to answer *briefly*, and brevity correlates with easiness. It is reported for the shape of the curve;
-no claim in this project rests on it.
+At the other end, 128k buys Goedel a mean of 1.94 proposals on miniF2F, median 1 — nearer pass@2
+than pass@32, which is why a headline 75.3% here and a published 84.6% at pass@32 are not in
+conflict (§3.2).
 
-The same table is what reconciles these numbers against published `pass@N` figures. At `B`=128k
-Goedel completes a mean of 1.94 independent proposals on miniF2F, median 1, so the 128k column sits
-nearer pass@2 than pass@32 — which is why a headline 75.3% here and a published 84.6% at pass@32 are
-not in conflict (§3.2).
-
-### Models, benchmarks, protocol
+### Models and benchmarks
 
 - **Two independently trained provers**, so that any finding they share is a property of the model
   class rather than a quirk of one checkpoint: **Goedel-Prover-V2-8B** (chain-of-thought style) and
   **DeepSeek-Prover-V2-7B**.
-- **Two benchmarks**: **miniF2F-test** (244 problems, competition style, in distribution for both
-  provers) and **ProofNet#** (186 problems, undergraduate mathematics, out of distribution, roughly
-  3-5x harder). ProofNet# is the corrected Lean 4 ProofNet (`PAug/ProofNetSharp`), not the original.
-- **Three or more seeds** on every headline number, reported as mean ± seed standard deviation.
-  Exceptions are flagged in §4.
+- **Two benchmarks**: **miniF2F-test** (244 problems, competition style, in distribution) and
+  **ProofNet#** (186 problems, undergraduate mathematics, out of distribution, roughly 3-5x harder).
+  ProofNet# is the corrected Lean 4 ProofNet (`PAug/ProofNetSharp`), not the original.
+- **Three or more seeds** on every headline number, as mean ± seed standard deviation. Exceptions
+  are flagged in §4.
 
-The two benchmarks do different jobs. miniF2F shows what more budget buys on the kind of problem
-these provers were trained for. ProofNet# is where the ceiling is visible: at 128k the baseline
-still fails about 85% of it.
+miniF2F shows what more budget buys on the problems these provers were trained for. ProofNet# is
+where the ceiling shows: at 128k the baseline still fails about 85% of it.
 
-### How each intervention was compared
+### How the interventions were compared
 
-One factor at a time. Each arm is the baseline loop with exactly one thing changed, run on the same
-problems, the same seeds and the same budget, so a difference is attributable to that one change. No
-interaction terms between components were measured. Deltas are paired per problem — the same problem
-under both arms — rather than compared as two independent means, because paired comparison is far
-more sensitive at these sample sizes.
+One factor at a time — the baseline loop with exactly one thing changed, on the same problems, seeds
+and budget. No interaction terms were measured. Deltas are paired per problem rather than compared
+as two independent means, which is far more sensitive at these sample sizes. Training arms produce a
+checkpoint that is then evaluated with the ordinary baseline loop at the same budget.
 
-Two shapes of result appear in §2.2, and the difference is just which population an arm was run on:
-
-- **Percentage-point deltas** — the arm ran on a full benchmark, so its solve rate is compared
-  against the baseline's on the same problems. "−6.5pp" means it solved 6.5% fewer of the 186
-  problems.
-- **Raw fractions like 0/150** — the arm ran on a trapped core, where the baseline solves nothing by
-  construction. There is no percentage to compare against; the only question is how many previously
-  unsolved problems it closed, so the count is reported directly.
-
-Training arms (supervised fine-tuning, RL) produce a new checkpoint, which is then evaluated with
-the ordinary baseline loop at the same budget, so their numbers are comparable to the rest.
+Results take two shapes, depending on the population an arm ran on: **percentage-point deltas** on a
+full benchmark, and **raw fractions** like 0/150 on a trapped core, where the baseline solves
+nothing by construction and the only question is how many problems the arm closed.
 
 ---
 
@@ -349,19 +316,16 @@ controls and external published numbers before any null was trusted.
 | Allocation saves ~30% | difficulty-aware allocation saves up to 4x ([2408.03314](https://arxiv.org/abs/2408.03314)) | inside range, conservative |
 | GRPO probe null at 80 steps | V1.5's RL stage gains +1.2 to +2.3pp over ~4,500 theorems ([2408.08152](https://arxiv.org/abs/2408.08152)) | expected at this probe's scale |
 
-The first row is a calibration check, not a headline: it is a union over the 3 baseline seeds plus
-32 fresh samples on the previously unsolved subset, not a clean pass@32 run over all 244 problems.
-It is reported only to answer "is this harness producing numbers wildly out of line with what is
-published"
+The first row is a calibration check, not a headline: it unions the 3 baseline seeds with 32 fresh
+samples on the previously unsolved subset, so it is not a clean pass@32 run. It exists only to test
+whether this harness produces numbers wildly out of line with published ones
 ([`results/phase0/PASS_AT_32_RECONCILIATION.md`](results/phase0/PASS_AT_32_RECONCILIATION.md)).
 
 Three points do most of the reconciling:
 
-- **The Goedel gap closes once budget is converted into attempts.** Goedel is a chain-of-thought
-  model; at `B`=128k it completes a mean of 1.94 independent propose attempts, median 1. That is
-  much closer to pass@2 than to pass@32. The apparent 9pp shortfall is the `pass@B` vs `pass@N`
-  distinction, not a harness defect — which is why the pass@32-scale reconciliation in the first row
-  lands in the published band.
+- **The Goedel gap closes once budget is converted into attempts.** As set out in §1, `B`=128k buys
+  Goedel a mean of 1.94 proposals — nearer pass@2 than pass@32 — so the apparent 9pp shortfall is
+  the `pass@B` vs `pass@N` distinction, not a harness defect.
 - **Published scaffolding gains are typically compute-unmatched**, comparing a scaffolded system
   against a cheaper baseline. Holding the budget fixed is a strictly harder test, so a null where
   the literature reports a gain is the expected outcome, not a contradiction of it.
