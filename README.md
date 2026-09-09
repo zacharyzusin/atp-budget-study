@@ -164,16 +164,14 @@ are 95% paired per-problem bootstrap CIs.
 | 10 | State-grounded stepwise generation | re-grounding on the verified partial proof state, and true tactic-level search with backtracking — including on a tactic-native model (BFS-Prover-V1-7B) | 77/150 trapped problems reached genuine verified progress; **0/150 closed** |
 | 11 | Subgoal decomposition | split the goal into independently provable `have` lemmas | closed at the smoke stage by a pre-registered stopping rule: 0/2 structurally valid decompositions over five rounds on two models, ~2.3 GPU-hours spent |
 
-Evidence, by row:
-
-- **1-5** — [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md),
-  [`EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md)
-- **6** — [`phase2/MECHANISM.md`](results/phase2/MECHANISM.md)
-- **7** — [`phase3/HAMMER_PROBE.md`](results/phase3/HAMMER_PROBE.md)
-- **8** — [`phase6/FINETUNE.md`](results/phase6/FINETUNE.md)
-- **9** — [`phase6/STAGE_C_RESULT.md`](results/phase6/STAGE_C_RESULT.md)
-- **10** — [`phase7/STEPWISE.md`](results/phase7/STEPWISE.md)
-- **11** — [`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md)
+Evidence: rows 1-5 [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md) and
+[`EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md); 6
+[`phase2/MECHANISM.md`](results/phase2/MECHANISM.md); 7
+[`phase3/HAMMER_PROBE.md`](results/phase3/HAMMER_PROBE.md); 8
+[`phase6/FINETUNE.md`](results/phase6/FINETUNE.md); 9
+[`phase6/STAGE_C_RESULT.md`](results/phase6/STAGE_C_RESULT.md); 10
+[`phase7/STEPWISE.md`](results/phase7/STEPWISE.md); 11
+[`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md).
 
 Three arms did not merely fail to help — they hurt: BM25 retrieval and all-fresh budget splitting on
 ProofNet#, and generic rejection-sampling fine-tuning everywhere.
@@ -193,48 +191,42 @@ Full table: [`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md).
 
 ### 2.4 The mechanism: an execution floor, not an idea shortage
 
-Two stories are consistent with flat curves. Either the model runs out of *ideas* — it resamples the
-same couple of approaches forever and never considers a third — or it has an adequate idea and
-cannot *execute* it to a closed goal. These imply opposite research programs, so the project tested
-which one holds.
+Flat curves admit two explanations with opposite implications: either the model runs out of *ideas*,
+or it has an adequate idea and cannot *execute* it to a closed goal. Four pieces of evidence, from
+[`results/phase2/MECHANISM.md`](results/phase2/MECHANISM.md):
 
-Four pieces of evidence, from [`results/phase2/MECHANISM.md`](results/phase2/MECHANISM.md):
-
-1. **Diversity does collapse.** On unsolved cells the model produces 19-24 attempts but commits to
-   only ~2 distinct opening tactics across all of them (a mean of 1.94 distinct openings on miniF2F,
-   2.28 on ProofNet#), while downstream proof skeletons vary much more (6-9 distinct). It reshuffles
-   tactics inside about two fixed frames rather than reconsidering the approach.
-2. **But the failures are not idea failures.** Classifying the most advanced failure reached per
-   unsolved cell: **95-99% are reasoning failures** — the proof elaborates, the goal will not close.
-   Formalization and syntax account for 1-4%, and a hallucinated or missing premise for ≤1%. Premise
-   availability being under 1% of the problem is why retrieval was doomed before it was run.
+1. **Diversity does collapse.** On unsolved cells the model makes 19-24 attempts but commits to only
+   ~2 distinct opening tactics across all of them, while downstream proof skeletons vary much more
+   (6-9 distinct). It reshuffles tactics inside about two fixed frames rather than reconsidering the
+   approach.
+2. **But the failures are not idea failures.** Classifying the most advanced failure per unsolved
+   cell: **95-99% are reasoning failures** — the proof elaborates, the goal will not close. Syntax
+   accounts for 1-4%, a missing or hallucinated premise for ≤1%. Premise availability being under 1%
+   of the problem is why retrieval was doomed before it was run.
 3. **Late solves never come from a new idea.** Among problems first solved on attempt 3 or later,
-   **0.0%** used an opening tactic the model had not already tried and failed with. Wins arrive by
-   executing an approach the model already had.
-4. **The causal test.** On the trapped cores — problems no baseline seed solved at 128k — approach
-   diversity was forced up by approach-conditioned prompting at matched budget. The manipulation
-   fired: distinct opening tactics per attempt rose **42-70%** across all four model x benchmark
-   arms (for example 1.17 → 1.71 on Goedel x miniF2F). Solves did not move: **5 verified flips in
-   total** across all four arms, within seed noise of zero. Proof quality got *worse* — pushed for
-   novelty, the models emitted 1.5-2x more syntactically broken proofs and roughly triple the
-   `sorry` loopholes, all of which the verifier caught.
+   **0.0%** used an opening tactic the model had not already tried and failed with.
+4. **The causal test.** On the trapped cores, approach diversity was forced up by
+   approach-conditioned prompting at matched budget. The manipulation fired — distinct opening
+   tactics per attempt rose **42-70%** across all four model x benchmark arms (1.17 → 1.71 on Goedel
+   x miniF2F) — and solves did not move: **5 verified flips in total**, within seed noise of zero.
+   Quality got *worse*: pushed for novelty, the models emitted 1.5-2x more syntactically broken
+   proofs and roughly triple the `sorry` loopholes, all caught by the verifier.
 
 **Approach discovery is not the bottleneck; carrying one approach through to a closed proof is.**
-That single mechanism accounts for most of §2.2. Interventions 1-6 all target idea generation and
-8-9 target post-hoc adaptation, so none of them can touch the thing that is actually binding. The
-three arms that *do* attack execution depth directly — symbolic leaf-closing (7), stepwise
-state-grounding (10) and subgoal decomposition (11) — were run precisely because the mechanism
-pointed at them, and they are null as well. Handing a model its own true verified proof state at
-every step, and letting a search-native model backtrack over it, still closes zero of 150 trapped
-problems.
+That single mechanism accounts for most of §2.2: interventions 1-6 target idea generation and 8-9
+target post-hoc adaptation, so none of them can touch what is actually binding. The three arms that
+*do* attack execution depth — symbolic leaf-closing (7), stepwise state-grounding (10), subgoal
+decomposition (11) — were run because the mechanism pointed at them, and are null as well. Handing a
+model its own verified proof state at every step, and letting a search-native model backtrack over
+it, still closes zero of 150 trapped problems.
 
 ### 2.5 The one lever that moved: abandon hopeless problems earlier
 
-This is a policy question rather than a model or scaffold change. Given a fixed budget across a
-batch of problems, how should it be split? A logistic predictor, using only information observable
-at a decision checkpoint (tokens spent so far, attempts made, deepest verified proof step, progress
-plateau) and out-of-fold predictions, flags problems as likely trapped. Those are abandoned and
-their budget is reallocated to the survivors.
+A policy question rather than a model or scaffold change: given a fixed budget across a *batch* of
+problems, how should it be split? At a decision checkpoint, a logistic predictor — using only
+information observable by then (tokens spent, attempts made, deepest verified proof step, progress
+plateau) and out-of-fold predictions — flags problems as likely trapped. Those are abandoned and
+their budget reallocated to the survivors.
 
 | model x benchmark | compute saved at 90% of uniform's solves | per-seed | call |
 |---|---|---|---|
@@ -244,24 +236,22 @@ their budget is reallocated to the survivors.
 
 Four caveats travel with this number and should not be dropped:
 
-- **One-model-robust, not two.** DeepSeek's version sits below the bar that was registered before
-  the run, and a paired per-problem bootstrap CI crosses zero for both models.
-- **It works only at fractional accuracy.** To solve *every* winnable problem you must keep the
+- **One-model-robust, not two.** DeepSeek's version sits below the bar registered before the run,
+  and a paired per-problem bootstrap CI crosses zero for both models.
+- **It works only at fractional accuracy.** Solving *every* winnable problem means keeping the
   hardest ones, whose cost is indistinguishable from that of trapped ones, so at a 100% target the
   policy keeps nearly everything and saves ~0. The claim is "retain 90-95% of solves for 25-30% less
   compute," not "same accuracy, less compute."
 - **miniF2F is negative on purpose.** At a ~75% solve rate there is little wasted compute to
-  reclaim, which is what was pre-registered.
-- **Simulated, not live-confirmed.** The policy is computed offline over the committed baseline
-  runs. It is realizable by construction — the agent's trajectory does not depend on the announced
-  budget, so abandoning a problem is exactly early-stopping a logged trajectory — but a live
-  confirming run was never done.
+  reclaim, as pre-registered.
+- **Simulated, not live-confirmed.** Computed offline over the committed baseline runs. It is
+  realizable by construction — a trajectory does not depend on the announced budget, so abandoning a
+  problem is exactly early-stopping a logged one — but no live confirming run was done.
 
-For scale: an unrealizable oracle that funds the cheapest proofs first saves 95-98%. The realizable
-policy captures about a third of that headroom on Goedel x ProofNet#; the rest is the cost of not
-knowing in advance which problems are trapped.
-[`results/phase4/ALLOCATION.md`](results/phase4/ALLOCATION.md) also records two multi-round policy
-variants that were pre-registered and then falsified.
+For scale: an unrealizable oracle funding the cheapest proofs first saves 95-98%, so the realizable
+policy captures about a third of the headroom; the rest is the cost of not knowing in advance which
+problems are trapped. [`results/phase4/ALLOCATION.md`](results/phase4/ALLOCATION.md) also records
+two multi-round variants that were pre-registered and then falsified.
 
 ### 2.6 Five harness bugs
 
@@ -340,26 +330,24 @@ Three points do most of the reconciling:
 
 ## 4. Limitations
 
-- **No compute-unmatched positive control.** Every intervention was run budget-matched. The argument
-  is that this is *why* they came out null, but the harness was never shown to detect a scaffolding
-  gain under the conditions where the literature reports one. Re-running one intervention at a
+- **No compute-unmatched positive control.** Everything was run budget-matched. The argument is that
+  this is *why* the arms came out null, but the harness was never shown to detect a scaffolding gain
+  under the conditions where the literature reports one. Re-running one intervention at a
   deliberately unmatched budget is the highest-value remaining check.
-- **The operating point is narrow.** At `B`=128k Goedel gets a mean of 1.94 attempts, so a scaffold
-  costing 2x per attempt has to nearly double per-attempt success just to break even. This follows
-  from matching budget rather than being a defect, but "nothing works" should be read as "nothing
-  works at a budget that buys roughly two attempts."
-- **Several interventions are weaker than their published counterparts.** The retrieval arm is
-  untrained BM25 into a whole-proof prompt, where ReProver uses a trained retriever in a stepwise
-  loop. The hammer arm is a lite in-context tactic portfolio, not `duper` or an SMT bridge — those
-  are not available on the v4.9.0 pin and were not ported. The RL probe is LoRA r=16 for 80 steps,
-  far smaller than any published RL stage. These nulls constrain our implementations, not the
-  general techniques.
-- **Not everything got the full seed protocol.** The stepwise arc (§2.2 item 10) was a single-seed
-  feasibility and disambiguation effort, not a 3-seed headline run, and it covers only the Goedel
-  ProofNet# trapped core — miniF2F and DeepSeek's own trapped set were never run through it. The
-  allocation result was never confirmed by a live run.
-- **Scale and scope.** Everything is 7-8B parameters; whether the execution floor persists at larger
-  scale is the largest open question, and a scoped 32B calibration cell was deliberately not run
+- **The operating point is narrow.** At `B`=128k Goedel gets ~1.94 attempts, so a scaffold costing
+  2x per attempt must nearly double per-attempt success to break even. That follows from matching
+  budget rather than being a defect, but "nothing works" should be read as "nothing works at a
+  budget buying roughly two attempts."
+- **Several arms are weaker than their published counterparts.** Retrieval is untrained BM25 into a
+  whole-proof prompt, where ReProver uses a trained retriever in a stepwise loop. The hammer arm is
+  a lite in-context tactic portfolio, not `duper` or an SMT bridge — neither is available on the
+  v4.9.0 pin and neither was ported. The RL probe is LoRA r=16 for 80 steps, far smaller than any
+  published RL stage. These nulls constrain our implementations, not the general techniques.
+- **Not everything got the full seed protocol.** The stepwise arc (item 10) was single-seed and
+  covers only the Goedel ProofNet# trapped core; miniF2F and DeepSeek's own trapped set were never
+  run through it. The allocation result was never confirmed live.
+- **Scale and scope.** Everything is 7-8B parameters; whether the floor persists at larger scale is
+  the largest open question, and a scoped 32B calibration cell was deliberately not run
   ([`results/phase_scale32b/FEASIBILITY.md`](results/phase_scale32b/FEASIBILITY.md)). Models trained
   specifically for decomposition are a different class, and none of this is evidence against them.
 - **The trapped cores are a regime, not a property of the problems.** Fresh resampling at pass@32
@@ -372,25 +360,23 @@ Three points do most of the reconciling:
 
 - **[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)** — five harness bugs and two
   measurement gaps, each with a check you can run against your own LLM-plus-verifier pipeline. Two
-  of the five overstate capability, which is the direction that gets published. This is the most
-  portable thing here.
+  of the five overstate capability, the direction that gets published. The most portable thing here.
 - **[`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md)** —
-  the budget-to-attempts conversion for four model x benchmark combinations. Needed by anyone
+  the budget-to-attempts conversion for four model x benchmark combinations, needed by anyone
   comparing a compute-bounded result against a published `pass@N` figure.
-- **[`results/trapped_cores/`](results/trapped_cores/README.md)** — the five problem lists that no
+- **[`results/trapped_cores/`](results/trapped_cores/README.md)** — the five problem lists no
   baseline seed solved at 128k, with the three caveats that must travel with them. A ready-made hard
-  slice for testing an execution-depth intervention, and the population every "0% by construction"
-  baseline here is defined against.
+  slice for testing an execution-depth intervention.
 - **[`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md)** — bounded nulls rather than
-  bare ones, and a worked case where a within-run bootstrap CI and an independent replication's CI
+  bare ones, plus a worked case where a within-run bootstrap CI and an independent replication's CI
   do not overlap at all for the same intervention.
 - **Two pre-registrations that did their job.**
   [`phase4/PREDICTOR_V2_DESIGN.md`](results/phase4/PREDICTOR_V2_DESIGN.md) set a bar, the result
   missed it, and the direction closed. [`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md)
   set a stopping rule that ended an expensive direction after ~2.3 GPU-hours instead of a full
   array.
-- **The harness itself** — budget-metered `pass@B` evaluation with a Lean REPL backend, restartable
-  under preemption, with the four cluster constraints in §6 already solved.
+- **The harness itself** — budget-metered `pass@B` evaluation over a Lean REPL backend, restartable
+  under preemption, with the cluster constraints in §6 already solved.
 
 ---
 
@@ -413,15 +399,14 @@ The sweep starts a vLLM server, runs the agent over the problem set, and writes 
 `pass@B` curve, and a run manifest to `results/baseline/`. Jobs are restartable: the cluster
 preempts and requeues, and completed `(config, seed, problem)` cells are skipped on resume.
 
-Four cluster constraints are baked into the harness. Code that ignores them fails silently rather
-than loudly:
+Four cluster constraints are baked into the harness; code that ignores them fails silently:
 
-- `unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy` at the top of every job script. Slurm jobs
-  inherit a per-session SSH proxy that breaks all outbound downloads.
-- Stage Mathlib's `.olean` files to node-local SSD. Loading them from shared GPFS causes an open
-  storm that degrades the filesystem for every user on it.
-- Drive the Lean REPL over a PTY with a recursive `LEAN_PATH`, and never pickle its environment —
-  doing so silently corrupts verdicts. Force `PATH` after `conda activate`.
+- `unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy` atop every job script — Slurm jobs inherit a
+  per-session SSH proxy that breaks all outbound downloads.
+- Stage Mathlib's `.olean` files to node-local SSD. Loading from shared GPFS causes an open storm
+  that degrades the filesystem for every user on it.
+- Drive the Lean REPL over a PTY with a recursive `LEAN_PATH`, and never pickle its environment,
+  which silently corrupts verdicts. Force `PATH` after `conda activate`.
 - Every GPU sweep is gated on a probe that must accept a `norm_num` proof and reject a false one, so
   a broken environment fails loudly instead of presenting as a low pass rate.
 
@@ -475,9 +460,3 @@ comparisons without failing loudly.
 
 Full package versions are in [`env/`](env/). The Lean toolchain and the Mathlib fork live in
 `scratch/` and are built from source by `scripts/setup_lean_env.sh`.
-
----
-
-## License
-
-None. This is unreleased academic research code; no license is granted. If you want to use it, ask.
