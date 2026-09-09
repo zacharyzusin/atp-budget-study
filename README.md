@@ -4,38 +4,120 @@
 frozen whole-proof Lean prover?
 
 **The answer, at 7-8B scale:** nothing we tried except spending more tokens. Eleven interventions —
-prompt scaffolding, symbolic automation, step-level search, supervised fine-tuning, RL — were run
-against a plain resample-and-refine baseline at matched budget. None produced a gain that survived
-replication, and three measurably hurt. A causal experiment locates the reason: these models are not
-short of proof ideas, they are unable to carry one idea through to a closed goal.
-
-The project is closed. This README is the full record. Every number in it traces to a document in
-[`results/`](results/README.md). Section 5 lists the parts most likely to be useful outside this
-project.
+prompt scaffolding, symbolic automation, step-level search, supervised fine-tuning, RL — were each
+compared against a baseline that simply spends the same tokens on repeated proof attempts and
+error-guided revisions. None produced a gain that survived replication, and three measurably hurt. A
+causal experiment locates the reason: these models are not short of proof ideas, they are unable to
+carry one idea through to a closed goal.
 
 ---
 
 ## 1. Setup
 
-### What is being measured
+### Why the question is asked at a fixed budget
 
-**Budget `B`** is the total number of LLM-generated tokens spent on one problem, summed across every
-model call in the agent loop — proposals and refinements alike. It is hardware-independent by
-design. GPU-hours were logged but are never the reported axis, since they are not comparable across
-GPU types.
+Work on LLM theorem provers regularly reports gains from *scaffolding*: retrieve relevant lemmas,
+let the model critique its own output, remember what already failed, hint at a proof skeleton. Those
+gains are normally measured at a fixed number of attempts — `pass@N`, meaning "draw `N` independent
+proofs, count the problem solved if any of them verifies."
 
-**`pass@B`** is the fraction of problems solved within budget `B`, reported as a curve over
-2k / 8k / 32k / 128k tokens.
+`pass@N` holds *tries* fixed, which is not the same as holding *cost* fixed. Attempts are not
+equally expensive: a chain-of-thought prover can spend ten times as many tokens per attempt as a
+terse one. And every scaffold makes an attempt more expensive — retrieval lengthens the prompt, a
+critic step adds an entire extra generation, refinement spends tokens re-reading compiler errors.
+Scored at fixed `N`, a scaffolded system is quietly handed a larger compute budget than the baseline
+it is compared against, so a reported gain can be partly, or entirely, the extra spend.
 
-**`pass@B` is not `pass@N`, and no constant converts between them.** How many complete proof
-attempts a budget buys depends on the model and the problem set. At `B`=128k, Goedel on miniF2F
-averages 1.94 independent propose attempts (median 1); on ProofNet# it averages 4.71. At `B`=2k the
-*median* cell in all four baselines completes **zero** full attempts, so that point measures whether
-a truncated fragment happened to contain a proof rather than whether the model got one fair try.
-Conversion table:
-[`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md). This
-distinction is the reason the project is built on `pass@B`, and it is load-bearing for every
-comparison against a published `pass@N` figure.
+Fixing the budget instead of the attempt count removes that confound and leaves a sharper question:
+
+> **Given a fixed number of tokens to spend on one Lean theorem, is there anything better to do with
+> them than repeatedly sampling whole proofs and repairing them from compiler errors?**
+
+Under this accounting a scaffold has to pay for itself out of tokens the baseline could otherwise
+have spent on more attempts. For the two models tested, nothing did.
+
+### The experiment
+
+The unit of work is a **cell**: one (problem, seed) pair. A cell runs this loop over a single
+theorem statement, against a fixed token ledger
+([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
+
+> **propose** a complete Lean proof → **verify** it with Lean → on failure, append the compiler error
+> to the prompt and ask for a **revision** → repeat until Lean accepts a proof or the ledger empties.
+
+Up to 4 revisions chain off a proposal before the agent discards that line of attack and draws a
+fresh proposal from scratch. So there are two kinds of try, and they are not interchangeable: a
+**proposal** is a new independent attempt — this is what `pass@N`'s *N* counts — while a
+**revision** is another pass at the current attempt with the error message attached. Both spend from
+the same ledger, and the ledger, not any round count, is what ends the run.
+
+The model sees one theorem at a time. There is no cross-problem learning, no proof cache and no
+human in the loop; the failed-attempt memory tested in §2.2 is within a single problem. The
+**baseline** is exactly the loop above with nothing added. Model weights are frozen for the baseline
+and for every test-time intervention; two of the eleven arms deliberately modify the weights, and
+are marked as training arms.
+
+**Solved** means the Lean REPL, running against a pinned Mathlib, accepted a complete proof of the
+stated theorem. It does not mean "compiled without error": a solve requires a declared goal and a
+proof free of `sorry` or equivalent escapes. Lean is the only authority — no LLM ever decides
+whether a proof counts. That distinction is not pedantic; two of the five harness bugs in §2.6 were
+cases where output that merely failed to raise an error was being scored as a proof.
+
+One term recurs below: a benchmark's **trapped core** is the set of problems that no baseline seed
+solved even at the full 128k budget. It is the population where the ceiling actually sits, and
+several interventions were tested there specifically, against a baseline that is 0% by construction.
+
+### How the budget is counted, and what `pass@B` means
+
+**Budget `B`** is the total number of tokens the model *generates* on one problem, summed across
+every call the loop makes — proposals and revisions alike. It is metered exactly, from the serving
+stack's own `completion_tokens`, and the loop stops the moment the ledger is empty. Because it
+counts tokens rather than seconds, it is hardware-independent; GPU-hours were logged but are never
+the reported axis, since they are not comparable across GPU types.
+
+**`pass@B`** is the fraction of problems for which Lean accepted a proof before cumulative
+generation passed `B` tokens, reported at 2k / 8k / 32k / 128k.
+
+The curves are produced by running each cell once against the 128k cap, recording the cumulative
+token count at which its proof verified, and re-scoring at smaller `B`: a cell counts as solved@B if
+its proof arrived within `B` tokens. Nothing is regenerated per budget level, so the four columns of
+a curve are four readings of one run, not four runs.
+
+One asymmetry is worth knowing, because it cuts in favour of the interventions rather than against
+them: only generated tokens are charged, not prompt tokens. A scaffold that works by enlarging the
+prompt — retrieved premises, remembered failures, strategy hints — gets that context for free under
+this accounting. It was still unable to beat the baseline.
+
+The cost of choosing `pass@B` is that these numbers cannot be set beside published `pass@N` numbers
+without a conversion, and no constant performs it — how many attempts a budget buys depends on the
+model and on the problem set. The next section is that conversion.
+
+### What a budget actually buys, and what a fractional attempt means
+
+Complete proposals per problem, by budget — mean across problems, from
+[`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md):
+
+| budget | Goedel x miniF2F | Goedel x ProofNet# |
+|---|---|---|
+| 2k | 0.30 (median 0) | 0.16 (median 0) |
+| 8k | 0.82 | 0.68 |
+| 32k | 1.11 | 1.51 |
+| 128k | 1.94 (median 1) | 4.71 |
+
+These are averages over problems, not fractions of an attempt within a problem. "0.30 attempts at
+2k" means roughly 30% of problems got one complete proposal inside 2k tokens while the other 70% did
+not finish even their first — for those, generation was still running when the ledger emptied, and
+they are failures at that budget by construction.
+
+At small `B`, then, a large share of problems cannot succeed no matter what, which makes the 2k
+column close to uninformative. What survives there is mostly the set of problems the model happened
+to answer *briefly*, and brevity correlates with easiness. It is reported for the shape of the curve;
+no claim in this project rests on it.
+
+The same table is what reconciles these numbers against published `pass@N` figures. At `B`=128k
+Goedel completes a mean of 1.94 independent proposals on miniF2F, median 1, so the 128k column sits
+nearer pass@2 than pass@32 — which is why a headline 75.3% here and a published 84.6% at pass@32 are
+not in conflict (§3.2).
 
 ### Models, benchmarks, protocol
 
@@ -45,22 +127,32 @@ comparison against a published `pass@N` figure.
 - **Two benchmarks**: **miniF2F-test** (244 problems, competition style, in distribution for both
   provers) and **ProofNet#** (186 problems, undergraduate mathematics, out of distribution, roughly
   3-5x harder). ProofNet# is the corrected Lean 4 ProofNet (`PAug/ProofNetSharp`), not the original.
-- **Lean is the sole authority on what counts as solved.** Every candidate is checked by the
-  official Lean REPL against a pinned Mathlib. No LLM judge is ever in the accept path.
 - **Three or more seeds** on every headline number, reported as mean ± seed standard deviation.
   Exceptions are flagged in §4.
 
-### The baseline agent
+The two benchmarks do different jobs. miniF2F shows what more budget buys on the kind of problem
+these provers were trained for. ProofNet# is where the ceiling is visible: at 128k the baseline
+still fails about 85% of it.
 
-The loop being budgeted is deliberately minimal
-([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
+### How each intervention was compared
 
-> propose a complete proof → verify with Lean → on failure, feed the compiler error back and refine
-> → repeat until solved or the budget is exhausted.
+One factor at a time. Each arm is the baseline loop with exactly one thing changed, run on the same
+problems, the same seeds and the same budget, so a difference is attributable to that one change. No
+interaction terms between components were measured. Deltas are paired per problem — the same problem
+under both arms — rather than compared as two independent means, because paired comparison is far
+more sensitive at these sample sizes.
 
-Up to 4 refinements chain off one proposal before a fresh proposal is drawn; the budget, not a round
-count, is the real stopping criterion. Every intervention in §2.2 is this same loop with one thing
-added or changed, at the same budget.
+Two shapes of result appear in §2.2, and the difference is just which population an arm was run on:
+
+- **Percentage-point deltas** — the arm ran on a full benchmark, so its solve rate is compared
+  against the baseline's on the same problems. "−6.5pp" means it solved 6.5% fewer of the 186
+  problems.
+- **Raw fractions like 0/150** — the arm ran on a trapped core, where the baseline solves nothing by
+  construction. There is no percentage to compare against; the only question is how many previously
+  unsolved problems it closed, so the count is reported directly.
+
+Training arms (supervised fine-tuning, RL) produce a new checkpoint, which is then evaluated with
+the ordinary baseline loop at the same budget, so their numbers are comparable to the rest.
 
 ---
 
