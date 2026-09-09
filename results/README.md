@@ -76,5 +76,6 @@ with them.
 
 ## Before quoting anything from here
 
-Read §5 of the top-level [`README.md`](../README.md). Several claims carry corrections added after
-the underlying document was written, and Phase 8's headline is withdrawn.
+Read the "Five harness bugs" and "Limitations" sections of the top-level
+[`README.md`](../README.md). Several claims carry corrections added after the underlying document was
+written, and Phase 8's headline is withdrawn.
