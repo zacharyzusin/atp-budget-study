@@ -6,7 +6,7 @@ frozen whole-proof Lean prover?
 **The answer, at 7-8B scale:** nothing we tried except spending more tokens. Eleven interventions —
 prompt scaffolding, symbolic automation, step-level search, supervised fine-tuning, RL — were each
 compared against a baseline that simply spends the same tokens on repeated proof attempts and
-error-guided revisions. None produced a gain that survived replication, and three measurably hurt. A
+error-guided revisions. None produced a gain that survived replication, and two measurably hurt. A
 causal experiment locates the reason: these models are not short of proof ideas, they are unable to
 carry one idea through to a closed goal.
 
@@ -22,57 +22,61 @@ are normally measured at `pass@N`: draw `N` independent proofs, count the proble
 verifies.
 
 `pass@N` holds *tries* fixed, not *cost*. Attempts are not equally expensive — a chain-of-thought
-prover can spend ten times the tokens per attempt of a terse one — and every scaffold makes an
-attempt dearer still: retrieval lengthens the prompt, a critic adds an entire extra generation,
-refinement spends tokens re-reading compiler errors. At fixed `N` the scaffolded arm is quietly
-handed more compute than its baseline, so a reported gain can be partly, or entirely, the extra
-spend.
+prover can spend ten times the tokens per attempt of a terse one — and every scaffold adds cost of
+its own: retrieval lengthens the prompt, a critic adds an entire extra generation, refinement spends
+tokens re-reading compiler errors. At fixed `N` the scaffolded system is quietly handed more compute
+than its baseline, so a reported gain can be partly, or entirely, the extra spend.
 
 Fixing the budget instead leaves a sharper question:
 
 > **Given a fixed number of tokens to spend on one Lean theorem, is there anything better to do with
 > them than repeatedly sampling whole proofs and repairing them from compiler errors?**
 
-A scaffold now has to pay for itself out of tokens the baseline could have spent on more attempts.
-For the two models tested, none did.
+An intervention now has to pay for itself out of tokens the baseline could have spent on more
+attempts. For the two models tested, none did.
 
 ### The experiment
 
 The unit of work is a **cell**: one (problem, seed) pair, running this loop over a single theorem
-against a fixed token ledger ([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
+against a fixed token budget ([`src/atp/agents/whole_proof.py`](src/atp/agents/whole_proof.py)):
 
 > **propose** a complete Lean proof → **verify** it with Lean → on failure, append the compiler error
-> to the prompt and ask for a **revision** → repeat until Lean accepts a proof or the ledger empties.
+> to the prompt and ask for a **revision** → repeat until Lean accepts a proof or the budget runs out.
 
 Up to 4 revisions chain off a proposal before the agent discards it and starts a fresh one. The two
 kinds of try are not interchangeable: a **proposal** is a new independent attempt — what `pass@N`'s
 *N* counts — while a **revision** is another pass at the current one with the error attached. Both
-spend from the same ledger, and the ledger is what ends the run.
+spend from the same budget, and the budget is what ends the run, not a round count.
 
 The model sees one theorem at a time: no cross-problem learning, no proof cache, no human in the
-loop. The **baseline** is this loop with nothing added, and weights are frozen for it and for every
-test-time arm; the two training arms in §2.2 are marked as such.
+loop. The **baseline** is this loop with nothing added. Model weights are frozen for the baseline
+and for every test-time intervention; two of the eleven interventions instead retrain the model, and
+are marked as such in §2.2.
 
-**Solved** means the Lean REPL, on a pinned Mathlib, accepted a complete proof of the stated theorem
-— a declared goal and no `sorry` or equivalent escape, not merely the absence of a compiler error.
-Lean is the only authority; no LLM is ever in the accept path. Two of the five bugs in §2.6 were
-cases where output that failed to raise an error was being scored as a proof.
+**Solved** means the Lean REPL, checking against a pinned Mathlib, accepted a complete proof of the
+stated theorem — a declared goal and no `sorry` or equivalent escape, not merely a response that
+happened not to raise an error. Lean is the only authority; no LLM is ever in the accept path.
 
-A benchmark's **trapped core** is the set of problems no baseline seed solved even at 128k. Several
-interventions were tested there specifically, against a baseline that is 0% by construction.
+A benchmark's **trapped core** is the set of problems no baseline seed solved even at the largest
+budget tested. Several interventions were tested there specifically, against a baseline that is 0%
+by construction.
 
 ### Budget and `pass@B`
 
-**`B`** is the number of tokens the model *generates* on one problem, across every call the loop
-makes. It is metered from the serving stack's own `completion_tokens`, so it is exact and
-hardware-independent; GPU-hours were logged but never reported, being incomparable across GPU types.
-Only generated tokens are charged, not prompt tokens — so context-enlarging scaffolds got their
-context free and still lost.
+**`B`** is the number of tokens the model *generates* while working on one problem, added up across
+every proposal and revision call in the loop. The software that runs the model (vLLM) reports
+exactly how many tokens each response contained, so `B` is counted exactly, not estimated — and
+because it counts tokens rather than wall-clock time, it doesn't depend on which GPU it ran on.
+GPU-hours were logged too but are never the reported number, since they aren't comparable across
+different GPU types. Only *generated* tokens are charged, not the prompt fed into the model — so an
+intervention that works by adding context (retrieved lemmas, remembered failures, hints) gets that
+context for free under this accounting, and still didn't win.
 
 **`pass@B`** is the fraction of problems whose proof Lean accepted before cumulative generation
-passed `B`, reported at 2k / 8k / 32k / 128k. Each cell is run once against the 128k cap, recording
-the token count at which its proof verified; smaller budgets are re-scored from that same run. The
-four columns of a curve are four readings of one trajectory, not four runs.
+passed `B`, reported at 2k / 8k / 32k / 128k. Each cell is run once against a 128k-token cap,
+recording the token count at which its proof verified; smaller budgets are then re-scored from that
+same run rather than regenerated. The four columns of a curve are four readings of one trajectory,
+not four separate runs.
 
 ### What a budget buys
 
@@ -89,12 +93,12 @@ performs it. Complete proposals per problem, averaged across problems
 
 These are averages over problems, not fractions of an attempt within one. "0.30 at 2k" means about
 30% of problems completed a proposal inside 2k tokens while the rest were still generating when the
-ledger emptied — failures at that budget by construction. The 2k column is therefore close to
+budget ran out — failures at that budget by construction. The 2k column is therefore close to
 uninformative, measuring mostly which problems admit a *short* proof, and no claim here rests on it.
 
 At the other end, 128k buys Goedel a mean of 1.94 proposals on miniF2F, median 1 — nearer pass@2
 than pass@32, which is why a headline 75.3% here and a published 84.6% at pass@32 are not in
-conflict (§3.2).
+conflict (§4.2).
 
 ### Models and benchmarks
 
@@ -105,7 +109,7 @@ conflict (§3.2).
   **ProofNet#** (186 problems, undergraduate mathematics, out of distribution, roughly 3-5x harder).
   ProofNet# is the corrected Lean 4 ProofNet (`PAug/ProofNetSharp`), not the original.
 - **Three or more seeds** on every headline number, as mean ± seed standard deviation. Exceptions
-  are flagged in §4.
+  are flagged in the Limitations section (§3.3).
 
 miniF2F shows what more budget buys on the problems these provers were trained for. ProofNet# is
 where the ceiling shows: at 128k the baseline still fails about 85% of it.
@@ -113,13 +117,16 @@ where the ceiling shows: at 128k the baseline still fails about 85% of it.
 ### How the interventions were compared
 
 One factor at a time — the baseline loop with exactly one thing changed, on the same problems, seeds
-and budget. No interaction terms were measured. Deltas are paired per problem rather than compared
-as two independent means, which is far more sensitive at these sample sizes. Training arms produce a
-checkpoint that is then evaluated with the ordinary baseline loop at the same budget.
+and budget, so a difference is attributable to that one change. No interaction terms between
+interventions were measured. Deltas are paired per problem rather than compared as two independent
+means, which is far more sensitive at these sample sizes. The two training interventions
+(fine-tuning and RL) instead produce a new checkpoint, which is then evaluated with the ordinary
+baseline loop at the same budget, so their numbers are directly comparable to the rest.
 
-Results take two shapes, depending on the population an arm ran on: **percentage-point deltas** on a
-full benchmark, and **raw fractions** like 0/150 on a trapped core, where the baseline solves
-nothing by construction and the only question is how many problems the arm closed.
+Results below take two shapes, depending on which population an intervention ran on: **percentage
+point deltas** on a full benchmark, and **raw fractions** like 0/150 on a trapped core, where the
+baseline solves nothing by construction and the only question is how many problems the intervention
+closed.
 
 ---
 
@@ -142,27 +149,28 @@ nothing by construction and the only question is how many problems the arm close
 - The cross-model ordering flips between benchmarks: Goedel leads in distribution, DeepSeek leads
   out of it by 7pp at 128k, and the gap widens with budget. Both provers attempt identical statement
   sets, so this is not a coverage artifact.
-- These are the heartbeat-corrected curves (§2.6, bug 1). Before/after per cell:
-  [`results/audit/HEARTBEAT_CORRECTED_CURVES.md`](results/audit/HEARTBEAT_CORRECTED_CURVES.md).
 
-### 2.2 Eleven interventions, no surviving gain
+(These figures include a small upward correction found during a later audit of the scoring pipeline
+— see §4.3.)
 
-Each was run against the baseline at matched budget. Deltas in percentage points; bracketed ranges
-are 95% paired per-problem bootstrap CIs.
+### 2.2 Eleven interventions, none beat the baseline
 
-| # | Intervention | What it was | Result |
+Each row was run against the baseline at matched budget. Deltas are in percentage points; bracketed
+ranges are 95% paired per-problem bootstrap confidence intervals.
+
+| # | Intervention | Strategy | Result |
 |---|---|---|---|
-| 1 | Premise retrieval | BM25 top-8 Mathlib premises prepended to the prompt | miniF2F +3.4 `[+0.8, +6.2]` **did not replicate** — an independent rerun gave +0.7 `[-1.8, +3.1]`, a non-overlapping CI. ProofNet# **−6.5** `[-9.7, -3.8]` |
-| 2 | Failed-attempt memory | prior failed attempts carried into the prompt | +0.4 / −0.4, both CIs span zero |
-| 3 | LLM reviewer | a critic on Lean-rejected candidates, advisory only | +0.3 / +0.5. Separately: it accepted 17/249 already-failed candidates (6.8% false accepts) |
-| 4 | Tactic-skeleton hints | scheduled strategy hints in the prompt | +1.0 / −0.5 |
-| 5 | Within-problem budget split | fresh proposals vs. refinement, at 0.0 / 0.5 / 1.0 | flat across the full range on miniF2F; all-fresh **−3.4** `[-5.8, -1.3]` on ProofNet# |
-| 6 | Forced approach diversity | approach-conditioned prompting on the trapped cores, 2 models x 2 benchmarks, budget-matched at 32k | diversity rose 42-70%; **5 verified solves in total** across all four arms, within seed noise of zero. Output quality got worse (see §2.4) |
-| 7 | Hammer / SMT closing | `omega \| nlinarith \| norm_num \| simp_all \| decide \| aesop`, on the bare statement and swapped in at the model's failing tactic | **0/30** and **0/40** on the Goedel x ProofNet# trapped core; positive control fires 4/4 |
-| 8 | Supervised fine-tuning | Stage A generic rejection-sampling FT; Stage B closing-targeted SFT | A: **−19.7 to −2.5** across both models and benchmarks. B: −2.1 to −0.3 |
-| 9 | GRPO reinforcement learning | LoRA r=16, 80 steps, binary Lean-verified reward | held-out pass@1 **−1.6**; training reward flat for all 80 steps |
-| 10 | State-grounded stepwise generation | re-grounding on the verified partial proof state, and true tactic-level search with backtracking — including on a tactic-native model (BFS-Prover-V1-7B) | 77/150 trapped problems reached genuine verified progress; **0/150 closed** |
-| 11 | Subgoal decomposition | split the goal into independently provable `have` lemmas | closed at the smoke stage by a pre-registered stopping rule: 0/2 structurally valid decompositions over five rounds on two models, ~2.3 GPU-hours spent |
+| 1 | Premise retrieval | Lexical (BM25) search over a corpus of Mathlib declarations; the top 8 matches for the goal are prepended to each fresh proposal (not to revisions), so the model can cite a lemma instead of rediscovering it. | Looked like a real gain on miniF2F the first time (+3.4 `[+0.8, +6.2]`), but an independent rerun under identical conditions found less than a quarter of that effect (+0.7 `[-1.8, +3.1]`) — the original result did not replicate. On ProofNet# it actively hurt (**−6.5** `[-9.7, -3.8]`). Tracking which individual problems flipped solved/unsolved between runs showed it creates roughly as many new failures as new solves — it perturbs which proof the model tries without making a correct one more likely. |
+| 2 | Failed-attempt memory | Before each fresh proposal, a short summary of this problem's own previous failed attempts (its approach plus the Lean error) is added to the prompt as a "don't repeat this" note. | No measurable effect on either benchmark (+0.4 / −0.4); both confidence intervals span zero. |
+| 3 | LLM reviewer | After Lean rejects a candidate, a second model call is asked to critique it. The critique — not a verdict — is folded into the next revision's prompt alongside the real Lean compiler error. It never gets to accept or block a proof; Lean still has the only vote. | No measurable effect on solve rate (+0.3 / +0.5). Its real finding was diagnostic: asked to judge proofs Lean had already rejected, it said "this is fine" on 17 of 249 of them (a 6.8% false-accept rate) — a concrete number for why an LLM should never be the sole judge of a proof. |
+| 4 | Tactic-skeleton hints | Each fresh proposal gets a one-line hint naming a common Lean proof pattern (e.g. an induction skeleton, a standard closing-tactic combination), cycling through a fixed list across successive samples so different samples are nudged toward different structures. | No measurable effect on either benchmark (+1.0 / −0.5). |
+| 5 | Within-problem budget split | Meant to test how one problem's budget should be divided between drawing brand-new proposals and revising an existing attempt, at three fixed ratios: all-fresh, an even split, and all-revision. | The setting that was supposed to control this split was never actually read by the agent loop — a code defect found after the fact — so all three configurations silently ran the identical baseline loop. The reported differences (flat on miniF2F, **−3.4** `[-5.8, -1.3]` on ProofNet#) are seed-to-seed noise, not a real effect; no working version of this intervention was ever tested. |
+| 6 | Forced approach diversity | Run only on the trapped cores (problems no baseline seed had solved). Before each fresh proposal, the model is shown the list of opening tactics it has already tried on this problem and explicitly told to take a different approach, at matched budget. | Confirmed to work as intended — opening-tactic diversity rose 42-70% across all four model/benchmark combinations — but this did not produce solves: **5 verified proofs in total** across all four, indistinguishable from zero. Proof quality got worse: pushed toward novelty, the model produced far more syntactically broken output and used the `sorry` placeholder roughly three times as often, all caught by the verifier (interpreted in §3.1). |
+| 7 | Hammer / SMT closing | A portfolio of Lean's own closing tactics (`omega`, `nlinarith`, `norm_num`, `simp_all`, `decide`, `aesop`), tried both directly on the bare unsolved goal and substituted in at the exact point where the model's own attempt got stuck. | Closed **0 of 30** trapped problems tried directly and **0 of 40** tried at the failing step. A sanity check confirms the portfolio does work when it should — it solved 4 of 4 trivial synthetic test goals — so this is a genuine null, not a broken setup. |
+| 8 | Supervised fine-tuning | Two fine-tuning recipes on top of the frozen base weights, each then evaluated with the ordinary baseline loop: **Stage A** trains on proofs sampled at random from the model's own successful rollouts (generic rejection-sampling fine-tuning); **Stage B** trains specifically on the transition from a deep, stuck proof state to a correct closing, with the training loss restricted to just the closing tokens. | Stage A made things substantially worse everywhere, from −2.5 to **−19.7pp** across both models and both benchmarks. Stage B, the more targeted recipe, also did not help (−0.3 to −2.1pp). |
+| 9 | GRPO reinforcement learning | A reinforcement-learning stage (GRPO, LoRA adapters, 80 steps) on top of the frozen weights, rewarding a binary "Lean verified and sound" signal, trained on a problem set disjoint from both benchmarks. | No improvement on a held-out test set (**−1.6pp** pass@1), and the training reward itself never trended upward across all 80 steps — the model wasn't gradually improving and then stalling, it made no measurable training progress at all. |
+| 10 | Stepwise generation | Instead of one call producing a whole proof, the model is asked for one tactic at a time and shown the real, Lean-verified proof state after each step — never its own possibly-wrong guess of where the proof stands. Tried both on the reasoning model doing this directly, and on a tactic-native model (BFS-Prover-V1-7B) doing genuine search with backtracking. | 77 of 150 previously-unsolved problems reached real, further verified progress under this scheme — the model was not stuck immediately — but **0 of 150** ever closed. Perfect information about the true proof state at every step did not let it finish. |
+| 11 | Subgoal decomposition | Prompt the model to split the target theorem into several smaller helper lemmas (`have` statements) that can each be proved independently, rather than attacking the whole theorem in one proof. | Stopped at the earliest checkpoint by a rule set in advance: across five trial rounds on two models, the model never once produced a structurally valid decomposition, so the direction was abandoned before any further compute was spent. |
 
 Evidence: rows 1-5 [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md) and
 [`EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md); 6
@@ -173,23 +181,44 @@ Evidence: rows 1-5 [`phase1/FINDINGS.md`](results/phase1/FINDINGS.md) and
 [`phase7/STEPWISE.md`](results/phase7/STEPWISE.md); 11
 [`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md).
 
-Three arms did not merely fail to help — they hurt: BM25 retrieval and all-fresh budget splitting on
-ProofNet#, and generic rejection-sampling fine-tuning everywhere.
+Two interventions didn't merely fail to help — they measurably hurt: BM25 retrieval on ProofNet#,
+and generic-rollout fine-tuning (Stage A) everywhere. (A third apparent negative, the budget-split
+intervention on ProofNet#, turned out to be the coding defect described in row 5, not a real
+effect.)
 
-### 2.3 How large an effect is ruled out
+"Null" is only meaningful with a bound attached. A paired per-problem bootstrap gives one-sided
+upper bounds on each scaffolding intervention's true effect: on miniF2F, every intervention's true
+effect is below **+3.4pp** with about 97.5% confidence (retrieval is the loosest bound, and it's the
+one that failed to replicate); on ProofNet#, every intervention's true effect is below **+2.3pp**,
+and two are significantly negative — retrieval genuinely, and the budget-split setting only as an
+artifact of the code defect in row 5, not a real effect. Full table:
+[`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md).
 
-"Null" is only meaningful with a bound attached. A paired per-problem bootstrap (resampling by
-problem, all seeds of a problem together) gives one-sided upper bounds on each scaffolding
-component's true effect:
+### 2.3 Abandoning hopeless problems earlier
 
-- **miniF2F**: every component's true effect is below **+3.4pp** with ~97.5% one-sided confidence
-  (retrieval is the loosest at +6.2pp, and it is the one that failed to replicate).
-- **ProofNet#**: every component's true effect is below **+2.3pp**, and two components are
-  significantly *negative*.
+A different kind of question: not what to change about the loop, but how to split a fixed budget
+across a *batch* of problems. At a decision checkpoint partway through generation, a logistic
+predictor — using only information available by then (tokens spent, attempts made, deepest verified
+proof step, whether progress has stalled) — flags problems it judges likely hopeless. Their
+remaining budget is reallocated to problems that still look winnable.
 
-Full table: [`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md).
+| model x benchmark | compute saved at 90% of uniform's solves | per-seed |
+|---|---|---|
+| **Goedel x ProofNet#** | **+30%** | +26% ± 7% (3 seeds) |
+| DeepSeek x ProofNet# | +10% | +10% ± 24% (8 seeds) |
+| Both models x miniF2F | negative | negative on nearly every seed |
 
-### 2.4 The mechanism: an execution floor, not an idea shortage
+For scale, an oracle that could see in advance exactly which problems would eventually solve, and
+funded the cheapest ones first, would save 95-98% of compute at equal accuracy. What this table does
+and doesn't show is discussed in §3.2.
+[`results/phase4/ALLOCATION.md`](results/phase4/ALLOCATION.md) also records two multi-round variants
+of this policy that were pre-registered and then falsified.
+
+---
+
+## 3. Discussion
+
+### 3.1 Why nothing at test time worked: an execution floor
 
 Flat curves admit two explanations with opposite implications: either the model runs out of *ideas*,
 or it has an adequate idea and cannot *execute* it to a closed goal. Four pieces of evidence, from
@@ -202,105 +231,96 @@ or it has an adequate idea and cannot *execute* it to a closed goal. Four pieces
 2. **But the failures are not idea failures.** Classifying the most advanced failure per unsolved
    cell: **95-99% are reasoning failures** — the proof elaborates, the goal will not close. Syntax
    accounts for 1-4%, a missing or hallucinated premise for ≤1%. Premise availability being under 1%
-   of the problem is why retrieval was doomed before it was run.
+   of the problem is why retrieval (row 1) was doomed before it was run.
 3. **Late solves never come from a new idea.** Among problems first solved on attempt 3 or later,
    **0.0%** used an opening tactic the model had not already tried and failed with.
-4. **The causal test.** On the trapped cores, approach diversity was forced up by
-   approach-conditioned prompting at matched budget. The manipulation fired — distinct opening
-   tactics per attempt rose **42-70%** across all four model x benchmark arms (1.17 → 1.71 on Goedel
-   x miniF2F) — and solves did not move: **5 verified flips in total**, within seed noise of zero.
-   Quality got *worse*: pushed for novelty, the models emitted 1.5-2x more syntactically broken
-   proofs and roughly triple the `sorry` loopholes, all caught by the verifier.
+4. **The causal test.** Row 6 (forced approach diversity) is this project's direct manipulation of
+   the pattern above: diversity was pushed up on purpose, it demonstrably rose, and solves still did
+   not move. That is the strongest form of evidence available — not just a correlation, but a forced
+   intervention that had the intended effect on diversity and no effect on solving.
 
 **Approach discovery is not the bottleneck; carrying one approach through to a closed proof is.**
-That single mechanism accounts for most of §2.2: interventions 1-6 target idea generation and 8-9
-target post-hoc adaptation, so none of them can touch what is actually binding. The three arms that
-*do* attack execution depth — symbolic leaf-closing (7), stepwise state-grounding (10), subgoal
+That single mechanism accounts for most of §2.2: rows 1-6 target idea generation and 8-9 target
+post-hoc adaptation, so none of them can touch what is actually binding. The three interventions
+that *do* attack execution depth — symbolic leaf-closing (7), stepwise state-grounding (10), subgoal
 decomposition (11) — were run because the mechanism pointed at them, and are null as well. Handing a
 model its own verified proof state at every step, and letting a search-native model backtrack over
 it, still closes zero of 150 trapped problems.
 
-### 2.5 The one lever that moved: abandon hopeless problems earlier
+### 3.2 What the allocation result does and doesn't show
 
-A policy question rather than a model or scaffold change: given a fixed budget across a *batch* of
-problems, how should it be split? At a decision checkpoint, a logistic predictor — using only
-information observable by then (tokens spent, attempts made, deepest verified proof step, progress
-plateau) and out-of-fold predictions — flags problems as likely trapped. Those are abandoned and
-their budget reallocated to the survivors.
+Four things temper the headline +30% for Goedel x ProofNet# in §2.3:
 
-| model x benchmark | compute saved at 90% of uniform's solves | per-seed | call |
-|---|---|---|---|
-| **Goedel x ProofNet#** | **+30%** | +26% ± 7% (3 seeds) | strong, seed-robust |
-| DeepSeek x ProofNet# | +10% | +10% ± 24% (8 seeds) | below the pre-registered 15% bar |
-| Both models x miniF2F | negative | negative on nearly every seed | the intended contrast |
+- **It only really holds for one model.** DeepSeek's version of the same policy sits below the bar
+  set before the run, and a bootstrap confidence interval crosses zero for both models — a one-model
+  result, not a two-model one.
+- **It only works short of full accuracy.** Solving *every* winnable problem means keeping the
+  hardest ones too, whose cost looks identical to a genuinely trapped problem's, so at a 100% target
+  the policy keeps almost everything and saves close to nothing. The real claim is "keep 90-95% of
+  the solves for 25-30% less compute," not "same accuracy, less compute."
+- **miniF2F coming out negative is expected, not a failure.** At a ~75% solve rate there is little
+  wasted compute left to reclaim, which is exactly what was predicted before the run.
+- **It was never run live.** The saving is computed by replaying the already-collected baseline runs
+  and checking what an early-abandonment policy would have kept. Because a proof attempt's
+  trajectory never actually depends on the announced budget, that replay is equivalent to really
+  running the policy — but a live confirming run was never done.
 
-Four caveats travel with this number and should not be dropped:
+For scale, the realizable policy captures roughly a third of the oracle's headroom (§2.3); the rest
+is the cost of not knowing in advance which problems are trapped.
 
-- **One-model-robust, not two.** DeepSeek's version sits below the bar registered before the run,
-  and a paired per-problem bootstrap CI crosses zero for both models.
-- **It works only at fractional accuracy.** Solving *every* winnable problem means keeping the
-  hardest ones, whose cost is indistinguishable from that of trapped ones, so at a 100% target the
-  policy keeps nearly everything and saves ~0. The claim is "retain 90-95% of solves for 25-30% less
-  compute," not "same accuracy, less compute."
-- **miniF2F is negative on purpose.** At a ~75% solve rate there is little wasted compute to
-  reclaim, as pre-registered.
-- **Simulated, not live-confirmed.** Computed offline over the committed baseline runs. It is
-  realizable by construction — a trajectory does not depend on the announced budget, so abandoning a
-  problem is exactly early-stopping a logged one — but no live confirming run was done.
+### 3.3 Limitations
 
-For scale: an unrealizable oracle funding the cheapest proofs first saves 95-98%, so the realizable
-policy captures about a third of the headroom; the rest is the cost of not knowing in advance which
-problems are trapped. [`results/phase4/ALLOCATION.md`](results/phase4/ALLOCATION.md) also records
-two multi-round variants that were pre-registered and then falsified.
-
-### 2.6 Five harness bugs
-
-Auditing the pipeline produced a result in its own right. Each bug would have shipped a wrong
-headline number, silently, in a specific direction:
-
-| Bug | Effect here | Direction |
-|---|---|---|
-| Lean `maxHeartbeats` left at its default | correct-but-slow proofs scored as failures, and spurious timeout text injected into **17.8% of miniF2F refinement steps** as if it were a real compiler error | understates capability |
-| Truncated completions scored as solved | a truncated preamble compiles without error, and "no error" was read as "proved". Materially corrupted ProofNet#, which was fully re-run on the fixed verifier | **overstates** capability |
-| A wedged Lean REPL scored as success | an empty response read as "no errors". Gets worse under concurrency, so it looks like a throughput win | **overstates** capability |
-| A soundness gate reading the wrong operand | two independently correct fixes composed into a bug: a `no_goal` regex ran against the raw completion while the backend had begun assembling the theorem wrapper, so for continuation-style models the gate fired on every attempt | forced an exact 0.0%; withdrew a whole phase's headline |
-| Lean staging concurrency race | intermittent load-dependent failures that present as flaky infrastructure | noise, masquerades as a low pass rate |
-
-Consequences for this project: the Phase 8 model-zoo headline is **withdrawn** and must not be
-cited, and the baseline curves in §2.1 are the post-correction ones. Each bug is written up with
-mechanism, blast radius, direction of error, the regression test that locks it, and a concrete test
-you can run against your own harness in
-**[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)**. None of the five is specific
-to this codebase.
-
-The generalisable lesson is in the same file: four of the five were caught by a check that covered
-*part* of the output surface, and three survived for a while for exactly that reason. When a gate
-passes, ask what it does not look at.
+- **No compute-unmatched positive control.** Everything was run budget-matched. The argument is that
+  this is *why* the interventions came out null, but the harness was never shown to detect a
+  scaffolding gain under the conditions where the literature reports one. Re-running one
+  intervention at a deliberately unmatched budget is the highest-value remaining check.
+- **The operating point is narrow.** At `B`=128k Goedel gets ~1.94 attempts, so an intervention
+  costing 2x per attempt must nearly double per-attempt success to break even. That follows from
+  matching budget rather than being a defect, but "nothing works" should be read as "nothing works
+  at a budget buying roughly two attempts."
+- **Several interventions are weaker than their published counterparts.** Retrieval (row 1) is
+  untrained BM25 into a whole-proof prompt, where ReProver uses a trained retriever in a stepwise
+  loop. The hammer intervention (row 7) uses a lite in-context tactic portfolio, not `duper` or an
+  SMT bridge — neither is available on the Lean version pinned for this project. The RL probe (row
+  9) is LoRA rank 16 for 80 steps, far smaller than any published RL stage. These nulls constrain
+  our implementations, not the general techniques.
+- **Not everything got the full seed protocol.** The stepwise arc (row 10) was single-seed and
+  covers only the Goedel ProofNet# trapped core; miniF2F and DeepSeek's own trapped set were never
+  run through it. The allocation result (§2.3) was never confirmed live.
+- **Scale and scope.** Everything is 7-8B parameters; whether the execution floor persists at larger
+  scale is the largest open question, and a scoped 32B calibration cell was deliberately not run
+  ([`results/phase_scale32b/FEASIBILITY.md`](results/phase_scale32b/FEASIBILITY.md)). Models trained
+  specifically for decomposition are a different class, and none of this is evidence against them.
+- **The trapped cores are a regime, not a property of the problems.** Fresh resampling at pass@32
+  with no budget cap recovered 6/55 of the Goedel miniF2F core (~11%). "Trapped" means "this loop,
+  at this budget, did not solve it."
 
 ---
 
-## 3. Why the nulls should be believed
+## 4. Appendix: why these results should be trusted
 
-A broken harness produces nulls too, so the pipeline was validated against internal positive
-controls and external published numbers before any null was trusted.
+Everything above assumes the measurement pipeline itself is sound. This section is the case for
+that: internal sanity checks, agreement with independently published numbers, and — kept brief here
+since none of it changes any finding above — the handful of scoring bugs found and fixed while
+building the pipeline.
 
-### 3.1 Positive controls
+### 4.1 Positive controls
 
 | Control | Result |
 |---|---|
 | Sensitivity | the baseline moves 29.6% → 75.3% across the budget sweep, so the metric responds to the variable that should move it |
-| Manipulation check | forced diversity demonstrably fired (+42-70%) in all four arms, so the null in §2.4 came from a treatment that took effect |
-| Symbolic positive control | the closing-tactic portfolio solves 4/4 synthetic trivial goals, then 0/70 real trapped ones |
-| Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as `ok` on the fully patched backend. This control covered only whole-proof-format models, which is exactly why it missed bug 4 |
-| Independent recompute | ~30 audit checks re-derived committed numbers using code that imports none of this project's analysis; most reproduced them exactly |
-| Self-detection | the audit invalidated the project's own Phase 8 headline and forced a correction to the published baseline curves, rather than confirming what was already believed |
+| Manipulation check | forced diversity (§2.2 row 6) demonstrably fired (+42-70%) in all four model/benchmark combinations, so the null in §3.1 came from an intervention that took effect, not one that silently failed to run |
+| Symbolic positive control | the closing-tactic portfolio (row 7) solves 4/4 synthetic trivial goals, then 0/70 real trapped ones |
+| Known-good proofs | 37/37 Goedel and 40/40 DeepSeek previously solved cells re-verify as correct on the fully patched backend |
+| Independent recompute | roughly 30 audit checks re-derived committed numbers using code that imports none of this project's analysis; most reproduced them exactly |
+| Self-detection | the audit itself invalidated one of this project's own results (§4.3) and forced a correction to the published baseline curves, rather than only confirming what was already believed |
 
-### 3.2 Consistency with published results
+### 4.2 Consistency with published results
 
 | Our result | Published | Verdict |
 |---|---|---|
 | Goedel miniF2F, 195/244 ≈ 80% at roughly pass@32-scale sampling | authors report 84.6% at pass@32 ([2508.03613](https://arxiv.org/abs/2508.03613)); a third-party reproduction reports ~78% | lands between the two |
-| Goedel baseline 75.3% at `B`=128k | 84.6% at pass@32 | explained by the budget-to-attempts conversion, below |
+| Goedel baseline 75.3% at `B`=128k | 84.6% at pass@32 | explained by the budget-to-attempts conversion in §1 |
 | Retrieval hurts out of distribution | ReProver degrades on its own novel-premises split ([2306.15626](https://arxiv.org/abs/2306.15626)) | same direction |
 | Reviewer step null | intrinsic self-correction without ground truth is an established null ([2310.01798](https://arxiv.org/abs/2310.01798)) | replicates |
 | Allocation saves ~30% | difficulty-aware allocation saves up to 4x ([2408.03314](https://arxiv.org/abs/2408.03314)) | inside range, conservative |
@@ -311,76 +331,33 @@ samples on the previously unsolved subset, so it is not a clean pass@32 run. It 
 whether this harness produces numbers wildly out of line with published ones
 ([`results/phase0/PASS_AT_32_RECONCILIATION.md`](results/phase0/PASS_AT_32_RECONCILIATION.md)).
 
-Three points do most of the reconciling:
+Two points do most of the reconciling. First, the Goedel gap closes once budget is converted into
+attempts: as set out in §1, `B`=128k buys Goedel a mean of 1.94 proposals — nearer pass@2 than
+pass@32 — so the apparent 9pp shortfall is the `pass@B` vs `pass@N` distinction, not a harness
+defect. Second, published scaffolding gains are typically compute-unmatched, comparing a scaffolded
+system against a cheaper baseline; holding the budget fixed is a strictly harder test, so a null
+where the literature reports a gain is the expected outcome, not a contradiction of it.
 
-- **The Goedel gap closes once budget is converted into attempts.** As set out in §1, `B`=128k buys
-  Goedel a mean of 1.94 proposals — nearer pass@2 than pass@32 — so the apparent 9pp shortfall is
-  the `pass@B` vs `pass@N` distinction, not a harness defect.
-- **Published scaffolding gains are typically compute-unmatched**, comparing a scaffolded system
-  against a cheaper baseline. Holding the budget fixed is a strictly harder test, so a null where
-  the literature reports a gain is the expected outcome, not a contradiction of it.
-- **Both training nulls have an identifiable signature.** The GRPO probe's training reward never
-  trended over 80 steps while KL stayed at 0.0021 and output diversity was unchanged — the clean
-  "reward flat, no pathology" branch of the pre-registered decision map, not a mis-tuned stall. The
-  SFT signature — near-zero teacher-forced loss on a step in isolation, yet failure when the model
-  reaches that step through its own generated prefix — is exposure bias, named in scheduled sampling
-  (Bengio et al., 2015) and DAgger (Ross and Bagnell, 2011).
+### 4.3 Harness bugs found during the audit
 
----
+While building the pipeline, five scoring bugs were found and fixed — two that made the model look
+more capable than it was, and three that made it look less capable. The most consequential: a
+soundness check read the wrong part of a proof completion and forced one entire model-comparison
+sweep ("Phase 8") to a flat, meaningless 0% regardless of quality; that sweep is **withdrawn** and
+no number in this document cites it. A second bug — a Lean elaboration-timeout setting left at its
+default — caused a small number of genuinely correct proofs to be scored as failures; the baseline
+curves in §2.1 already include this correction (up to +1.0pp per cell). None of the five bugs
+affects any other number in this document.
 
-## 4. Limitations
-
-- **No compute-unmatched positive control.** Everything was run budget-matched. The argument is that
-  this is *why* the arms came out null, but the harness was never shown to detect a scaffolding gain
-  under the conditions where the literature reports one. Re-running one intervention at a
-  deliberately unmatched budget is the highest-value remaining check.
-- **The operating point is narrow.** At `B`=128k Goedel gets ~1.94 attempts, so a scaffold costing
-  2x per attempt must nearly double per-attempt success to break even. That follows from matching
-  budget rather than being a defect, but "nothing works" should be read as "nothing works at a
-  budget buying roughly two attempts."
-- **Several arms are weaker than their published counterparts.** Retrieval is untrained BM25 into a
-  whole-proof prompt, where ReProver uses a trained retriever in a stepwise loop. The hammer arm is
-  a lite in-context tactic portfolio, not `duper` or an SMT bridge — neither is available on the
-  v4.9.0 pin and neither was ported. The RL probe is LoRA r=16 for 80 steps, far smaller than any
-  published RL stage. These nulls constrain our implementations, not the general techniques.
-- **Not everything got the full seed protocol.** The stepwise arc (item 10) was single-seed and
-  covers only the Goedel ProofNet# trapped core; miniF2F and DeepSeek's own trapped set were never
-  run through it. The allocation result was never confirmed live.
-- **Scale and scope.** Everything is 7-8B parameters; whether the floor persists at larger scale is
-  the largest open question, and a scoped 32B calibration cell was deliberately not run
-  ([`results/phase_scale32b/FEASIBILITY.md`](results/phase_scale32b/FEASIBILITY.md)). Models trained
-  specifically for decomposition are a different class, and none of this is evidence against them.
-- **The trapped cores are a regime, not a property of the problems.** Fresh resampling at pass@32
-  with no budget cap recovered 6/55 of the Goedel miniF2F core (~11%). "Trapped" means "this loop,
-  at this budget, did not solve it."
+Each is written up in full — mechanism, which results it touched, and a check you can run against
+your own harness — in
+**[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)**. None of the five is specific
+to this codebase; they are the kind of error that reproduces silently in any pipeline pairing an LLM
+with an automated verifier.
 
 ---
 
-## 5. What may be useful outside this project
-
-- **[`results/audit/BUG_CATALOGUE.md`](results/audit/BUG_CATALOGUE.md)** — five harness bugs and two
-  measurement gaps, each with a check you can run against your own LLM-plus-verifier pipeline. Two
-  of the five overstate capability, the direction that gets published. The most portable thing here.
-- **[`results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md`](results/phase0/ATTEMPTS_PER_BUDGET_TABLE.md)** —
-  the budget-to-attempts conversion for four model x benchmark combinations, needed by anyone
-  comparing a compute-bounded result against a published `pass@N` figure.
-- **[`results/trapped_cores/`](results/trapped_cores/README.md)** — the five problem lists no
-  baseline seed solved at 128k, with the three caveats that must travel with them. A ready-made hard
-  slice for testing an execution-depth intervention.
-- **[`results/EQUIVALENCE_BOUNDS.md`](results/EQUIVALENCE_BOUNDS.md)** — bounded nulls rather than
-  bare ones, plus a worked case where a within-run bootstrap CI and an independent replication's CI
-  do not overlap at all for the same intervention.
-- **Two pre-registrations that did their job.**
-  [`phase4/PREDICTOR_V2_DESIGN.md`](results/phase4/PREDICTOR_V2_DESIGN.md) set a bar, the result
-  missed it, and the direction closed. [`phase_decomp/DESIGN.md`](results/phase_decomp/DESIGN.md)
-  set a stopping rule that ended an expensive direction after ~2.3 GPU-hours instead of a full
-  array.
-- **The harness itself** — budget-metered `pass@B` evaluation over a Lean REPL backend, restartable
-  under preemption, with the cluster constraints in §6 already solved.
-
----
-
-## 6. Running it
+## 5. Running it
 
 ```bash
 module load anaconda/2023.09
@@ -415,7 +392,7 @@ Partitions: `short` (12h) for eval, `burst` (14 days, preemptible) for sweeps an
 
 ---
 
-## 7. Repository layout
+## 6. Repository layout
 
 ```
 CONVENTIONS.md    # engineering rules the code was written under, cited by rule number
@@ -432,7 +409,7 @@ src/atp/
 └── rl/           # GRPO reward, diversity, subset selection
 
 configs/          # one versioned YAML per experiment. Pins are load-bearing.
-slurm/            # restartable sbatch scripts. Read the constraints in §6 first.
+slurm/            # restartable sbatch scripts. Read the constraints in §5 first.
 scripts/          # analysis and one-off probes
 results/          # the evidence for every number above; see results/README.md
 tests/            # mirrors src/ (markers: slow, gpu, lean)
@@ -441,7 +418,7 @@ env/              # frozen pip + conda listings for the environment behind every
 
 ---
 
-## 8. Reproducibility pins
+## 7. Reproducibility pins
 
 Runs write a `run_manifest.json` recording git SHA, config hash, seed, model revision, Mathlib
 commit, Lean version, host, GPU type and timestamps. The toolchain is pinned exactly because Mathlib
