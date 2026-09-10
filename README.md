@@ -161,7 +161,7 @@ ranges are 95% paired per-problem bootstrap confidence intervals.
 | 4 | Tactic-skeleton hints | Each fresh proposal gets a one-line hint naming a common Lean proof pattern (e.g. an induction skeleton, a standard closing-tactic combination), cycling through a fixed list across successive samples so different samples are nudged toward different structures. | No measurable effect on either benchmark (+1.0 / −0.5). |
 | 5 | Forced approach diversity | Run only on the trapped cores (problems no baseline seed had solved). Before each fresh proposal, the model is shown the list of opening tactics it has already tried on this problem and explicitly told to take a different approach, at matched budget. | Confirmed to work as intended — opening-tactic diversity rose 42-70% across all four model/benchmark combinations — but this did not produce solves: **5 verified proofs in total** across all four, indistinguishable from zero. Proof quality got worse: pushed toward novelty, the model produced far more syntactically broken output and used the `sorry` placeholder roughly three times as often, all caught by the verifier (interpreted in §3.1). |
 | 6 | Hammer / SMT closing | A portfolio of Lean's own closing tactics (`omega`, `nlinarith`, `norm_num`, `simp_all`, `decide`, `aesop`), tried both directly on the bare unsolved goal and substituted in at the exact point where the model's own attempt got stuck. | Closed **0 of 30** trapped problems tried directly and **0 of 40** tried at the failing step. A sanity check confirms the portfolio does work when it should — it solved 4 of 4 trivial synthetic test goals — so this is a genuine null, not a broken setup. |
-| 7 | Supervised fine-tuning | Two fine-tuning recipes on top of the frozen base weights, each then evaluated with the ordinary baseline loop: **Stage A** trains on proofs sampled at random from the model's own successful rollouts (generic rejection-sampling fine-tuning); **Stage B** trains specifically on the transition from a deep, stuck proof state to a correct closing, with the training loss restricted to just the closing tokens. | Stage A made things substantially worse everywhere, from −2.5 to **−19.7pp** across both models and both benchmarks. Stage B, the more targeted recipe, also did not help (−0.3 to −2.1pp). |
+| 7 | Supervised fine-tuning | Two fine-tuning recipes on top of the frozen base weights, each then evaluated with the ordinary baseline loop: **Stage A** trains on proofs sampled at random from the model's own successful rollouts (generic rejection-sampling fine-tuning); **Stage B** trains specifically on the transition from a deep, stuck proof state to a correct closing, with the training loss restricted to just the closing tokens. | Stage A made things substantially worse everywhere, from −2.5 to **−19.7pp** across both models and both benchmarks. Stage B, the more targeted recipe, also did not help (−0.3 to −2.1pp) — despite low training loss on the closing step in isolation, meaning the model conditionally knows the right ending but still fails to produce it when it reaches that point via its own generated prefix rather than the training-time one: the signature of exposure bias (scheduled sampling, Bengio et al. 2015; DAgger, Ross & Bagnell 2011). |
 | 8 | GRPO reinforcement learning | A reinforcement-learning stage (GRPO, LoRA adapters, 80 steps) on top of the frozen weights, rewarding a binary "Lean verified and sound" signal, trained on a problem set disjoint from both benchmarks. | No improvement on a held-out test set (**−1.6pp** pass@1), and the training reward itself never trended upward across all 80 steps — the model wasn't gradually improving and then stalling, it made no measurable training progress at all. |
 | 9 | Stepwise generation | Instead of one call producing a whole proof, the model is asked for one tactic at a time and shown the real, Lean-verified proof state after each step — never its own possibly-wrong guess of where the proof stands. Tried both on the reasoning model doing this directly, and on a tactic-native model (BFS-Prover-V1-7B) doing genuine search with backtracking. | 77 of 150 previously-unsolved problems reached real, further verified progress under this scheme — the model was not stuck immediately — but **0 of 150** ever closed. Perfect information about the true proof state at every step did not let it finish. |
 | 10 | Subgoal decomposition | Prompt the model to split the target theorem into several smaller helper lemmas (`have` statements) that can each be proved independently, rather than attacking the whole theorem in one proof. | Stopped at the earliest checkpoint by a rule set in advance: across five trial rounds on two models, the model never once produced a structurally valid decomposition, so the direction was abandoned before any further compute was spent. |
@@ -287,6 +287,26 @@ is the cost of not knowing in advance which problems are trapped.
   with no budget cap recovered 6/55 of the Goedel miniF2F core (~11%). "Trapped" means "this loop,
   at this budget, did not solve it."
 
+### 3.4 Takeaways
+
+- **Diagnose before you scaffold.** Retrieval, memory, a critic and hints only pay for themselves if
+  the model's failures are idea- or knowledge-limited. Here they are almost entirely execution
+  failures instead (§3.1), so every intervention built for the former failure mode was aimed at the
+  wrong target from the start. Check which failure mode you actually have before adding scaffolding.
+- **The one result that worked was a scheduling decision, not a modeling one.** Allocation (§2.3)
+  doesn't make the model reason better; it decides which problems are worth continuing to fund. That
+  is a genuinely different kind of lever from the other nine, and it is the only one that moved
+  anything.
+- **Training doesn't rescue this either, and there's a specific, checkable reason.** SFT's null
+  comes with a named mechanism (exposure bias, §2.2 row 7) rather than being an unexplained dead end
+  — it points at what a fix would actually need to address (the gap between conditional knowledge
+  and autoregressive generation), not just that training "didn't work."
+- **None of this is evidence against the strong versions.** Untrained retrieval, a lite tactic
+  portfolio, and an 80-step LoRA RL probe are cheap stand-ins for a trained retriever, a real
+  hammer/SMT bridge, and a full RL stage (§3.3). Whether the execution floor survives at larger
+  scale than 7-8B is also unresolved. What's established here is narrower and more specific: at this
+  scale, at matched budget, these particular implementations don't move the floor.
+
 ---
 
 ## 4. Appendix: why these results should be trusted
@@ -310,10 +330,10 @@ that: internal sanity checks, and agreement with independently published numbers
 |---|---|---|
 | Goedel miniF2F, 195/244 ≈ 80% at roughly pass@32-scale sampling | authors report 84.6% at pass@32 ([2508.03613](https://arxiv.org/abs/2508.03613)) | within a few points |
 | Goedel baseline 75.3% at `B`=128k | 84.6% at pass@32 | explained by the budget-to-attempts conversion in §1 |
-| Retrieval hurts out of distribution | ReProver degrades on its own novel-premises split ([2306.15626](https://arxiv.org/abs/2306.15626)) | same direction |
-| Reviewer step null | intrinsic self-correction without ground truth is an established null ([2310.01798](https://arxiv.org/abs/2310.01798)) | replicates |
-| Allocation saves ~30% | difficulty-aware allocation saves up to 4x ([2408.03314](https://arxiv.org/abs/2408.03314)) | inside range, conservative |
-| GRPO probe null at 80 steps | V1.5's RL stage gains +1.2 to +2.3pp over ~4,500 theorems ([2408.08152](https://arxiv.org/abs/2408.08152)) | expected at this probe's scale |
+| Retrieval hurts out of distribution | ReProver degrades on its own novel-premises split ([2306.15626](https://arxiv.org/abs/2306.15626)) | same direction — ReProver's retriever is trained and re-queried per step; ours is a one-shot lexical lookup, aimed at a failure mode (missing premises) that §3.1 shows is under 1% of what actually fails here |
+| Reviewer step null | intrinsic self-correction without ground truth is an established null ([2310.01798](https://arxiv.org/abs/2310.01798)) | replicates — both find that without ground truth, a model's judgment of its own output shares its own blind spots |
+| Allocation saves ~30% | difficulty-aware allocation saves up to 4x ([2408.03314](https://arxiv.org/abs/2408.03314)) | smaller effect, same direction — ProofNet# is mostly at-or-near-trapped rather than a smooth spread of difficulty, which caps how much even a perfect predictor can reallocate (the oracle ceiling in §2.3) |
+| GRPO probe null at 80 steps | V1.5's RL stage gains +1.2 to +2.3pp over ~4,500 theorems ([2408.08152](https://arxiv.org/abs/2408.08152)) | expected — the published gain is itself modest, and this probe (LoRA rank 16, 80 steps) is far smaller than the published RL stage |
 
 The first row is a calibration check, not a headline: it unions the 3 baseline seeds with 32 fresh
 samples on the previously unsolved subset, so it is not a clean pass@32 run. It exists only to test
